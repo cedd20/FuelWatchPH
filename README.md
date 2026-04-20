@@ -10,17 +10,25 @@
 
 ---
 
-## ✨ Overview
+## ✨ Features
 
-**FuelWatchPH** is a modern web application designed to empower Filipino motorists by crowdsourcing real-time fuel prices. Built with a focus on high-fidelity design and seamless user experience, it allows users to locate gas stations, compare prices, and contribute to the community by updating fuel costs.
+### Current 🟢
+- **Premium User Experience**: High-fidelity UI with smooth animations and glassmorphism.
+- **Secure Authentication**: Complete login and registration flow powered by Supabase.
+- **Splash Screen**: Branded loading sequence with animated transitions.
+- **Monorepo Architecture**: Scalable project structure using pnpm/npm workspaces.
 
-## 🚀 Key Features
+### In Development 🟡
+- **Interactive Fuel Map**: Integrated Leaflet map showing gas stations around the user.
+- **Price Comparison**: Logic to filter and sort stations by fuel price.
+- **Responsive Layouts**: Optimized views for all mobile devices.
 
-- **📍 Interactive Fuel Map**: View nearby gas stations with real-time price indicators powered by Leaflet.
-- **💰 Price Comparison**: Effortlessly find the cheapest gas in your area.
-- **👥 Community Powered**: Crowdsourced updates from fellow drivers ensure data is fresh and accurate.
-- **🔐 Secure Authentication**: Integrated with Supabase for robust user management.
-- **📱 Premium Responsive Design**: A stunning, modern UI that works flawlessly on both desktop and mobile.
+### Roadmap 🗺️
+- **Crowdsourced Reporting**: Allow users to update prices on-the-go.
+- **Verify Updates**: Community verification system for price accuracy.
+- **Fuel Analytics**: Historical price trends and insights for different regions.
+- **Rewards System**: Incentives for active contributors.
+
 
 ## 🛠️ Tech Stack
 
@@ -49,40 +57,85 @@ FuelWatchPH/
 
 ## 🛠️ Getting Started
 
-### Prerequisites
+Follow these steps to get the project up and running on your local machine.
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [npm](https://www.npmjs.com/) or [pnpm](https://pnpm.io/)
+### 📋 Prerequisites
 
-### Installation
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher (or pnpm v8+)
+- **Supabase Account**: A free project at [supabase.com](https://supabase.com)
 
-1. **Clone the repository**
+### ⚙️ Installation & Setup
+
+1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/fuelwatchph.git
-   cd fuelwatchph
+   git clone https://github.com/cedd20/FuelWatchPH.git
+   cd FuelWatchPH
    ```
 
-2. **Install dependencies**
+2. **Install Dependencies**
+   Run this in the root directory to install all package dependencies for both the workspace and individual apps:
    ```bash
    npm install
    ```
 
 3. **Configure Environment Variables**
-   Create a `.env` file in `apps/web/` and add your Supabase credentials:
+   Navigate to the web application directory and create a `.env` file:
+   ```bash
+   cd apps/web
+   cp .env.example .env  # If .env.example exists, otherwise create it manually
+   ```
+   
+   Add your Supabase project credentials to `apps/web/.env`:
    ```env
-   VITE_SUPABASE_URL=your-supabase-url
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+   VITE_SUPABASE_URL=https://your-project-id.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
    ```
 
-4. **Run the development server**
+4. **Database Setup (Optional but Recommended)**
+   If you have the [Supabase CLI](https://supabase.com/docs/guides/cli) installed, you can link your project:
    ```bash
+   supabase login
+   supabase link --project-ref your-project-ref
+   ```
+
+5. **Start Development Server**
+   Return to the root directory and run the following command to start the web app:
+   ```bash
+   cd ../..
    npm run dev
    ```
+   The application will be available at `http://localhost:5173`.
 
-## 📸 Design Identity
+## 🏗️ Architecture & Workspace
 
-The application features a premium aesthetic using a **Vibrant Blue to Indigo gradient** design language, emphasizing trust, speed, and community.
+FuelWatchPH uses a **Monorepo** structure powered by `npm workspaces`. This allows for better code sharing and dependency management.
+
+- **`apps/web`**: The main React + Vite application.
+- **`supabase/`**: Contains database schema, seeds, and edge functions.
+- **`shared/`**: (Future) Shared components and utilities used across different platforms.
+
+### Key Scripts (Run from Root)
+
+- `npm run dev`: Runs the development server for the web app.
+- `npm run build`: Generates a production-ready bundle.
+- `npm run lint`: Performs static code analysis to ensure quality.
+
+## 🤝 Contributing
+
+We welcome contributions from the community! Whether it's fixing bugs, adding new features, or improving documentation:
+
+1. Fork the Project.
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the Branch (`git push origin feature/AmazingFeature`).
+5. Open a Pull Request.
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
 Built with ❤️ for the Filipino driving community.
+
