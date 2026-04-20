@@ -1,0 +1,12 @@
+{
+  "name": "fuelwatchph",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@fuelwatchph/web",
+    "build": "npm run build --workspace=@fuelwatchph/web",
+    "preview": "npm run preview --workspace=@fuelwatchph/web"
+  }
+}
