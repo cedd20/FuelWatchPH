@@ -1,178 +1,16 @@
-import { useState } from "react";
-import { Fuel, Info, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Fuel, Info, ChevronDown, Loader2 } from "lucide-react";
 import { PriceMovementBadge } from "@/shared/components/PriceMovementBadge";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import * as Accordion from "@radix-ui/react-accordion";
 
 // Sample brand prices for each week
-const weeklyBrandData = {
-  "Apr 8–14": [
-    {
-      name: "Cleanfuel",
-      prices: { diesel: 55.00, premiumDiesel: 59.20, unleaded91: 64.20, premium95: 67.90, premium97: 72.50, kerosene: 52.00 },
-      badge: "Cheapest Diesel",
-      movement: "Lower this week",
-    },
-    {
-      name: "Seaoil",
-      prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.50, premium97: 72.90, kerosene: 52.80 },
-      badge: "Best Average",
-      movement: "Stable",
-    },
-    {
-      name: "Petron",
-      prices: { diesel: 56.10, premiumDiesel: 60.20, unleaded91: 65.10, premium95: 69.00, premium97: 73.20, kerosene: 53.10 },
-      movement: "Higher this week",
-    },
-    {
-      name: "Shell",
-      prices: { diesel: 56.20, premiumDiesel: 60.30, unleaded91: 65.20, premium95: 69.10, premium97: 73.30, kerosene: 53.20 },
-      movement: "Higher this week",
-    },
-    {
-      name: "Caltex",
-      prices: { diesel: 56.15, premiumDiesel: 60.25, unleaded91: 65.15, premium95: 69.05, premium97: 73.25, kerosene: 53.15 },
-      movement: "Stable",
-    },
-    {
-      name: "Phoenix",
-      prices: { diesel: 55.50, premiumDiesel: 59.70, unleaded91: 64.50, premium95: 68.20, premium97: 72.80, kerosene: 52.50 },
-      badge: "Often cheaper",
-      movement: "Lower this week",
-    },
-    {
-      name: "Unioil",
-      prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.60, premium97: 73.00, kerosene: 52.90 },
-      movement: "Stable",
-    },
-  ],
-  "Apr 1–7": [
-    {
-      name: "Cleanfuel",
-      prices: { diesel: 54.70, premiumDiesel: 58.90, unleaded91: 63.90, premium95: 67.60, premium97: 72.20, kerosene: 51.70 },
-      badge: "Cheapest Diesel",
-      movement: "Stable",
-    },
-    {
-      name: "Seaoil",
-      prices: { diesel: 55.50, premiumDiesel: 59.60, unleaded91: 64.50, premium95: 68.20, premium97: 72.60, kerosene: 52.50 },
-      badge: "Best Average",
-      movement: "Lower this week",
-    },
-    {
-      name: "Petron",
-      prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.70, premium97: 72.90, kerosene: 52.80 },
-      movement: "Stable",
-    },
-    {
-      name: "Shell",
-      prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.80, premium97: 73.00, kerosene: 52.90 },
-      movement: "Stable",
-    },
-    {
-      name: "Caltex",
-      prices: { diesel: 55.85, premiumDiesel: 59.95, unleaded91: 64.85, premium95: 68.75, premium97: 72.95, kerosene: 52.85 },
-      movement: "Lower this week",
-    },
-    {
-      name: "Phoenix",
-      prices: { diesel: 55.20, premiumDiesel: 59.40, unleaded91: 64.20, premium95: 67.90, premium97: 72.50, kerosene: 52.20 },
-      badge: "Often cheaper",
-      movement: "Stable",
-    },
-    {
-      name: "Unioil",
-      prices: { diesel: 55.60, premiumDiesel: 59.70, unleaded91: 64.60, premium95: 68.30, premium97: 72.70, kerosene: 52.60 },
-      movement: "Higher this week",
-    },
-  ],
-  "Mar 25–31": [
-    {
-      name: "Cleanfuel",
-      prices: { diesel: 54.90, premiumDiesel: 59.10, unleaded91: 64.10, premium95: 67.80, premium97: 72.40, kerosene: 51.90 },
-      badge: "Cheapest Diesel",
-      movement: "Higher this week",
-    },
-    {
-      name: "Seaoil",
-      prices: { diesel: 55.70, premiumDiesel: 59.80, unleaded91: 64.70, premium95: 68.40, premium97: 72.80, kerosene: 52.70 },
-      badge: "Best Average",
-      movement: "Higher this week",
-    },
-    {
-      name: "Petron",
-      prices: { diesel: 56.00, premiumDiesel: 60.10, unleaded91: 65.00, premium95: 68.90, premium97: 73.10, kerosene: 53.00 },
-      movement: "Higher this week",
-    },
-    {
-      name: "Shell",
-      prices: { diesel: 56.10, premiumDiesel: 60.20, unleaded91: 65.10, premium95: 69.00, premium97: 73.20, kerosene: 53.10 },
-      movement: "Higher this week",
-    },
-    {
-      name: "Caltex",
-      prices: { diesel: 56.05, premiumDiesel: 60.15, unleaded91: 65.05, premium95: 68.95, premium97: 73.15, kerosene: 53.05 },
-      movement: "Stable",
-    },
-    {
-      name: "Phoenix",
-      prices: { diesel: 55.40, premiumDiesel: 59.60, unleaded91: 64.40, premium95: 68.10, premium97: 72.70, kerosene: 52.40 },
-      badge: "Often cheaper",
-      movement: "Higher this week",
-    },
-    {
-      name: "Unioil",
-      prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.50, premium97: 72.90, kerosene: 52.80 },
-      movement: "Stable",
-    },
-  ],
-  "Mar 18–24": [
-    {
-      name: "Cleanfuel",
-      prices: { diesel: 54.80, premiumDiesel: 59.00, unleaded91: 64.00, premium95: 67.70, premium97: 72.30, kerosene: 51.80 },
-      badge: "Cheapest Diesel",
-      movement: "Lower this week",
-    },
-    {
-      name: "Seaoil",
-      prices: { diesel: 55.60, premiumDiesel: 59.70, unleaded91: 64.60, premium95: 68.30, premium97: 72.70, kerosene: 52.60 },
-      badge: "Best Average",
-      movement: "Stable",
-    },
-    {
-      name: "Petron",
-      prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.80, premium97: 73.00, kerosene: 52.90 },
-      movement: "Stable",
-    },
-    {
-      name: "Shell",
-      prices: { diesel: 56.00, premiumDiesel: 60.10, unleaded91: 65.00, premium95: 68.90, premium97: 73.10, kerosene: 53.00 },
-      movement: "Higher this week",
-    },
-    {
-      name: "Caltex",
-      prices: { diesel: 55.95, premiumDiesel: 60.05, unleaded91: 64.95, premium95: 68.85, premium97: 73.05, kerosene: 52.95 },
-      movement: "Stable",
-    },
-    {
-      name: "Phoenix",
-      prices: { diesel: 55.30, premiumDiesel: 59.50, unleaded91: 64.30, premium95: 68.00, premium97: 72.60, kerosene: 52.30 },
-      badge: "Often cheaper",
-      movement: "Lower this week",
-    },
-    {
-      name: "Unioil",
-      prices: { diesel: 55.70, premiumDiesel: 59.80, unleaded91: 64.70, premium95: 68.40, premium97: 72.80, kerosene: 52.70 },
-      movement: "Higher this week",
-    },
-  ],
-};
-
-const weeklyData = [
+const MOCK_HISTORY = [
   {
     week: "Apr 8–14",
+    date: "Apr 8",
     year: "2026",
-    prices: {
+    averages: {
       diesel: 58.40,
       premiumDiesel: 62.50,
       unleaded91: 67.20,
@@ -180,19 +18,52 @@ const weeklyData = [
       premium97: 75.80,
       kerosene: 55.30
     },
-    changes: {
-      diesel: 0.35,
-      premiumDiesel: 0.30,
-      unleaded91: 0.40,
-      premium95: 0.35,
-      premium97: 0.40,
-      kerosene: 0.30
-    }
+    brands: [
+      {
+        name: "Cleanfuel",
+        prices: { diesel: 55.00, premiumDiesel: 59.20, unleaded91: 64.20, premium95: 67.90, premium97: 72.50, kerosene: 52.00 },
+        badge: "Cheapest Diesel",
+        movement: "Lower this week",
+      },
+      {
+        name: "Seaoil",
+        prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.50, premium97: 72.90, kerosene: 52.80 },
+        badge: "Best Average",
+        movement: "Stable",
+      },
+      {
+        name: "Petron",
+        prices: { diesel: 56.10, premiumDiesel: 60.20, unleaded91: 65.10, premium95: 69.00, premium97: 73.20, kerosene: 53.10 },
+        movement: "Higher this week",
+      },
+      {
+        name: "Shell",
+        prices: { diesel: 56.20, premiumDiesel: 60.30, unleaded91: 65.20, premium95: 69.10, premium97: 73.30, kerosene: 53.20 },
+        movement: "Higher this week",
+      },
+      {
+        name: "Caltex",
+        prices: { diesel: 56.15, premiumDiesel: 60.25, unleaded91: 65.15, premium95: 69.05, premium97: 73.25, kerosene: 53.15 },
+        movement: "Stable",
+      },
+      {
+        name: "Phoenix",
+        prices: { diesel: 55.50, premiumDiesel: 59.70, unleaded91: 64.50, premium95: 68.20, premium97: 72.80, kerosene: 52.50 },
+        badge: "Often cheaper",
+        movement: "Lower this week",
+      },
+      {
+        name: "Unioil",
+        prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.60, premium97: 73.00, kerosene: 52.90 },
+        movement: "Stable",
+      },
+    ]
   },
   {
     week: "Apr 1–7",
+    date: "Apr 1",
     year: "2026",
-    prices: {
+    averages: {
       diesel: 58.05,
       premiumDiesel: 62.20,
       unleaded91: 66.80,
@@ -200,19 +71,52 @@ const weeklyData = [
       premium97: 75.40,
       kerosene: 55.00
     },
-    changes: {
-      diesel: -0.15,
-      premiumDiesel: -0.10,
-      unleaded91: -0.20,
-      premium95: -0.15,
-      premium97: -0.10,
-      kerosene: -0.15
-    }
+    brands: [
+      {
+        name: "Cleanfuel",
+        prices: { diesel: 54.70, premiumDiesel: 58.90, unleaded91: 63.90, premium95: 67.60, premium97: 72.20, kerosene: 51.70 },
+        badge: "Cheapest Diesel",
+        movement: "Stable",
+      },
+      {
+        name: "Seaoil",
+        prices: { diesel: 55.50, premiumDiesel: 59.60, unleaded91: 64.50, premium95: 68.20, premium97: 72.60, kerosene: 52.50 },
+        badge: "Best Average",
+        movement: "Lower this week",
+      },
+      {
+        name: "Petron",
+        prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.70, premium97: 72.90, kerosene: 52.80 },
+        movement: "Stable",
+      },
+      {
+        name: "Shell",
+        prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.80, premium97: 73.00, kerosene: 52.90 },
+        movement: "Stable",
+      },
+      {
+        name: "Caltex",
+        prices: { diesel: 55.85, premiumDiesel: 59.95, unleaded91: 64.85, premium95: 68.75, premium97: 72.95, kerosene: 52.85 },
+        movement: "Lower this week",
+      },
+      {
+        name: "Phoenix",
+        prices: { diesel: 55.20, premiumDiesel: 59.40, unleaded91: 64.20, premium95: 67.90, premium97: 72.50, kerosene: 52.20 },
+        badge: "Often cheaper",
+        movement: "Stable",
+      },
+      {
+        name: "Unioil",
+        prices: { diesel: 55.60, premiumDiesel: 59.70, unleaded91: 64.60, premium95: 68.30, premium97: 72.70, kerosene: 52.60 },
+        movement: "Higher this week",
+      },
+    ]
   },
   {
     week: "Mar 25–31",
+    date: "Mar 25",
     year: "2026",
-    prices: {
+    averages: {
       diesel: 58.20,
       premiumDiesel: 62.30,
       unleaded91: 67.00,
@@ -220,19 +124,52 @@ const weeklyData = [
       premium97: 75.50,
       kerosene: 55.15
     },
-    changes: {
-      diesel: 0.10,
-      premiumDiesel: 0.15,
-      unleaded91: 0.10,
-      premium95: 0.10,
-      premium97: 0.15,
-      kerosene: 0.10
-    }
+    brands: [
+      {
+        name: "Cleanfuel",
+        prices: { diesel: 54.90, premiumDiesel: 59.10, unleaded91: 64.10, premium95: 67.80, premium97: 72.40, kerosene: 51.90 },
+        badge: "Cheapest Diesel",
+        movement: "Higher this week",
+      },
+      {
+        name: "Seaoil",
+        prices: { diesel: 55.70, premiumDiesel: 59.80, unleaded91: 64.70, premium95: 68.40, premium97: 72.80, kerosene: 52.70 },
+        badge: "Best Average",
+        movement: "Higher this week",
+      },
+      {
+        name: "Petron",
+        prices: { diesel: 56.00, premiumDiesel: 60.10, unleaded91: 65.00, premium95: 68.90, premium97: 73.10, kerosene: 53.00 },
+        movement: "Higher this week",
+      },
+      {
+        name: "Shell",
+        prices: { diesel: 56.10, premiumDiesel: 60.20, unleaded91: 65.10, premium95: 69.00, premium97: 73.20, kerosene: 53.10 },
+        movement: "Higher this week",
+      },
+      {
+        name: "Caltex",
+        prices: { diesel: 56.05, premiumDiesel: 60.15, unleaded91: 65.05, premium95: 68.95, premium97: 73.15, kerosene: 53.05 },
+        movement: "Stable",
+      },
+      {
+        name: "Phoenix",
+        prices: { diesel: 55.40, premiumDiesel: 59.60, unleaded91: 64.40, premium95: 68.10, premium97: 72.70, kerosene: 52.40 },
+        badge: "Often cheaper",
+        movement: "Higher this week",
+      },
+      {
+        name: "Unioil",
+        prices: { diesel: 55.80, premiumDiesel: 59.90, unleaded91: 64.80, premium95: 68.50, premium97: 72.90, kerosene: 52.80 },
+        movement: "Stable",
+      },
+    ]
   },
   {
     week: "Mar 18–24",
+    date: "Mar 18",
     year: "2026",
-    prices: {
+    averages: {
       diesel: 58.10,
       premiumDiesel: 62.15,
       unleaded91: 66.90,
@@ -240,53 +177,46 @@ const weeklyData = [
       premium97: 75.35,
       kerosene: 55.05
     },
-    changes: {
-      diesel: 0.20,
-      premiumDiesel: 0.20,
-      unleaded91: 0.25,
-      premium95: 0.20,
-      premium97: 0.25,
-      kerosene: 0.20
-    }
-  },
-];
-
-const chartData = [
-  {
-    date: "Mar 18",
-    diesel: 58.10,
-    premiumDiesel: 62.15,
-    unleaded91: 66.90,
-    premium95: 70.70,
-    premium97: 75.35,
-    kerosene: 55.05
-  },
-  {
-    date: "Mar 25",
-    diesel: 58.20,
-    premiumDiesel: 62.30,
-    unleaded91: 67.00,
-    premium95: 70.80,
-    premium97: 75.50,
-    kerosene: 55.15
-  },
-  {
-    date: "Apr 1",
-    diesel: 58.05,
-    premiumDiesel: 62.20,
-    unleaded91: 66.80,
-    premium95: 70.65,
-    premium97: 75.40,
-    kerosene: 55.00
-  },
-  {
-    date: "Apr 8",
-    diesel: 58.40,
-    premiumDiesel: 62.50,
-    unleaded91: 67.20,
-    premium95: 71.00,
-    premium97: 75.80,
-    kerosene: 55.30
+    brands: [
+      {
+        name: "Cleanfuel",
+        prices: { diesel: 54.80, premiumDiesel: 59.00, unleaded91: 64.00, premium95: 67.70, premium97: 72.30, kerosene: 51.80 },
+        badge: "Cheapest Diesel",
+        movement: "Lower this week",
+      },
+      {
+        name: "Seaoil",
+        prices: { diesel: 55.60, premiumDiesel: 59.70, unleaded91: 64.60, premium95: 68.30, premium97: 72.70, kerosene: 52.60 },
+        badge: "Best Average",
+        movement: "Stable",
+      },
+      {
+        name: "Petron",
+        prices: { diesel: 55.90, premiumDiesel: 60.00, unleaded91: 64.90, premium95: 68.80, premium97: 73.00, kerosene: 52.90 },
+        movement: "Stable",
+      },
+      {
+        name: "Shell",
+        prices: { diesel: 56.00, premiumDiesel: 60.10, unleaded91: 65.00, premium95: 68.90, premium97: 73.10, kerosene: 53.00 },
+        movement: "Higher this week",
+      },
+      {
+        name: "Caltex",
+        prices: { diesel: 55.95, premiumDiesel: 60.05, unleaded91: 64.95, premium95: 68.85, premium97: 73.05, kerosene: 52.95 },
+        movement: "Stable",
+      },
+      {
+        name: "Phoenix",
+        prices: { diesel: 55.30, premiumDiesel: 59.50, unleaded91: 64.30, premium95: 68.00, premium97: 72.60, kerosene: 52.30 },
+        badge: "Often cheaper",
+        movement: "Lower this week",
+      },
+      {
+        name: "Unioil",
+        prices: { diesel: 55.70, premiumDiesel: 59.80, unleaded91: 64.70, premium95: 68.40, premium97: 72.80, kerosene: 52.70 },
+        movement: "Higher this week",
+      },
+    ]
   },
 ];
 
@@ -309,12 +239,60 @@ const fuelTypeColors = {
   "Kerosene": "#10B981",
 };
 
+
+
+// Helper to calculate price change relative to previous data point
+const getPriceChange = (data, currentIndex, fuelType) => {
+  if (currentIndex >= data.length - 1) return 0;
+  const current = data[currentIndex].averages[fuelTypeMap[fuelType]];
+  const previous = data[currentIndex + 1].averages[fuelTypeMap[fuelType]];
+  return current - previous;
+};
+
 export function GasHistory() {
   const [timeRange, setTimeRange] = useState("1M");
   const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
+  const [historyData, setHistoryData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate API Fetch: GET /api/price-history
+    const fetchHistory = async () => {
+      setIsLoading(true);
+      try {
+        // In production: const response = await fetch('/api/price-history');
+        // const data = await response.json();
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
+        setHistoryData(MOCK_HISTORY);
+      } catch (err) {
+        console.error("Failed to fetch history:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
+        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium animate-pulse">Loading historical trends...</p>
+      </div>
+    );
+  }
+
+  if (historyData.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
+        <p className="text-muted-foreground">No historical data available.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-6">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-6">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-14 pb-10 px-4 lg:px-8 relative overflow-hidden">
         {/* Enhanced radial glow background */}
@@ -380,10 +358,10 @@ export function GasHistory() {
                     <div className="text-sm lg:text-base font-bold text-muted-foreground tracking-tight">{selectedFuelType} Average</div>
                   </div>
                   <div className="text-4xl lg:text-5xl font-bold text-foreground mb-3 tracking-tighter">
-                    ₱{weeklyData[0].prices[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
+                    ₱{historyData[0].averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
                   </div>
                   <div className="flex items-center gap-2">
-                    <PriceMovementBadge change={weeklyData[0].changes[fuelTypeMap[selectedFuelType]]} />
+                    <PriceMovementBadge change={getPriceChange(historyData, 0, selectedFuelType)} />
                     <div className="text-sm lg:text-base text-muted-foreground/80 font-medium">This week</div>
                   </div>
                 </div>
@@ -423,20 +401,14 @@ export function GasHistory() {
                     <svg className="w-full h-full" viewBox="0 0 380 280">
                       {(() => {
                         const fuelKey = fuelTypeMap[selectedFuelType];
-                        const prices = chartData.map(d => d[fuelKey]);
-                        const minPrice = Math.min(...prices);
-                        const maxPrice = Math.max(...prices);
+                        const chartPoints = [...historyData].reverse();
+                        const prices = chartPoints.map(d => d.averages[fuelKey]);
+                        const minPrice = Math.min(...prices) * 0.98;
+                        const maxPrice = Math.max(...prices) * 1.02;
                         const range = maxPrice - minPrice || 1;
 
                         // Calculate Y-axis labels
-                        const yStep = range / 4;
-                        const yLabels = [
-                          minPrice,
-                          minPrice + yStep,
-                          minPrice + yStep * 2,
-                          minPrice + yStep * 3,
-                          maxPrice
-                        ];
+                        const yLabels = Array.from({ length: 5 }, (_, i) => minPrice + (range / 4) * i);
 
                         return (
                           <g>
@@ -472,15 +444,15 @@ export function GasHistory() {
                                   className="text-[10px] fill-current text-muted-foreground"
                                   textAnchor="end"
                                 >
-                                  ₱{label.toFixed(2)}
+                                  ₱{label.toFixed(1)}
                                 </text>
                               );
                             })}
 
                             {/* Line */}
                             <polyline
-                              points={chartData.map((d, i) => {
-                                const price = d[fuelKey];
+                              points={chartPoints.map((d, i) => {
+                                const price = d.averages[fuelKey];
                                 const y = 250 - ((price - minPrice) / range) * 200;
                                 const x = 90 + (i * 90);
                                 return `${x},${y}`;
@@ -493,8 +465,8 @@ export function GasHistory() {
                             />
 
                             {/* Data points */}
-                            {chartData.map((d, i) => {
-                              const price = d[fuelKey];
+                            {chartPoints.map((d, i) => {
+                              const price = d.averages[fuelKey];
                               const y = 250 - ((price - minPrice) / range) * 200;
                               const x = 90 + (i * 90);
                               return (
@@ -512,18 +484,11 @@ export function GasHistory() {
                             })}
 
                             {/* X-axis labels */}
-                            <text x="90" y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
-                              {chartData[0]?.date}
-                            </text>
-                            <text x="180" y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
-                              {chartData[1]?.date}
-                            </text>
-                            <text x="270" y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
-                              {chartData[2]?.date}
-                            </text>
-                            <text x="360" y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
-                              {chartData[3]?.date}
-                            </text>
+                            {chartPoints.map((d, i) => (
+                              <text key={i} x={90 + (i * 90)} y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
+                                {d.date}
+                              </text>
+                            ))}
                           </g>
                         );
                       })()}
@@ -547,7 +512,7 @@ export function GasHistory() {
               <div>
                 <h3 className="text-lg lg:text-xl font-bold text-foreground mb-5 lg:mb-6 tracking-tight">Weekly Breakdown</h3>
                 <Accordion.Root type="single" collapsible className="space-y-4 lg:space-y-5">
-                  {weeklyData.map((week, index) => (
+                  {historyData.map((weekData, index) => (
                     <Accordion.Item
                       key={index}
                       value={`week-${index}`}
@@ -557,19 +522,22 @@ export function GasHistory() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 text-left">
                             <div className="flex items-center gap-2.5 mb-2">
-                              <div className="font-bold text-foreground text-base">{week.week}, {week.year}</div>
+                              <div className="font-bold text-foreground text-base">{weekData.week}, {weekData.year}</div>
                               <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" strokeWidth={2.5} />
                             </div>
                             <div className="text-sm">
                               <span className="text-muted-foreground font-medium">
-                                {selectedFuelType}: <span className="text-foreground font-bold">₱{week.prices[fuelTypeMap[selectedFuelType]].toFixed(2)}/L</span>
+                                {selectedFuelType}: <span className="text-foreground font-bold">₱{weekData.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L</span>
                               </span>
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <PriceMovementBadge change={week.changes[fuelTypeMap[selectedFuelType]]} />
+                            <PriceMovementBadge change={getPriceChange(historyData, index, selectedFuelType)} />
                             <div className="text-xs text-muted-foreground/80 mt-1.5 font-semibold">
-                              {week.changes[fuelTypeMap[selectedFuelType]] > 0 ? "Increased" : week.changes[fuelTypeMap[selectedFuelType]] < 0 ? "Decreased" : "Stable"}
+                              {(() => {
+                                const change = getPriceChange(historyData, index, selectedFuelType);
+                                return change > 0 ? "Increased" : change < 0 ? "Decreased" : "Stable";
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -577,9 +545,14 @@ export function GasHistory() {
 
                       <Accordion.Content className="data-[state=open]:animate-slideDown data-[state=closed]:animate-slideUp overflow-hidden">
                         <div className="px-6 pb-6 pt-4 border-t border-white/20 dark:border-neutral-700/30">
-                          <h4 className="text-base lg:text-lg font-bold text-foreground mb-4 lg:mb-5 tracking-tight">Price by Brand</h4>
+                          <div className="flex items-center justify-between mb-4 lg:mb-5">
+                            <h4 className="text-base lg:text-lg font-bold text-foreground tracking-tight">Price by Brand</h4>
+                            <div className="text-xs font-semibold text-muted-foreground px-3 py-1 bg-gray-100 dark:bg-neutral-800 rounded-full">
+                              Average: ₱{weekData.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}
+                            </div>
+                          </div>
                           <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-                            {weeklyBrandData[week.week]?.map((brand, brandIndex) => (
+                            {weekData.brands.map((brand, brandIndex) => (
                               <div key={brandIndex} className="relative bg-white dark:bg-neutral-900 backdrop-blur-xl border-2 border-gray-200 dark:border-neutral-700 rounded-2xl lg:rounded-3xl p-5 lg:p-6 shadow-xl shadow-black/10 overflow-hidden hover:shadow-2xl transition-shadow">
                                 <div className="relative z-10">
                                   {/* Brand Header */}
@@ -617,16 +590,10 @@ export function GasHistory() {
                                         const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key) || key;
                                         if (fuelName === selectedFuelType) return null;
 
-                                        const getColorClass = (fuelName) => {
-                                          if (fuelName.toLowerCase().includes('diesel')) return 'text-amber-500';
-                                          if (fuelName.toLowerCase().includes('kerosene')) return 'text-foreground';
-                                          return 'text-blue-500';
-                                        };
-
                                         return (
                                           <div key={key}>
                                             <div className="text-xs text-muted-foreground/80 mb-1 font-semibold">{fuelName}</div>
-                                            <div className={`text-sm font-bold ${getColorClass(fuelName)}`}>
+                                            <div className="text-sm font-bold text-foreground">
                                               ₱{value.toFixed(2)}/L
                                             </div>
                                           </div>
@@ -673,23 +640,23 @@ export function GasHistory() {
                     <div className="space-y-4">
                       <div>
                         <div className="text-sm text-muted-foreground mb-1 font-medium">Current Week</div>
-                        <div className="text-xl font-bold text-foreground">{weeklyData[0].week}, {weeklyData[0].year}</div>
+                        <div className="text-xl font-bold text-foreground">{historyData[0].week}, {historyData[0].year}</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-muted-foreground mb-1 font-medium">Tracking Period</div>
-                        <div className="text-base font-bold text-foreground">4 Weeks</div>
+                        <div className="text-base font-bold text-foreground">{historyData.length} Weeks</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-muted-foreground mb-2 font-medium">Latest Movement</div>
-                        <PriceMovementBadge change={weeklyData[0].changes[fuelTypeMap[selectedFuelType]]} />
+                        <PriceMovementBadge change={getPriceChange(historyData, 0, selectedFuelType)} />
                       </div>
 
                       <div className="pt-4 border-t border-gray-200 dark:border-neutral-700">
-                        <div className="text-sm text-muted-foreground mb-2 font-medium">All Fuel Types</div>
+                        <div className="text-sm text-muted-foreground mb-2 font-medium">All Fuel Averages</div>
                         <div className="space-y-2">
-                          {Object.entries(weeklyData[0].prices).map(([key, value]) => {
+                          {Object.entries(historyData[0].averages).map(([key, value]) => {
                             const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key);
                             if (!fuelName) return null;
 

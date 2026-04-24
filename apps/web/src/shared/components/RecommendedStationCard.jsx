@@ -1,28 +1,6 @@
 import { MapPin, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
-import shellLogo from "../../imports/Shell-Logo.png";
-import petronLogo from "../../imports/Petron-Logo.jpg";
-
-// Brand logo mapping
-const BRAND_IMAGES = {
-  Shell: shellLogo,
-  Petron: petronLogo,
-};
-
-// Brand background colors for fallback
-const BRAND_GRADIENTS = {
-  Shell: "from-yellow-400 to-red-500",
-  Petron: "from-red-600 to-red-800",
-  Caltex: "from-red-700 to-red-900",
-  Seaoil: "from-emerald-600 to-teal-800",
-  Cleanfuel: "from-green-600 to-green-800",
-  Unioil: "from-orange-500 to-orange-700",
-  Phoenix: "from-red-500 to-orange-600",
-  TotalEnergies: "from-red-600 to-pink-700",
-  Jetti: "from-emerald-700 to-teal-900",
-  RePhil: "from-green-500 to-green-700",
-  "Flying V": "from-orange-600 to-red-600",
-};
+import { getBrandLogo, getAcronym } from "../utils/brandMapping";
 
 export function RecommendedStationCard({
   id,
@@ -34,8 +12,8 @@ export function RecommendedStationCard({
   fuelType,
 }) {
   const navigate = useNavigate();
-  const brandImage = BRAND_IMAGES[brand];
-  const brandGradient = BRAND_GRADIENTS[brand] || "from-gray-600 to-gray-800";
+  const brandImage = getBrandLogo(brand || name);
+  const acronym = getAcronym(brand || name);
 
   const handleClick = () => {
     navigate(`/app/station/${id}`);
@@ -47,20 +25,27 @@ export function RecommendedStationCard({
       onClick={handleClick}
     >
       {/* Background Image/Gradient */}
-      {brandImage ? (
-        <div className="absolute inset-0">
-          <img
-            src={brandImage}
-            alt={brand}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        </div>
-      ) : (
-        <div className={`absolute inset-0 bg-gradient-to-br ${brandGradient}`} />
-      )}
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-black">
+        {brandImage ? (
+          <div className="w-full h-full bg-white flex items-center justify-center p-8">
+            <img
+              src={brandImage}
+              alt={brand}
+              className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
+            />
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-700">
+            <span className="text-4xl font-black text-white/20 tracking-tighter uppercase select-none group-hover:scale-110 transition-transform duration-500">
+              {acronym}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Enhanced Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
 
       {/* Subtle edge glow */}
       <div className="absolute inset-0 border border-white/10 rounded-3xl group-hover:border-emerald-400/30 transition-colors" />
@@ -86,7 +71,7 @@ export function RecommendedStationCard({
         </div>
         <div className="flex items-center justify-between">
           <div className="text-xs text-white/90 font-medium">
-            {distance?.toFixed(1) || 0} km away
+            {Number(distance || 0).toFixed(1)} km away
           </div>
           {lowestPrice && fuelType && (
             <div className="bg-white/25 backdrop-blur-lg px-3 py-1.5 rounded-full border border-white/20 shadow-lg">

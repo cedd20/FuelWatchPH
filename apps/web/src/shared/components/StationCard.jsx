@@ -1,5 +1,6 @@
 import { MapPin, Clock, ShieldCheck, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router";
+import { StationLogo } from "./StationLogo";
 
 export function StationCard({
   id,
@@ -26,7 +27,8 @@ export function StationCard({
       onClick={handleClick}
       className="bg-white dark:bg-neutral-900 rounded-2xl lg:rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-5 lg:p-6 cursor-pointer hover:shadow-2xl hover:scale-[1.01] hover:border-emerald-400/40 transition-all shadow-xl shadow-black/10"
     >
-      <div className="flex items-start justify-between mb-4 lg:mb-5">
+      <div className="flex items-start gap-4 lg:gap-5 mb-4 lg:mb-5">
+        <StationLogo name={name} size="md" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="font-bold text-foreground text-base lg:text-lg truncate">{name}</h3>

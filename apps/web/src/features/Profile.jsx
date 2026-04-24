@@ -33,14 +33,14 @@ export function Profile() {
       icon: HelpCircle,
       label: "Help & Support",
       subtitle: "FAQs and contact",
-      onClick: () => {},
+      onClick: () => navigate("/app/support"),
       badge: null,
     },
     {
       icon: FileText,
       label: "Terms & Privacy",
       subtitle: "Legal information",
-      onClick: () => {},
+      onClick: () => navigate("/app/terms"),
       badge: null,
     },
   ];
@@ -78,14 +78,14 @@ export function Profile() {
       icon: HelpCircle,
       label: "Help & Support",
       subtitle: "FAQs and contact",
-      onClick: () => {},
+      onClick: () => navigate("/app/support"),
       badge: null,
     },
     {
       icon: FileText,
       label: "Terms & Privacy",
       subtitle: "Legal information",
-      onClick: () => {},
+      onClick: () => navigate("/app/terms"),
       badge: null,
     },
   ];

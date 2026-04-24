@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, TrendingDown, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, TrendingDown, CheckCircle, Clock, Loader2 } from "lucide-react";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
+import { StationLogo } from "@/shared/components/StationLogo";
 
-const mockContributions = [
+const MOCK_CONTRIBUTIONS = [
   {
     id: "1",
     stationName: "Petron Quezon Avenue",
@@ -34,23 +35,51 @@ const mockContributions = [
 
 export function ContributionHistory() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [contributions, setContributions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
+      setIsLoading(false);
+      return;
     }
+
+    // Simulate API Fetch: GET /api/user/contributions
+    const fetchContributions = async () => {
+      setIsLoading(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
+        setContributions(MOCK_CONTRIBUTIONS);
+      } catch (err) {
+        console.error("Failed to fetch contributions:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchContributions();
   }, [isAuthenticated]);
 
-  const filteredContributions = mockContributions.filter((contribution) => {
+  const filteredContributions = contributions.filter((contribution) => {
     if (statusFilter === "all") return true;
     return contribution.status === statusFilter;
   });
 
-  const verifiedCount = mockContributions.filter((c) => c.status === "verified").length;
-  const pendingCount = mockContributions.filter((c) => c.status === "pending").length;
+  const verifiedCount = contributions.filter((c) => c.status === "verified").length;
+  const pendingCount = contributions.filter((c) => c.status === "pending").length;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex flex-col items-center justify-center p-8">
+        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium animate-pulse">Loading your contributions...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -64,7 +93,7 @@ export function ContributionHistory() {
       />
 
       {/* Mobile Layout */}
-      <div className="lg:hidden min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-20">
+      <div className="lg:hidden min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
         {/* Header */}
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 relative overflow-hidden">
           {/* Enhanced radial glow background */}
@@ -99,9 +128,9 @@ export function ContributionHistory() {
 
         {/* Contribution List */}
         <div className="px-4 py-6">
-          {mockContributions.length > 0 ? (
+          {contributions.length > 0 ? (
             <div className="space-y-3">
-              {mockContributions.map((contribution) => (
+              {contributions.map((contribution) => (
                 <div
                   key={contribution.id}
                   className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10"
@@ -157,7 +186,7 @@ export function ContributionHistory() {
       </div>
 
       {/* Desktop Layout */}
-      <div className="hidden lg:block min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-10">
+      <div className="hidden lg:block min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-10">
         {/* Header */}
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-8 relative overflow-hidden">
           {/* Enhanced radial glow background */}
@@ -179,7 +208,7 @@ export function ContributionHistory() {
             {/* Stats - Desktop 4 Column */}
             <div className="grid grid-cols-4 gap-5">
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">24</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{contributions.length}</div>
                 <div className="text-base text-muted-foreground font-semibold">Total Updates</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
@@ -187,12 +216,12 @@ export function ContributionHistory() {
                 <div className="text-base text-muted-foreground font-semibold">Accuracy Rate</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">120</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{contributions.length * 5}</div>
                 <div className="text-base text-muted-foreground font-semibold">Points Earned</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">18</div>
-                <div className="text-base text-muted-foreground font-semibold">This Week</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{verifiedCount}</div>
+                <div className="text-base text-muted-foreground font-semibold">Verified</div>
               </div>
             </div>
           </div>
@@ -248,9 +277,10 @@ export function ContributionHistory() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h4 className="font-bold text-foreground mb-2 text-lg">
+                          <div className="flex items-start gap-4 lg:gap-5 mb-4">
+                            <StationLogo name={contribution.stationName} size="md" />
+                            <div className="flex-1">
+                              <h4 className="font-bold text-foreground mb-1 text-lg">
                                 {contribution.stationName}
                               </h4>
                               <div className="text-base text-muted-foreground/80 font-medium">
@@ -324,7 +354,7 @@ export function ContributionHistory() {
                     <div className="pt-4 border-t-2 border-gray-200 dark:border-neutral-700">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-foreground">Total</span>
-                        <span className="font-bold text-xl bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent">{mockContributions.length}</span>
+                        <span className="font-bold text-xl bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent">{contributions.length}</span>
                       </div>
                     </div>
                   </div>
@@ -334,7 +364,7 @@ export function ContributionHistory() {
                 <div className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 dark:from-emerald-950/30 dark:to-teal-950/30 backdrop-blur-2xl rounded-2xl p-6 border-2 border-emerald-400/30 dark:border-emerald-500/30 shadow-2xl shadow-emerald-500/10">
                   <h3 className="text-xl font-bold text-foreground mb-4 tracking-tight">Your Impact</h3>
                   <p className="text-sm text-muted-foreground/90 leading-relaxed mb-5">
-                    Your contributions help {mockContributions.length * 15}+ drivers save money on fuel every week.
+                    Your contributions help {contributions.length * 15}+ drivers save money on fuel every week.
                   </p>
                   <div className="bg-white/50 dark:bg-neutral-800/50 rounded-xl p-4 backdrop-blur-sm">
                     <div className="flex items-center gap-2 mb-2">

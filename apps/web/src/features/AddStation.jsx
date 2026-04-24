@@ -54,16 +54,20 @@ async function reverseGeocode(lat, lng) {
   );
   const data = await res.json();
   const a = data.address || {};
+  const city = a.city || a.town || a.municipality || a.city_district || "";
   const parts = [
     a.house_number,
     a.road,
     a.neighbourhood || a.suburb,
-    a.city || a.town || a.municipality || a.city_district,
+    city,
     a.state || a.province,
     a.postcode,
     a.country,
   ].filter(Boolean);
-  return parts.join(", ") || data.display_name || "Address not found";
+  return { 
+    address: parts.join(", ") || data.display_name || "Address not found",
+    city: city 
+  };
 }
 
 // ─── Main AddStation Component ──────────────────────────────────────────────
@@ -75,6 +79,7 @@ export function AddStation() {
   // Form state
   const [stationName, setStationName] = useState("");
   const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -97,6 +102,13 @@ export function AddStation() {
   // Default map center: Metro Manila
   const [mapCenter, setMapCenter] = useState([14.5995, 120.9842]);
 
+  // ── Auth Check ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+    }
+  }, [isAuthenticated]);
+
   // ── Auto-fly map to new pin position ──────────────────────────────────────
   useEffect(() => {
     if (stationLat && stationLng && mapRef.current) {
@@ -114,8 +126,14 @@ export function AddStation() {
     // Reverse geocode the clicked position to fill in the address
     setIsGeocodingPin(true);
     try {
-      const resolvedAddress = await reverseGeocode(lat, lng);
-      setAddress(resolvedAddress);
+      const result = await reverseGeocode(lat, lng);
+      setAddress(result.address);
+      // Standardize city name (Title Case)
+      const standardizedCity = result.city
+        ? result.city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+        : "Unknown City";
+      setCity(standardizedCity);
+      
       if (source === "click") {
         toast.success("Pin placed! Drag it to fine-tune the position.");
       }
@@ -156,13 +174,17 @@ export function AddStation() {
     );
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // ── Form submission ────────────────────────────────────────────────────────
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     // Validate pin is placed
     if (stationLat == null || stationLng == null) {
       toast.error("Please place a pin on the map or use 'Use current location' to set the station's coordinates.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -173,41 +195,52 @@ export function AddStation() {
       setShowDuplicateWarning(true);
       setDuplicateInfo({ name: existingStation.name, distance: Math.round(distance) });
       toast.error(`A station already exists ${Math.round(distance)}m away: "${existingStation.name}".`);
+      setIsSubmitting(false);
       return;
     }
 
-    // Build prices array from non-empty fields
-    const priceEntries = [
-      { key: "diesel", type: "Diesel" },
-      { key: "premiumdiesel", type: "Premium Diesel" },
-      { key: "unleaded91", type: "Unleaded 91" },
-      { key: "premium95", type: "Premium 95" },
-      { key: "premium97", type: "Premium 97" },
-      { key: "kerosene", type: "Kerosene" },
-    ]
-      .filter((entry) => prices[entry.key] !== "")
-      .map((entry) => ({ type: entry.type, price: parseFloat(prices[entry.key]) }));
+    try {
+      // Simulate API Fetch: POST /api/stations
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-    // Save to localStorage — TODO: Replace with API call to Supabase backend
-    const result = addUserStation({
-      name: stationName,
-      brand: stationName.split(" ")[0] || "Independent",
-      address,
-      lat: stationLat,
-      lng: stationLng,
-      prices: priceEntries,
-    });
+      // Build prices array from non-empty fields
+      const priceEntries = [
+        { key: "diesel", type: "Diesel" },
+        { key: "premiumdiesel", type: "Premium Diesel" },
+        { key: "unleaded91", type: "Unleaded 91" },
+        { key: "premium95", type: "Premium 95" },
+        { key: "premium97", type: "Premium 97" },
+        { key: "kerosene", type: "Kerosene" },
+      ]
+        .filter((entry) => prices[entry.key] !== "")
+        .map((entry) => ({ type: entry.type, price: parseFloat(prices[entry.key]) }));
 
-    if (!result.success) {
-      toast.error(result.message);
-      return;
+      // Save to localStorage — TODO: Replace with API call to Supabase backend
+      const result = addUserStation({
+        name: stationName,
+        brand: stationName.split(" ")[0] || "Independent",
+        address,
+        city,
+        lat: stationLat,
+        lng: stationLng,
+        prices: priceEntries,
+      });
+
+      if (!result.success) {
+        toast.error(result.message);
+        return;
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        toast.success(result.message);
+        navigate("/app/map");
+      }, 2000);
+    } catch (error) {
+      toast.error("Failed to add station. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setShowSuccess(true);
-    setTimeout(() => {
-      toast.success(result.message);
-      navigate("/app/map");
-    }, 2000);
   };
 
   // ── Success Screen ─────────────────────────────────────────────────────────
@@ -644,8 +677,8 @@ export function AddStation() {
 
               {/* Submit */}
               <div className="pt-4">
-                <Button type="submit" fullWidth disabled={!stationLat}>
-                  {stationLat ? "Add Station" : "Place pin on map first"}
+                <Button type="submit" fullWidth disabled={!stationLat || isSubmitting} loading={isSubmitting}>
+                  {isSubmitting ? "Adding Station..." : stationLat ? "Add Station" : "Place pin on map first"}
                 </Button>
               </div>
             </div>

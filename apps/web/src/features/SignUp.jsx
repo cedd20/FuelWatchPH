@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 export function SignUp() {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signUp } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,11 +27,11 @@ export function SignUp() {
     setIsLoading(true);
 
     try {
-      await signup(name, email, password);
-      toast.success("Account created successfully!");
+      await signUp(email, password, { full_name: name });
+      toast.success("Account created successfully! Please check your email for verification.");
       navigate("/app/map");
     } catch (error) {
-      toast.error("Failed to create account");
+      toast.error(error.message || "Failed to create account");
     } finally {
       setIsLoading(false);
     }

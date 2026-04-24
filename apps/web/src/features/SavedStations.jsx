@@ -1,43 +1,61 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { Heart, Search, ArrowLeft } from "lucide-react";
+import { Heart, Search, ArrowLeft, Loader2 } from "lucide-react";
 import { StationCard } from "@/shared/components/StationCard";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
-
-const mockSavedStations = [
-  {
-    id: "1",
-    name: "Petron Quezon Avenue",
-    address: "123 Quezon Ave, Quezon City",
-    distance: 0.5,
-    prices: [
-      { type: "Unleaded 91", price: 62.50 },
-      { type: "Premium 95", price: 68.20 },
-      { type: "Diesel", price: 55.30 },
-    ],
-    lastUpdated: "2 mins ago",
-    verified: true,
-  }
-];
+import { getStations, getSavedStationIds } from "@/shared/utils/stationStorage";
 
 export function SavedStations() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [stations] = useState(mockSavedStations);
+  const [savedStations, setSavedStations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
+      setIsLoading(false);
+      return;
     }
+
+    // Simulate API Fetch: GET /api/user/saved-stations
+    const fetchSavedStations = async () => {
+      setIsLoading(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
+        const allStations = getStations();
+        const savedIds = getSavedStationIds();
+        const matched = allStations.filter(s => savedIds.includes(s.id));
+        setSavedStations(matched);
+      } catch (err) {
+        console.error("Failed to load saved stations:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSavedStations();
   }, [isAuthenticated]);
 
-  const filteredStations = stations.filter((station) =>
-    station.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredStations = useMemo(() => {
+    return savedStations.filter((station) =>
+      station.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      station.address.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [savedStations, searchQuery]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
+        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
+        <p className="text-muted-foreground font-medium animate-pulse">Loading your favorites...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -49,27 +67,30 @@ export function SavedStations() {
         }}
         message="Sign in to save your favorite stations for quick access."
       />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+
           <div className="relative z-10 max-w-6xl mx-auto">
-            <div className="flex items-center gap-3 mb-5 lg:mb-6">
+            <div className="flex items-center gap-3 mb-6 lg:mb-8">
               <button
                 onClick={() => navigate(-1)}
-                className="w-12 h-12 bg-white dark:bg-neutral-900 rounded-full flex items-center justify-center shadow-2xl border-2 border-white/40"
+                className="w-12 h-12 bg-white dark:bg-neutral-800 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl border-2 border-white/40 dark:border-neutral-700/50 hover:scale-110 transition-transform"
               >
-                <ArrowLeft className="w-6 h-6 text-emerald-600" />
+                <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
               </button>
-              <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight">Saved Stations</h1>
+              <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight drop-shadow-lg">Saved Stations</h1>
             </div>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+            
+            <div className="relative group max-w-2xl">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" strokeWidth={2.5} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search saved stations"
-                className="w-full pl-12 pr-6 py-4 bg-white dark:bg-neutral-900 rounded-full border-2 border-white/60 focus:outline-none shadow-2xl placeholder:text-gray-500 text-foreground"
+                placeholder="Search your favorites..."
+                className="w-full pl-13 pr-6 py-4.5 lg:py-5 bg-white/95 dark:bg-neutral-800/95 backdrop-blur-xl rounded-2xl border-2 border-transparent focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 shadow-2xl placeholder:text-gray-400 text-foreground font-bold transition-all"
               />
             </div>
           </div>
@@ -78,21 +99,23 @@ export function SavedStations() {
         <div className="px-4 lg:px-8 py-6 lg:py-10">
           <div className="max-w-6xl mx-auto">
             {filteredStations.length > 0 ? (
-              <div className="space-y-4">
+              <div className="grid gap-4 lg:gap-6">
                 {filteredStations.map((station) => (
                   <StationCard key={station.id} {...station} />
                 ))}
               </div>
             ) : (
-              <EmptyState
-                icon={Heart}
-                title="No saved stations"
-                description="Save your favorite stations for quick access to prices"
-                action={{
-                  label: "Explore Stations",
-                  onClick: () => navigate("/app/map"),
-                }}
-              />
+              <div className="pt-10">
+                <EmptyState
+                  icon={Heart}
+                  title={searchQuery ? "No results found" : "No saved stations"}
+                  description={searchQuery ? `No stations match "${searchQuery}" in your favorites.` : "Save your favorite stations for quick access to prices and updates."}
+                  action={{
+                    label: "Explore Map",
+                    onClick: () => navigate("/app/map"),
+                  }}
+                />
+              </div>
             )}
           </div>
         </div>

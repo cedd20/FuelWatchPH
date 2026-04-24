@@ -19,6 +19,8 @@ import { Settings } from "@/features/Settings";
 import { ReportPrice } from "@/features/ReportPrice";
 import { GasHistory } from "@/features/GasHistory";
 import { ReportIssue } from "@/features/ReportIssue";
+import { Support } from "@/features/Support";
+import { Terms } from "@/features/Terms";
 
 export const router = createBrowserRouter([
   {
@@ -104,6 +106,14 @@ export const router = createBrowserRouter([
       {
         path: "settings",
         element: <Settings />,
+      },
+      {
+        path: "support",
+        element: <Support />,
+      },
+      {
+        path: "terms",
+        element: <Terms />,
       },
     ],
   },

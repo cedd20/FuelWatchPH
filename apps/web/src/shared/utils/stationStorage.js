@@ -7,7 +7,73 @@
  * // TODO: Replace with API calls to Supabase backend
  */
 
+import { MOCK_STATIONS } from "./mockStations";
+
 const STORAGE_KEY = "fuelwatch_user_stations";
+const OVERRIDES_KEY = "fuelwatch_mock_overrides";
+const SAVED_KEY = "fuelwatch_saved_stations";
+
+/**
+ * Get IDs of saved stations.
+ */
+export function getSavedStationIds() {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Toggle saved status of a station.
+ */
+export function toggleSaveStation(stationId) {
+  try {
+    const saved = getSavedStationIds();
+    const index = saved.indexOf(stationId);
+    if (index > -1) {
+      saved.splice(index, 1);
+    } else {
+      saved.push(stationId);
+    }
+    localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+    return saved.includes(stationId);
+  } catch (e) {
+    console.error("Failed to toggle save station:", e);
+    return false;
+  }
+}
+
+/**
+ * Check if a station is saved.
+ */
+export function isStationSaved(stationId) {
+  return getSavedStationIds().includes(stationId);
+}
+
+/**
+ * Load mock station overrides from localStorage.
+ */
+export function getMockOverrides() {
+  try {
+    const raw = localStorage.getItem(OVERRIDES_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Save mock overrides to localStorage.
+ */
+function saveMockOverrides(overrides) {
+  try {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+  } catch (e) {
+    console.error("Failed to save overrides:", e);
+  }
+}
 
 /**
  * Calculate distance in meters between two GPS coordinates using Haversine formula.
@@ -47,6 +113,22 @@ export function getUserStations() {
 }
 
 /**
+ * Get all stations (Mock + User) with overrides applied.
+ * @returns {Array}
+ */
+export function getStations() {
+  const userStations = getUserStations();
+  const overrides = getMockOverrides();
+  
+  return [...MOCK_STATIONS, ...userStations].map(s => {
+    if (overrides[s.id]) {
+      return { ...s, ...overrides[s.id] };
+    }
+    return s;
+  });
+}
+
+/**
  * Save stations array to localStorage.
  * @param {Array} stations
  */
@@ -80,12 +162,12 @@ export function checkDuplicateLocation(lat, lng, radiusMeters = 20) {
 
 /**
  * Add a new station to localStorage after validation.
- * @param {object} stationData - { name, brand, address, lat, lng, prices }
+ * @param {object} stationData - { name, brand, address, city, lat, lng, prices }
  * @returns {{ success: boolean, message: string, station?: object }}
  */
 export function addUserStation(stationData) {
   // TODO: Replace with API call: POST /api/stations
-  const { name, brand, address, lat, lng, prices } = stationData;
+  const { name, brand, address, city, lat, lng, prices } = stationData;
 
   // Validate required fields
   if (!name || !address || lat == null || lng == null) {
@@ -106,6 +188,7 @@ export function addUserStation(stationData) {
     name,
     brand: brand || "Independent",
     address,
+    city: city || "Unknown",
     distance: 0,
     prices: prices || [],
     lastUpdated: "Just now",
@@ -134,4 +217,35 @@ export function removeUserStation(stationId) {
   const filtered = stations.filter((s) => s.id !== stationId);
   saveUserStations(filtered);
   return filtered.length < stations.length;
+}
+
+/**
+ * Update fuel prices for a specific station.
+ * @param {string} stationId 
+ * @param {Array} newPrices - Array of { type, price }
+ */
+export function updateStationPrices(stationId, newPrices) {
+  // TODO: Replace with API call: PATCH /api/stations/:id/prices
+  
+  if (stationId.startsWith("user_")) {
+    const stations = getUserStations();
+    const index = stations.findIndex(s => s.id === stationId);
+    if (index !== -1) {
+      stations[index].prices = newPrices;
+      stations[index].lastUpdated = "Just now";
+      saveUserStations(stations);
+      return { success: true };
+    }
+  } else {
+    // It's a mock station, save to overrides
+    const overrides = getMockOverrides();
+    overrides[stationId] = {
+      prices: newPrices,
+      lastUpdated: "Just now"
+    };
+    saveMockOverrides(overrides);
+    return { success: true };
+  }
+  
+  return { success: false, message: "Station not found" };
 }

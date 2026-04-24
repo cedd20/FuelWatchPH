@@ -49,9 +49,31 @@ export function AuthProvider({ children }) {
     user,
     isAuthenticated: !!user,
     loading,
-    login: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-    signUp: (email, password) => supabase.auth.signUp({ email, password }),
-    logout: () => supabase.auth.signOut(),
+    login: async (email, password) => {
+      if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    },
+    signUp: async (email, password, metadata) => {
+      if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: metadata }
+      });
+      if (error) throw error;
+      return data;
+    },
+    logout: async () => {
+      if (!isValidUrl) {
+        setUser(null);
+        return;
+      }
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

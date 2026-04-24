@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -11,41 +11,106 @@ import {
   ShieldCheck,
   AlertCircle,
   Navigation,
+  SearchX,
 } from "lucide-react";
-
-const mockStation = {
-  id: "1",
-  name: "Petron Quezon Avenue",
-  address: "123 Quezon Avenue, Quezon City, Metro Manila",
-  distance: 0.5,
-  lastUpdated: "2 mins ago",
-  verified: true,
-  prices: [
-    { type: "Diesel", price: 55.30, trend: "down", change: -0.50 },
-    { type: "Premium Diesel", price: 59.50, trend: "down", change: -0.30 },
-    { type: "Unleaded 91", price: 64.50, trend: "down", change: -0.30 },
-    { type: "Premium 95", price: 68.20, trend: "down", change: -0.20 },
-    { type: "Premium 97", price: 72.80, trend: "up", change: 0.10 },
-  ],
-  contributors: 142,
-  accuracy: 98,
-};
+import { getStations, toggleSaveStation, isStationSaved } from "@/shared/utils/stationStorage";
+import { AuthPrompt } from "@/shared/components/AuthPrompt";
+import { useAuth } from "@/app/providers/AuthContext";
+import { StationLogo } from "@/shared/components/StationLogo";
 
 export function StationDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(() => isStationSaved(id));
+
+  const { user, isAuthenticated } = useAuth();
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [station, setStation] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStation = async () => {
+      setIsLoading(true);
+      try {
+        // Simulate API Fetch: GET /api/stations/:id
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        const stations = getStations();
+        const found = stations.find((s) => s.id === id);
+        setStation(found);
+      } catch (error) {
+        console.error("Failed to fetch station details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStation();
+  }, [id]);
+
+  const handleToggleSave = () => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+      return;
+    }
+    const newState = toggleSaveStation(id);
+    setIsSaved(newState);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex flex-col items-center justify-center">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+          <MapPin className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-emerald-500" />
+        </div>
+        <p className="mt-4 text-muted-foreground font-medium animate-pulse">Loading station details...</p>
+      </div>
+    );
+  }
+
+  if (!station) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-neutral-950 text-center">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
+          <SearchX className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground mb-2">Station Not Found</h1>
+        <p className="text-muted-foreground mb-8 max-w-xs">
+          The station you're looking for might have been removed or the link is invalid.
+        </p>
+        <button
+          onClick={() => navigate("/app/map")}
+          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-bold transition-all shadow-lg"
+        >
+          Back to Map
+        </button>
+      </div>
+    );
+  }
 
   const handleShare = () => {
-    // Share functionality
+    if (navigator.share) {
+      navigator.share({
+        title: station.name,
+        text: `Check fuel prices at ${station.name} on FuelWatchPH`,
+        url: window.location.href,
+      }).catch(console.error);
+    }
   };
 
   const handleGetDirections = () => {
-    // Navigation functionality
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`;
+    window.open(url, "_blank");
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-20 lg:pb-8">
+    <>
+      <AuthPrompt
+        isOpen={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        message="Sign in to save stations and contribute price updates."
+      />
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20 lg:pb-8">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 lg:pb-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -67,7 +132,7 @@ export function StationDetail() {
                 <Share2 className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
               </button>
               <button
-                onClick={() => setIsSaved(!isSaved)}
+                onClick={handleToggleSave}
                 className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
               >
                 <Heart
@@ -80,19 +145,20 @@ export function StationDetail() {
             </div>
           </div>
 
-          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-3 lg:mb-4 drop-shadow-2xl tracking-tight">{mockStation.name}</h1>
+          <StationLogo name={station.name} size="xl" className="mb-4 lg:mb-6 shadow-2xl" />
+          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-3 lg:mb-4 drop-shadow-2xl tracking-tight">{station.name}</h1>
           <div className="flex items-start gap-2 text-white/95 mb-4 lg:mb-5 drop-shadow-lg">
             <MapPin className="w-4 h-4 lg:w-5 lg:h-5 mt-0.5 flex-shrink-0" />
-            <span className="text-sm lg:text-base font-medium">{mockStation.address}</span>
+            <span className="text-sm lg:text-base font-medium">{station.address}</span>
           </div>
           <div className="flex items-center gap-4 lg:gap-6 text-sm lg:text-base text-white/95 font-medium drop-shadow-lg">
             <div className="flex items-center gap-1.5 lg:gap-2">
               <Navigation className="w-4 h-4 lg:w-5 lg:h-5" />
-              <span>{mockStation.distance} km away</span>
+              <span>{station.distance} km away</span>
             </div>
             <div className="flex items-center gap-1.5 lg:gap-2">
               <Clock className="w-4 h-4 lg:w-5 lg:h-5" />
-              <span>Updated {mockStation.lastUpdated}</span>
+              <span>Updated {station.lastUpdated}</span>
             </div>
           </div>
         </div>
@@ -106,10 +172,10 @@ export function StationDetail() {
             </div>
             <div>
               <div className="font-bold text-foreground text-base">
-                {mockStation.accuracy}% Accuracy
+                {station.accuracy || 100}% Accuracy
               </div>
               <div className="text-xs text-muted-foreground/80 font-medium">
-                Verified by {mockStation.contributors} contributors
+                Verified by {station.contributors || 1} contributors
               </div>
             </div>
           </div>
@@ -125,7 +191,7 @@ export function StationDetail() {
             <div className="mb-8">
               <h3 className="text-2xl font-bold text-foreground mb-6 tracking-tight">Current Prices</h3>
               <div className="grid grid-cols-2 gap-4">
-                {mockStation.prices.map((fuel, index) => (
+                {station.prices.map((fuel, index) => (
                   <div
                     key={index}
                     className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 hover:border-emerald-400/50 hover:scale-[1.02] transition-all"
@@ -135,18 +201,18 @@ export function StationDetail() {
                         {fuel.type}
                       </div>
                       <div className="flex items-center gap-2">
-                        {fuel.trend === "down" ? (
-                          <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-                        ) : (
+                        {fuel.trend === "up" ? (
                           <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                        ) : (
+                          <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
                         )}
                         <span
                           className={`text-sm font-bold ${
-                            fuel.trend === "down" ? "text-emerald-600 dark:text-emerald-500" : "text-rose-600 dark:text-rose-400"
+                            fuel.trend === "up" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-500"
                           }`}
                         >
-                          ₱{Math.abs(fuel.change).toFixed(2)}{" "}
-                          {fuel.trend === "down" ? "lower" : "higher"}
+                          ₱{Math.abs(fuel.change || 0).toFixed(2)}{" "}
+                          {fuel.trend === "up" ? "higher" : "lower"}
                         </span>
                       </div>
                     </div>
@@ -175,10 +241,10 @@ export function StationDetail() {
                     </div>
                   </div>
                   <div className="font-bold text-foreground text-2xl mb-2 tracking-tight">
-                    {mockStation.accuracy}% Accuracy
+                    {station.accuracy || 100}% Accuracy
                   </div>
                   <div className="text-sm text-muted-foreground/80 font-medium">
-                    Verified by {mockStation.contributors} contributors
+                    Verified by {station.contributors || 1} contributors
                   </div>
                 </div>
               </div>
@@ -206,7 +272,7 @@ export function StationDetail() {
       <div className="lg:hidden px-4 py-6">
         <h3 className="text-lg font-bold text-foreground mb-4 tracking-tight">Current Prices</h3>
         <div className="space-y-3">
-          {mockStation.prices.map((fuel, index) => (
+          {station.prices.map((fuel, index) => (
             <div
               key={index}
               className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 transition-all"
@@ -217,13 +283,13 @@ export function StationDetail() {
                     {fuel.type}
                   </div>
                   <div className="flex items-center gap-2">
-                    {fuel.trend === "down" ? (
-                      <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-                    ) : (
+                    {fuel.trend === "up" ? (
                       <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
                     )}
-                    <span className="text-sm font-bold text-emerald-600">
-                      ₱{Math.abs(fuel.change).toFixed(2)} {fuel.trend === "down" ? "lower" : "higher"}
+                    <span className={`text-sm font-bold ${fuel.trend === "up" ? "text-rose-600" : "text-emerald-600"}`}>
+                      ₱{Math.abs(fuel.change || 0).toFixed(2)} {fuel.trend === "up" ? "higher" : "lower"}
                     </span>
                   </div>
                 </div>
@@ -237,6 +303,7 @@ export function StationDetail() {
           ))}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

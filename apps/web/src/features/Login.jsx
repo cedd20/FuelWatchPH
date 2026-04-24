@@ -23,7 +23,7 @@ export function Login() {
       toast.success("Welcome back!");
       navigate("/app/map");
     } catch (error) {
-      toast.error("Invalid email or password");
+      toast.error(error.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
