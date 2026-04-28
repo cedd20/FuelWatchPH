@@ -1,0 +1,10 @@
+fastapi>=0.95
+uvicorn[standard]>=0.22
+python-dotenv>=1.0
+pydantic>=2.0
+pydantic-settings>=2.0
+httpx>=0.24
+pytest>=7.0
+requests>=2.31
+# Optional: supabase client if you choose to use it server-side
+# supabase>=1.0

@@ -43,19 +43,25 @@
 
 ```bash
 FuelWatchPH/
-├── apps/
-│   └── web/               # Primary React (Vite) application
-│       ├── src/
-│       │   ├── app/       # Global configuration & routing
-│       │   ├── features/  # Domain-specific modules (auth, dashboard)
-│       │   ├── lib/       # Third-party configurations (supabase)
-│       │   ├── shared/    # Reusable components & UI kit
-│       │   └── styles/    # Global styles & design system
-├── supabase/              # Database schema & migrations
+├── client/                # Primary React (Vite) application
+│   ├── src/
+│   │   ├── app/           # Global configuration & routing
+│   │   ├── features/      # Domain-specific modules (auth, dashboard)
+│   │   ├── lib/           # Third-party configurations (Supabase client)
+│   │   ├── shared/        # Reusable components & UI kit
+│   │   └── styles/        # Global styles & design system
+├── backend/               # Python FastAPI API service (all API requests go here)
+│   └── supabase/          # Database schema & migrations
+├── archive/               # Historical/reference-only folders and assets
+│   ├── figma/             # Archived design system and reference UI
+│   └── client-legacy/     # Archived legacy client files and backups
+├── AGENTS.md              # Agent guidance for contributors and AI tools
 └── package.json           # Monorepo configuration
 ```
 
 ## 🛠️ Getting Started
+
+**For complete setup and development instructions, see [SETUP.md](SETUP.md).**
 
 Follow these steps to get the project up and running on your local machine.
 
@@ -63,63 +69,52 @@ Follow these steps to get the project up and running on your local machine.
 
 - **Node.js**: v18.0.0 or higher
 - **npm**: v9.0.0 or higher (or pnpm v8+)
+- **Python**: v3.9+
 - **Supabase Account**: A free project at [supabase.com](https://supabase.com)
 
-### ⚙️ Installation & Setup
+### ⚙️ Quick Start
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/cedd20/FuelWatchPH.git
-   cd FuelWatchPH
-   ```
+```bash
+# Clone and install
+git clone https://github.com/cedd20/FuelWatchPH.git
+cd FuelWatchPH
+npm install
 
-2. **Install Dependencies**
-   Run this in the root directory to install all package dependencies for both the workspace and individual apps:
-   ```bash
-   npm install
-   ```
+# Configure environments
+cp client/.env.example client/.env
+cp backend/.env.example backend/.env
+# Edit both .env files with your Supabase credentials
 
-3. **Configure Environment Variables**
-   Navigate to the web application directory and create a `.env` file:
-   ```bash
-   cd apps/web
-   cp .env.example .env  # If .env.example exists, otherwise create it manually
-   ```
-   
-   Add your Supabase project credentials to `apps/web/.env`:
-   ```env
-   VITE_SUPABASE_URL=https://your-project-id.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key
-   ```
+# Install backend dependencies
+pip install -r backend/requirements.txt
 
-4. **Database Setup (Optional but Recommended)**
-   If you have the [Supabase CLI](https://supabase.com/docs/guides/cli) installed, you can link your project:
-   ```bash
-   supabase login
-   supabase link --project-ref your-project-ref
-   ```
+# Start backend (Terminal 1)
+uvicorn app.main:app --reload --port 8000 --app-dir backend
 
-5. **Start Development Server**
-   Return to the root directory and run the following command to start the web app:
-   ```bash
-   cd ../..
-   npm run dev
-   ```
-   The application will be available at `http://localhost:5173`.
+# Start frontend (Terminal 2)
+npm run dev
+```
+
+**For detailed setup instructions, environment variables, and troubleshooting, see [SETUP.md](SETUP.md).**
 
 ## 🏗️ Architecture & Workspace
 
-FuelWatchPH uses a **Monorepo** structure powered by `npm workspaces`. This allows for better code sharing and dependency management.
+FuelWatchPH uses a **Monorepo** structure with a dedicated `client/` frontend and `backend/` Python API service. This keeps API requests server-side and makes ownership clear.
 
-- **`apps/web`**: The main React + Vite application.
-- **`supabase/`**: Contains database schema, seeds, and edge functions.
+- **`client/`**: The main React + Vite application.
+- **`backend/`**: Python API service for all frontend API requests.
+- **`backend/supabase/`**: Contains database schema, seeds, and edge functions.
+- **`archive/`**: Historical/reference-only folders and assets.
+- **`archive/figma`**: Archived design system and implementation reference.
+- **`archive/client-legacy`**: Archived legacy client files and backups.
 - **`shared/`**: (Future) Shared components and utilities used across different platforms.
 
 ### Key Scripts (Run from Root)
 
-- `npm run dev`: Runs the development server for the web app.
+- `npm run dev`: Runs the development server for the web app (`client/`).
 - `npm run build`: Generates a production-ready bundle.
 - `npm run lint`: Performs static code analysis to ensure quality.
+- `cd backend && uvicorn app.main:app --reload --port 8000`: Runs the backend API service.
 
 ## 🤝 Contributing
 

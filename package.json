@@ -2,11 +2,11 @@
   "name": "fuelwatchph",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "client"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@fuelwatchph/web",
-    "build": "npm run build --workspace=@fuelwatchph/web",
-    "preview": "npm run preview --workspace=@fuelwatchph/web"
+    "dev": "npm run dev --workspace=@fuelwatchph/client",
+    "build": "npm run build --workspace=@fuelwatchph/client",
+    "preview": "npm run preview --workspace=@fuelwatchph/client"
   }
 }
