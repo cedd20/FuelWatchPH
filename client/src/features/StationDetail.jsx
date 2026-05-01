@@ -12,18 +12,23 @@ import {
   AlertCircle,
   Navigation,
   SearchX,
+  PencilLine,
+  Flag,
+  FilePlus2,
+  Minus,
 } from "lucide-react";
 import { getStations, toggleSaveStation, isStationSaved } from "@/shared/utils/stationStorage";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
+import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 
 export function StationDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [isSaved, setIsSaved] = useState(() => isStationSaved(id));
 
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [station, setStation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,6 +108,11 @@ export function StationDetail() {
     window.open(url, "_blank");
   };
 
+  const priceCards = FUEL_TYPES.map((fuelType) => {
+    const matched = station.prices.find((fuel) => fuel.type === fuelType);
+    return matched || { type: fuelType, unavailable: true };
+  });
+
   return (
     <>
       <AuthPrompt
@@ -110,7 +120,7 @@ export function StationDetail() {
         onClose={() => setShowAuthPrompt(false)}
         message="Sign in to save stations and contribute price updates."
       />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20 lg:pb-8">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-44 lg:pb-8">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 lg:pb-12 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -189,9 +199,18 @@ export function StationDetail() {
         <div className="max-w-6xl mx-auto lg:grid lg:grid-cols-3 lg:gap-8">
           <div className="lg:col-span-2">
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-foreground mb-6 tracking-tight">Current Prices</h3>
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <h3 className="text-2xl font-bold text-foreground tracking-tight">Current Prices</h3>
+                <button
+                  onClick={() => navigate(`/app/report/${id}`)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border-2 border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold text-sm shadow-lg transition-all"
+                >
+                  <FilePlus2 className="w-4 h-4" strokeWidth={2.5} />
+                  Report New Price
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-4">
-                {station.prices.map((fuel, index) => (
+                {priceCards.map((fuel, index) => (
                   <div
                     key={index}
                     className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 hover:border-emerald-400/50 hover:scale-[1.02] transition-all"
@@ -200,27 +219,50 @@ export function StationDetail() {
                       <div className="font-bold text-foreground mb-2 text-lg">
                         {fuel.type}
                       </div>
-                      <div className="flex items-center gap-2">
-                        {fuel.trend === "up" ? (
-                          <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
-                        ) : (
-                          <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-                        )}
-                        <span
-                          className={`text-sm font-bold ${
-                            fuel.trend === "up" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-500"
-                          }`}
-                        >
-                          ₱{Math.abs(fuel.change || 0).toFixed(2)}{" "}
-                          {fuel.trend === "up" ? "higher" : "lower"}
-                        </span>
-                      </div>
+                      {fuel.unavailable ? (
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                          <AlertCircle className="w-5 h-5" strokeWidth={2.5} />
+                          <span className="text-sm font-bold">Unavailable right now</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {fuel.trend === "up" ? (
+                            <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                          ) : fuel.trend === "down" ? (
+                            <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                          ) : (
+                            <Minus className="w-5 h-5 text-amber-500 dark:text-amber-400" strokeWidth={2.5} />
+                          )}
+                          <span
+                            className={`text-sm font-bold ${
+                              fuel.trend === "up"
+                                ? "text-rose-600 dark:text-rose-400"
+                                : fuel.trend === "down"
+                                  ? "text-emerald-600 dark:text-emerald-500"
+                                  : "text-amber-600 dark:text-amber-400"
+                            }`}
+                          >
+                            {fuel.trend === "stable"
+                              ? "No recent change"
+                              : `₱${Math.abs(fuel.change || 0).toFixed(2)} ${fuel.trend === "up" ? "higher" : "lower"}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
-                      <div className="text-4xl font-bold text-foreground tracking-tighter mb-1">
-                        ₱{fuel.price.toFixed(2)}
-                      </div>
-                      <div className="text-sm text-muted-foreground/70 font-semibold">per liter</div>
+                      {fuel.unavailable ? (
+                        <>
+                          <div className="text-xl font-bold text-muted-foreground tracking-tight mb-1">No active report</div>
+                          <div className="text-sm text-muted-foreground/70 font-semibold">Use Report New Price</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-4xl font-bold text-foreground tracking-tighter mb-1">
+                            ₱{fuel.price.toFixed(2)}
+                          </div>
+                          <div className="text-sm text-muted-foreground/70 font-semibold">per liter</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -254,7 +296,14 @@ export function StationDetail() {
                   onClick={() => navigate(`/app/update-price/${id}`)}
                   className="w-full px-6 py-4 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-2xl font-bold text-base shadow-2xl shadow-emerald-500/50 transition-all border-2 border-emerald-400/30"
                 >
-                  Update Fuel Price
+                  Update Fuel Prices
+                </button>
+                <button
+                  onClick={() => navigate(`/app/report/${id}`)}
+                  className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-emerald-200 dark:border-emerald-900/40 rounded-2xl font-bold text-sm text-emerald-700 dark:text-emerald-300 shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <FilePlus2 className="w-4 h-4" strokeWidth={2.5} />
+                  Report Fuel Price
                 </button>
                 <button
                   onClick={handleGetDirections}
@@ -263,6 +312,13 @@ export function StationDetail() {
                   <Navigation className="w-4 h-4" strokeWidth={2.5} />
                   Get Directions
                 </button>
+                <button
+                  onClick={() => navigate(`/app/report-issue/${id}`)}
+                  className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Flag className="w-4 h-4" strokeWidth={2.5} />
+                  Report Issues
+                </button>
               </div>
             </div>
           </div>
@@ -270,9 +326,18 @@ export function StationDetail() {
       </div>
 
       <div className="lg:hidden px-4 py-6">
-        <h3 className="text-lg font-bold text-foreground mb-4 tracking-tight">Current Prices</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="text-lg font-bold text-foreground tracking-tight">Current Prices</h3>
+          <button
+            onClick={() => navigate(`/app/report/${id}`)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border-2 border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 font-bold text-xs shadow-lg transition-all"
+          >
+            <FilePlus2 className="w-4 h-4" strokeWidth={2.5} />
+            Report New Price
+          </button>
+        </div>
         <div className="space-y-3">
-          {station.prices.map((fuel, index) => (
+          {priceCards.map((fuel, index) => (
             <div
               key={index}
               className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 transition-all"
@@ -282,25 +347,75 @@ export function StationDetail() {
                   <div className="font-bold text-foreground mb-2 text-base">
                     {fuel.type}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {fuel.trend === "up" ? (
-                      <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-                    )}
-                    <span className={`text-sm font-bold ${fuel.trend === "up" ? "text-rose-600" : "text-emerald-600"}`}>
-                      ₱{Math.abs(fuel.change || 0).toFixed(2)} {fuel.trend === "up" ? "higher" : "lower"}
-                    </span>
-                  </div>
+                  {fuel.unavailable ? (
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                      <AlertCircle className="w-4 h-4" strokeWidth={2.5} />
+                      <span className="text-sm font-bold">Unavailable</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {fuel.trend === "up" ? (
+                        <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                      ) : fuel.trend === "down" ? (
+                        <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                      ) : (
+                        <Minus className="w-4 h-4 text-amber-500 dark:text-amber-400" strokeWidth={2.5} />
+                      )}
+                      <span className={`text-sm font-bold ${
+                        fuel.trend === "up" ? "text-rose-600" : fuel.trend === "down" ? "text-emerald-600" : "text-amber-600"
+                      }`}>
+                        {fuel.trend === "stable"
+                          ? "No recent change"
+                          : `₱${Math.abs(fuel.change || 0).toFixed(2)} ${fuel.trend === "up" ? "higher" : "lower"}`}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-foreground tracking-tighter">
-                    ₱{fuel.price.toFixed(2)}
-                  </div>
+                  {fuel.unavailable ? (
+                    <div className="text-sm font-bold text-muted-foreground tracking-tight">
+                      No current price
+                    </div>
+                  ) : (
+                    <div className="text-3xl font-bold text-foreground tracking-tighter">
+                      ₱{fuel.price.toFixed(2)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div
+        className="lg:hidden fixed inset-x-0 bottom-24 z-40 px-4"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)" }}
+      >
+        <div className="rounded-[2rem] bg-white/95 dark:bg-neutral-900/95 backdrop-blur-2xl border-2 border-white/50 dark:border-neutral-700/50 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.35)] p-3">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => navigate(`/app/update-price/${id}`)}
+              className="min-h-[72px] rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white font-bold text-xs px-3 py-3 flex flex-col items-center justify-center gap-2 shadow-xl shadow-emerald-500/30"
+            >
+              <PencilLine className="w-5 h-5" strokeWidth={2.5} />
+              <span className="text-center leading-tight">Update Fuel Prices</span>
+            </button>
+            <button
+              onClick={handleGetDirections}
+              className="min-h-[72px] rounded-2xl bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 text-foreground font-bold text-xs px-3 py-3 flex flex-col items-center justify-center gap-2 shadow-lg"
+            >
+              <Navigation className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+              <span className="text-center leading-tight">Get Directions</span>
+            </button>
+            <button
+              onClick={() => navigate(`/app/report-issue/${id}`)}
+              className="min-h-[72px] rounded-2xl bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 text-foreground font-bold text-xs px-3 py-3 flex flex-col items-center justify-center gap-2 shadow-lg"
+            >
+              <Flag className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+              <span className="text-center leading-tight">Report Issues</span>
+            </button>
+          </div>
         </div>
       </div>
       </div>

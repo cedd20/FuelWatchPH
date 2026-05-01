@@ -1,17 +1,94 @@
 /**
  * Station Storage Utility
  * 
- * Frontend-only persistence layer using localStorage for user-added stations.
- * Includes duplicate detection via radius-based coordinate validation.
- * 
- * // TODO: Replace with API calls to Supabase backend
+  * Frontend-only persistence layer using localStorage for user-added stations.
+  * Includes duplicate detection via radius-based coordinate validation.
+  * 
+  * // TODO: Replace with API calls to Supabase backend
  */
 
 import { MOCK_STATIONS } from "./mockStations";
+import { FUEL_TYPES } from "./fuelTypes";
 
 const STORAGE_KEY = "fuelwatch_user_stations";
 const OVERRIDES_KEY = "fuelwatch_mock_overrides";
 const SAVED_KEY = "fuelwatch_saved_stations";
+const PRICE_REPORTS_KEY = "fuelwatch_price_reports";
+const ISSUE_REPORTS_KEY = "fuelwatch_station_issue_reports";
+
+function readJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error(`Failed to save ${key}:`, e);
+  }
+}
+
+function sortPriceEntries(prices) {
+  return [...prices].sort((a, b) => {
+    const aIndex = FUEL_TYPES.indexOf(a.type);
+    const bIndex = FUEL_TYPES.indexOf(b.type);
+    return (aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex) - (bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex);
+  });
+}
+
+function normalizePriceEntry(entry, previousEntry = null) {
+  const nextPrice = Number(entry.price);
+  const previousPrice = previousEntry?.price;
+  const hasPreviousPrice = typeof previousPrice === "number" && Number.isFinite(previousPrice);
+  const rawChange = hasPreviousPrice ? nextPrice - previousPrice : 0;
+
+  return {
+    ...previousEntry,
+    ...entry,
+    price: nextPrice,
+    change: Math.abs(rawChange),
+    trend: rawChange > 0 ? "up" : rawChange < 0 ? "down" : "stable",
+    lastUpdated: entry.lastUpdated || "Just now",
+    reportedAt: entry.reportedAt || new Date().toISOString(),
+  };
+}
+
+function updateStationRecord(stationId, updater) {
+  if (stationId.startsWith("user_")) {
+    const stations = getUserStations();
+    const index = stations.findIndex((station) => station.id === stationId);
+
+    if (index === -1) {
+      return { success: false, message: "Station not found" };
+    }
+
+    const updatedStation = updater(stations[index]);
+    stations[index] = updatedStation;
+    saveUserStations(stations);
+    return { success: true, station: updatedStation };
+  }
+
+  const overrides = getMockOverrides();
+  const baseStation = getStations().find((station) => station.id === stationId);
+
+  if (!baseStation) {
+    return { success: false, message: "Station not found" };
+  }
+
+  const updatedStation = updater(baseStation);
+  overrides[stationId] = {
+    ...(overrides[stationId] || {}),
+    ...updatedStation,
+  };
+  saveMockOverrides(overrides);
+
+  return { success: true, station: updatedStation };
+}
 
 /**
  * Get IDs of saved stations.
@@ -56,23 +133,14 @@ export function isStationSaved(stationId) {
  * Load mock station overrides from localStorage.
  */
 export function getMockOverrides() {
-  try {
-    const raw = localStorage.getItem(OVERRIDES_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  return readJson(OVERRIDES_KEY, {});
 }
 
 /**
  * Save mock overrides to localStorage.
  */
 function saveMockOverrides(overrides) {
-  try {
-    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
-  } catch (e) {
-    console.error("Failed to save overrides:", e);
-  }
+  saveJson(OVERRIDES_KEY, overrides);
 }
 
 /**
@@ -103,13 +171,7 @@ export function getDistanceMeters(lat1, lon1, lat2, lon2) {
  */
 export function getUserStations() {
   // TODO: Replace with API call: GET /api/stations/user
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    console.error("Failed to parse user stations from localStorage");
-    return [];
-  }
+  return readJson(STORAGE_KEY, []);
 }
 
 /**
@@ -134,11 +196,7 @@ export function getStations() {
  */
 function saveUserStations(stations) {
   // TODO: Replace with API call: POST /api/stations
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stations));
-  } catch (e) {
-    console.error("Failed to save stations to localStorage:", e);
-  }
+  saveJson(STORAGE_KEY, stations);
 }
 
 /**
@@ -226,26 +284,166 @@ export function removeUserStation(stationId) {
  */
 export function updateStationPrices(stationId, newPrices) {
   // TODO: Replace with API call: PATCH /api/stations/:id/prices
-  
-  if (stationId.startsWith("user_")) {
-    const stations = getUserStations();
-    const index = stations.findIndex(s => s.id === stationId);
-    if (index !== -1) {
-      stations[index].prices = newPrices;
-      stations[index].lastUpdated = "Just now";
-      saveUserStations(stations);
-      return { success: true };
-    }
-  } else {
-    // It's a mock station, save to overrides
-    const overrides = getMockOverrides();
-    overrides[stationId] = {
-      prices: newPrices,
-      lastUpdated: "Just now"
+  return updateStationRecord(stationId, (station) => {
+    const normalizedPrices = sortPriceEntries(
+      newPrices.map((priceEntry) => {
+        const previousEntry = station.prices.find((entry) => entry.type === priceEntry.type);
+        return normalizePriceEntry(priceEntry, previousEntry);
+      })
+    );
+
+    return {
+      ...station,
+      prices: normalizedPrices,
+      lastUpdated: "Just now",
     };
-    saveMockOverrides(overrides);
-    return { success: true };
+  });
+}
+
+export function getStationById(stationId) {
+  return getStations().find((station) => station.id === stationId) || null;
+}
+
+export function getPriceReports() {
+  return readJson(PRICE_REPORTS_KEY, []);
+}
+
+export function getStationIssueReports() {
+  return readJson(ISSUE_REPORTS_KEY, []);
+}
+
+export function submitPriceReport(stationId, reportData) {
+  // TODO: Replace with API call: POST /api/stations/:id/price-reports
+  const station = getStationById(stationId);
+  if (!station) {
+    return { success: false, message: "Station not found" };
   }
-  
-  return { success: false, message: "Station not found" };
+
+  if (!reportData?.fuelType || !Number.isFinite(Number(reportData?.price))) {
+    return { success: false, message: "Fuel type and a valid price are required." };
+  }
+
+  const previousEntry = station.prices.find((entry) => entry.type === reportData.fuelType);
+  const nextEntry = normalizePriceEntry(
+    {
+      type: reportData.fuelType,
+      price: Number(reportData.price),
+      remarks: reportData.remarks || "",
+      proofPlaceholder: reportData.proofPlaceholder || "",
+      reporterReference: reportData.reporterReference || "Frontend Tester",
+      reportedAt: reportData.reportedAt || new Date().toISOString(),
+      source: "frontend-report-form",
+    },
+    previousEntry
+  );
+
+  const nextPrices = previousEntry
+    ? station.prices.map((entry) => (entry.type === reportData.fuelType ? nextEntry : entry))
+    : [...station.prices, nextEntry];
+
+  const updateResult = updateStationPrices(stationId, nextPrices);
+  if (!updateResult.success) {
+    return updateResult;
+  }
+
+  const reports = getPriceReports();
+  const savedReport = {
+    id: `price_report_${Date.now()}`,
+    stationId,
+    stationName: station.name,
+    ...nextEntry,
+  };
+  reports.unshift(savedReport);
+  saveJson(PRICE_REPORTS_KEY, reports);
+
+  return {
+    success: true,
+    message: previousEntry ? "Fuel price report saved and current station price updated." : "New fuel price report saved successfully.",
+    station: updateResult.station,
+    report: savedReport,
+  };
+}
+
+export function updateExistingStationPrice(stationId, fuelType, updates) {
+  // TODO: Replace with API call: PATCH /api/stations/:id/prices/:fuelType
+  const station = getStationById(stationId);
+  if (!station) {
+    return { success: false, message: "Station not found" };
+  }
+
+  const existingEntry = station.prices.find((entry) => entry.type === fuelType);
+  if (!existingEntry) {
+    return { success: false, message: "Fuel price entry not found" };
+  }
+
+  if (!Number.isFinite(Number(updates?.price))) {
+    return { success: false, message: "A valid updated price is required." };
+  }
+
+  const updatedEntry = normalizePriceEntry(
+    {
+      ...existingEntry,
+      ...updates,
+      type: fuelType,
+      price: Number(updates.price),
+      source: "frontend-update-flow",
+    },
+    existingEntry
+  );
+
+  const nextPrices = station.prices.map((entry) => (entry.type === fuelType ? updatedEntry : entry));
+  return {
+    ...updateStationPrices(stationId, nextPrices),
+    message: "Fuel price updated successfully.",
+  };
+}
+
+export function deleteStationPrice(stationId, fuelType) {
+  // TODO: Replace with API call: DELETE /api/stations/:id/prices/:fuelType
+  const station = getStationById(stationId);
+  if (!station) {
+    return { success: false, message: "Station not found" };
+  }
+
+  const nextPrices = station.prices.filter((entry) => entry.type !== fuelType);
+  if (nextPrices.length === station.prices.length) {
+    return { success: false, message: "Fuel price entry not found" };
+  }
+
+  return {
+    ...updateStationPrices(stationId, nextPrices),
+    message: `${fuelType} removed from this station.`,
+  };
+}
+
+export function submitStationIssueReport(stationId, reportData) {
+  // TODO: Replace with API call: POST /api/stations/:id/issues
+  const station = getStationById(stationId);
+  if (!station) {
+    return { success: false, message: "Station not found" };
+  }
+
+  if (!reportData?.issueType) {
+    return { success: false, message: "Issue type is required." };
+  }
+
+  const reports = getStationIssueReports();
+  const savedReport = {
+    id: `station_issue_${Date.now()}`,
+    stationId,
+    stationName: station.name,
+    issueType: reportData.issueType,
+    details: reportData.details || "",
+    reporterReference: reportData.reporterReference || "Frontend Tester",
+    reportedAt: reportData.reportedAt || new Date().toISOString(),
+    status: "pending",
+  };
+  reports.unshift(savedReport);
+  saveJson(ISSUE_REPORTS_KEY, reports);
+
+  return {
+    success: true,
+    message: "Station issue report submitted successfully.",
+    report: savedReport,
+  };
 }

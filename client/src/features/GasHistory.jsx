@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Fuel, Info, ChevronDown, Loader2 } from "lucide-react";
 import { PriceMovementBadge } from "@/shared/components/PriceMovementBadge";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
+import { getAvailableCities } from "@/shared/utils/cityUtils";
+import { getStations } from "@/shared/utils/stationStorage";
 import * as Accordion from "@radix-ui/react-accordion";
 
 // Sample brand prices for each week
@@ -239,7 +241,96 @@ const fuelTypeColors = {
   "Kerosene": "#10B981",
 };
 
+const HISTORY_FILTER_STORAGE_KEY = "fuelwatch.gasHistory.filters";
+const HISTORY_FILTER_DEFAULTS = {
+  scope: "nationwide",
+  city: "",
+};
 
+const CITY_HISTORY_CONFIG = {
+  "Makati": {
+    factor: 1.018,
+    brands: ["Shell", "Petron", "Caltex", "Cleanfuel"],
+  },
+  "Quezon City": {
+    factor: 0.994,
+    brands: ["Petron", "Shell", "Seaoil", "Caltex", "Flying V"],
+  },
+  "Pasay": {
+    factor: 1.006,
+    brands: ["Petron", "Shell", "Caltex", "Phoenix"],
+  },
+};
+
+function readStoredHistoryFilters() {
+  if (typeof window === "undefined") return HISTORY_FILTER_DEFAULTS;
+
+  try {
+    const raw = window.localStorage.getItem(HISTORY_FILTER_STORAGE_KEY);
+    return raw ? { ...HISTORY_FILTER_DEFAULTS, ...JSON.parse(raw) } : HISTORY_FILTER_DEFAULTS;
+  } catch {
+    return HISTORY_FILTER_DEFAULTS;
+  }
+}
+
+function saveStoredHistoryFilters(filters) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(HISTORY_FILTER_STORAGE_KEY, JSON.stringify(filters));
+}
+
+function roundPrice(value) {
+  return Number(value.toFixed(2));
+}
+
+function buildCityHistory(baseHistory, cityName, config) {
+  return baseHistory.map((weekData, weekIndex) => {
+    const cityFactor = config.factor + weekIndex * 0.0015;
+    const cityBrands = weekData.brands
+      .filter((brand) => config.brands.includes(brand.name))
+      .map((brand, brandIndex) => {
+        const adjustedPrices = Object.fromEntries(
+          Object.entries(brand.prices).map(([fuelKey, price]) => [
+            fuelKey,
+            roundPrice(price * cityFactor + brandIndex * 0.04),
+          ])
+        );
+
+        return {
+          ...brand,
+          prices: adjustedPrices,
+        };
+      });
+
+    const averages = Object.fromEntries(
+      Object.keys(weekData.averages).map((fuelKey) => {
+        const prices = cityBrands.map((brand) => brand.prices[fuelKey]).filter((price) => typeof price === "number");
+        const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+        return [fuelKey, roundPrice(average)];
+      })
+    );
+
+    return {
+      ...weekData,
+      city: cityName,
+      averages,
+      brands: cityBrands,
+    };
+  });
+}
+
+function buildHistoryCollections(baseHistory) {
+  const cityHistory = Object.fromEntries(
+    Object.entries(CITY_HISTORY_CONFIG).map(([cityName, config]) => [
+      cityName,
+      buildCityHistory(baseHistory, cityName, config),
+    ])
+  );
+
+  return {
+    nationwide: baseHistory.map((weekData) => ({ ...weekData, city: null })),
+    cityHistory,
+  };
+}
 
 // Helper to calculate price change relative to previous data point
 const getPriceChange = (data, currentIndex, fuelType) => {
@@ -253,6 +344,7 @@ export function GasHistory() {
   const [timeRange, setTimeRange] = useState("1M");
   const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
   const [historyData, setHistoryData] = useState([]);
+  const [historyFilters, setHistoryFilters] = useState(() => readStoredHistoryFilters());
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -274,11 +366,62 @@ export function GasHistory() {
     fetchHistory();
   }, []);
 
+  useEffect(() => {
+    saveStoredHistoryFilters(historyFilters);
+  }, [historyFilters]);
+
+  const availableCities = useMemo(() => {
+    const stationCities = getAvailableCities(getStations());
+    const historyCities = Object.keys(CITY_HISTORY_CONFIG);
+    return historyCities.filter((city) => stationCities.includes(city) || historyCities.includes(city));
+  }, []);
+
+  useEffect(() => {
+    if (historyFilters.scope === "city" && !historyFilters.city && availableCities.length > 0) {
+      setHistoryFilters((prev) => ({ ...prev, city: availableCities[0] }));
+    }
+  }, [availableCities, historyFilters.city, historyFilters.scope]);
+
+  const historyCollections = useMemo(() => buildHistoryCollections(historyData), [historyData]);
+
+  const scopedHistoryData = useMemo(() => {
+    if (historyFilters.scope === "city") {
+      return historyCollections.cityHistory[historyFilters.city] || [];
+    }
+
+    return historyCollections.nationwide || [];
+  }, [historyCollections, historyFilters]);
+
+  const visibleHistoryData = useMemo(() => {
+    const limitByRange = {
+      "7D": 1,
+      "1M": 4,
+      "3M": 12,
+    };
+
+    const limit = limitByRange[timeRange] || scopedHistoryData.length;
+    return scopedHistoryData.slice(0, limit);
+  }, [scopedHistoryData, timeRange]);
+
+  const currentWeekData = visibleHistoryData[0];
+  const contextLabel =
+    historyFilters.scope === "city" && historyFilters.city
+      ? `Showing fuel price history in ${historyFilters.city}`
+      : "Showing nationwide fuel price history";
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
         <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
         <p className="text-muted-foreground font-medium animate-pulse">Loading historical trends...</p>
+      </div>
+    );
+  }
+
+  if (visibleHistoryData.length === 0 && !isLoading && historyData.length > 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
+        <p className="text-muted-foreground">No history data is available for the selected filter yet.</p>
       </div>
     );
   }
@@ -326,6 +469,59 @@ export function GasHistory() {
             </div>
           </div>
 
+          <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl border-2 border-gray-200 dark:border-neutral-700 rounded-3xl p-5 lg:p-6 shadow-2xl shadow-black/10">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="flex-1">
+                <h3 className="text-base lg:text-lg font-bold text-foreground mb-3 tracking-tight">History Scope</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "nationwide", label: "Nationwide" },
+                    { value: "city", label: "Specific City" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() =>
+                        setHistoryFilters((prev) => ({
+                          ...prev,
+                          scope: option.value,
+                          city: option.value === "city" ? prev.city || availableCities[0] || "" : prev.city,
+                        }))
+                      }
+                      className={`px-4 py-2.5 rounded-full text-sm font-bold transition-all ${
+                        historyFilters.scope === option.value
+                          ? "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30"
+                          : "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border-2 border-gray-200 dark:border-neutral-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:w-72">
+                <label className="block text-sm font-bold text-foreground mb-2 tracking-tight">City Selector</label>
+                <select
+                  value={historyFilters.city}
+                  onChange={(e) => setHistoryFilters((prev) => ({ ...prev, city: e.target.value }))}
+                  disabled={historyFilters.scope !== "city"}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-neutral-800 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {availableCities.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-full text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              <Info className="w-4 h-4" />
+              <span>{contextLabel}</span>
+            </div>
+          </div>
+
           {/* Fuel Type Selector */}
           <div>
             <h3 className="text-base lg:text-lg font-bold text-foreground mb-4 lg:mb-5 tracking-tight">Select Fuel Type</h3>
@@ -358,10 +554,10 @@ export function GasHistory() {
                     <div className="text-sm lg:text-base font-bold text-muted-foreground tracking-tight">{selectedFuelType} Average</div>
                   </div>
                   <div className="text-4xl lg:text-5xl font-bold text-foreground mb-3 tracking-tighter">
-                    ₱{historyData[0].averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
+                    ₱{currentWeekData.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
                   </div>
                   <div className="flex items-center gap-2">
-                    <PriceMovementBadge change={getPriceChange(historyData, 0, selectedFuelType)} />
+                    <PriceMovementBadge change={getPriceChange(visibleHistoryData, 0, selectedFuelType)} />
                     <div className="text-sm lg:text-base text-muted-foreground/80 font-medium">This week</div>
                   </div>
                 </div>
@@ -401,7 +597,7 @@ export function GasHistory() {
                     <svg className="w-full h-full" viewBox="0 0 380 280">
                       {(() => {
                         const fuelKey = fuelTypeMap[selectedFuelType];
-                        const chartPoints = [...historyData].reverse();
+                        const chartPoints = [...visibleHistoryData].reverse();
                         const prices = chartPoints.map(d => d.averages[fuelKey]);
                         const minPrice = Math.min(...prices) * 0.98;
                         const maxPrice = Math.max(...prices) * 1.02;
@@ -512,7 +708,7 @@ export function GasHistory() {
               <div>
                 <h3 className="text-lg lg:text-xl font-bold text-foreground mb-5 lg:mb-6 tracking-tight">Weekly Breakdown</h3>
                 <Accordion.Root type="single" collapsible className="space-y-4 lg:space-y-5">
-                  {historyData.map((weekData, index) => (
+                  {visibleHistoryData.map((weekData, index) => (
                     <Accordion.Item
                       key={index}
                       value={`week-${index}`}
@@ -532,10 +728,10 @@ export function GasHistory() {
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <PriceMovementBadge change={getPriceChange(historyData, index, selectedFuelType)} />
+                            <PriceMovementBadge change={getPriceChange(visibleHistoryData, index, selectedFuelType)} />
                             <div className="text-xs text-muted-foreground/80 mt-1.5 font-semibold">
                               {(() => {
-                                const change = getPriceChange(historyData, index, selectedFuelType);
+                                const change = getPriceChange(visibleHistoryData, index, selectedFuelType);
                                 return change > 0 ? "Increased" : change < 0 ? "Decreased" : "Stable";
                               })()}
                             </div>
@@ -640,23 +836,23 @@ export function GasHistory() {
                     <div className="space-y-4">
                       <div>
                         <div className="text-sm text-muted-foreground mb-1 font-medium">Current Week</div>
-                        <div className="text-xl font-bold text-foreground">{historyData[0].week}, {historyData[0].year}</div>
+                        <div className="text-xl font-bold text-foreground">{currentWeekData.week}, {currentWeekData.year}</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-muted-foreground mb-1 font-medium">Tracking Period</div>
-                        <div className="text-base font-bold text-foreground">{historyData.length} Weeks</div>
+                        <div className="text-base font-bold text-foreground">{visibleHistoryData.length} Weeks</div>
                       </div>
 
                       <div>
                         <div className="text-sm text-muted-foreground mb-2 font-medium">Latest Movement</div>
-                        <PriceMovementBadge change={getPriceChange(historyData, 0, selectedFuelType)} />
+                        <PriceMovementBadge change={getPriceChange(visibleHistoryData, 0, selectedFuelType)} />
                       </div>
 
                       <div className="pt-4 border-t border-gray-200 dark:border-neutral-700">
                         <div className="text-sm text-muted-foreground mb-2 font-medium">All Fuel Averages</div>
                         <div className="space-y-2">
-                          {Object.entries(historyData[0].averages).map(([key, value]) => {
+                          {Object.entries(currentWeekData.averages).map(([key, value]) => {
                             const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key);
                             if (!fuelName) return null;
 

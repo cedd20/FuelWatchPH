@@ -26,6 +26,19 @@ L.Icon.Default.mergeOptions({
 
 // Map starts empty — stations are loaded from OSM (via geolocation) and localStorage
 const fuelTypes = ["All", ...FUEL_TYPES];
+const MAP_FILTERS_STORAGE_KEY = "fuelwatch.map.filters";
+const DEFAULT_MAP_FILTERS = {
+  location: "nearby",
+  selectedCity: "",
+  radius: "3",
+  fuelTypes: [],
+  brands: [],
+  priceSort: "lowest",
+  verifiedOnly: false,
+  recentlyUpdated: "7",
+  openNow: false,
+  is24_7: false,
+};
 
 const CITY_COORDS = {
   "Quezon City": [14.6760, 121.0437],
@@ -53,16 +66,45 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
+const normalizeFuelTypes = (selectedFuelTypes) => {
+  const uniqueFuelTypes = [...new Set((selectedFuelTypes || []).filter((fuel) => FUEL_TYPES.includes(fuel)))];
+  return uniqueFuelTypes.length === FUEL_TYPES.length ? [] : uniqueFuelTypes;
+};
+
+const normalizeMapFilters = (rawFilters) => ({
+  ...DEFAULT_MAP_FILTERS,
+  ...rawFilters,
+  location: rawFilters?.location === "city" ? "city" : "nearby",
+  selectedCity: typeof rawFilters?.selectedCity === "string" ? rawFilters.selectedCity : "",
+  radius: ["1", "3", "5", "10"].includes(rawFilters?.radius) ? rawFilters.radius : DEFAULT_MAP_FILTERS.radius,
+  fuelTypes: normalizeFuelTypes(rawFilters?.fuelTypes),
+  brands: Array.isArray(rawFilters?.brands) ? rawFilters.brands : [],
+  priceSort: typeof rawFilters?.priceSort === "string" ? rawFilters.priceSort : DEFAULT_MAP_FILTERS.priceSort,
+  verifiedOnly: Boolean(rawFilters?.verifiedOnly),
+  recentlyUpdated: typeof rawFilters?.recentlyUpdated === "string" ? rawFilters.recentlyUpdated : DEFAULT_MAP_FILTERS.recentlyUpdated,
+  openNow: Boolean(rawFilters?.openNow),
+  is24_7: Boolean(rawFilters?.is24_7),
+});
+
+const createDefaultMapFilters = () => ({ ...DEFAULT_MAP_FILTERS });
+
 export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [stations, setStations] = useState([]); // Empty until GPS + OSM loads
-  const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
+  const [mapFilters, setMapFilters] = useState(() => {
+    if (typeof window === "undefined") return createDefaultMapFilters();
+
+    try {
+      const savedFilters = window.localStorage.getItem(MAP_FILTERS_STORAGE_KEY);
+      return savedFilters ? normalizeMapFilters(JSON.parse(savedFilters)) : createDefaultMapFilters();
+    } catch {
+      return createDefaultMapFilters();
+    }
+  });
   const [showList, setShowList] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState([]); // Used purely for UI rendering of filter chips
-  const [appliedFilters, setAppliedFilters] = useState(null); // Used for actual data filtering
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [isLoadingStations, setIsLoadingStations] = useState(false);
 
@@ -75,53 +117,60 @@ export function Map() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(mapFilters));
+  }, [mapFilters]);
+
+  const selectedFuelTypeCount = mapFilters.fuelTypes.length;
+  const hasAllFuelTypesSelected = selectedFuelTypeCount === 0;
+  const singleSelectedFuelType = selectedFuelTypeCount === 1 ? mapFilters.fuelTypes[0] : null;
+  const hasMultipleFuelTypesSelected = selectedFuelTypeCount > 1;
+
+  const activeFilters = [];
+  if (mapFilters.location === "city" && mapFilters.selectedCity) {
+    activeFilters.push(`City: ${mapFilters.selectedCity}`);
+  }
+  if (mapFilters.fuelTypes.length > 1) {
+    activeFilters.push(`${mapFilters.fuelTypes.length} fuels`);
+  }
+  if (mapFilters.brands.length > 0) {
+    activeFilters.push(`${mapFilters.brands.length} brands`);
+  }
+  if (mapFilters.verifiedOnly) {
+    activeFilters.push("Verified");
+  }
+  if (mapFilters.openNow) {
+    activeFilters.push("Open now");
+  }
+
   const getFilterDescription = () => {
-    if (appliedFilters?.location === "city" && appliedFilters.selectedCity) {
-      return `Showing all stations in ${appliedFilters.selectedCity}`;
+    if (mapFilters.location === "city" && mapFilters.selectedCity) {
+      return `Showing all stations in ${mapFilters.selectedCity}`;
     }
-    const radius = appliedFilters?.radius || "3";
+    const radius = mapFilters.radius || "3";
     return `Showing stations within ${radius}km of you`;
   };
 
-  const handleApplyFilters = (filters) => {
+  const handleApplyFilters = () => {
     // TODO: Send filter object to backend API: api.getStations(filters)
     // Example: api.getStations({ ...filters, lat: userLocation[0], lng: userLocation[1] });
-    
-    setAppliedFilters(filters);
-    
-    const applied = [];
-    if (filters.location === "city" && filters.selectedCity) {
-      applied.push(`City: ${filters.selectedCity}`);
-      
-      const coords = CITY_COORDS[filters.selectedCity];
+
+    if (mapFilters.location === "city" && mapFilters.selectedCity) {
+      const coords = CITY_COORDS[mapFilters.selectedCity];
       if (coords && mapRef.current) {
         mapRef.current.flyTo(coords, 14, { animate: true });
-        
+
         // Also fetch live stations for the new city location
         setIsLoadingStations(true);
         fetchRealGasStations(coords[0], coords[1]);
       }
     }
-    if (filters.fuelTypes && filters.fuelTypes.length > 0) {
-      applied.push(`${filters.fuelTypes.length} fuels`);
-    }
-    if (filters.brands && filters.brands.length > 0) {
-      applied.push(`${filters.brands.length} brands`);
-    }
-    if (filters.verifiedOnly) {
-      applied.push("Verified");
-    }
-    if (filters.openNow) {
-      applied.push("Open now");
-    }
-    setActiveFilters(applied);
   };
 
   const removeFilter = (filterLabel) => {
-    setActiveFilters((prev) => prev.filter((f) => f !== filterLabel));
-    
-    setAppliedFilters((prev) => {
-      if (!prev) return null;
+    setMapFilters((prev) => {
       const updated = { ...prev };
       if (filterLabel.startsWith("City:")) {
         updated.location = "nearby";
@@ -135,8 +184,28 @@ export function Map() {
       } else if (filterLabel === "Open now") {
         updated.openNow = false;
       }
-      return updated;
+      return normalizeMapFilters(updated);
     });
+  };
+
+  const handleFuelChipSelect = (fuelType) => {
+    setMapFilters((prev) =>
+      normalizeMapFilters({
+        ...prev,
+        fuelTypes: fuelType === "All" ? [] : [fuelType],
+      })
+    );
+  };
+
+  const handleResetFilters = () => {
+    setMapFilters(createDefaultMapFilters());
+    setSelectedStation(null);
+  };
+
+  const handleMapFiltersChange = (nextFilters) => {
+    setMapFilters((prev) =>
+      normalizeMapFilters(typeof nextFilters === "function" ? nextFilters(prev) : nextFilters)
+    );
   };
 
   const [userLocation, setUserLocation] = useState(null);
@@ -266,8 +335,18 @@ export function Map() {
 
   // Calculate average price for the selected fuel type
   const getStationPrice = (station) => {
-    const fuelPrice = station.prices.find((p) => p.type === selectedFuelType);
-    return fuelPrice?.price || 0;
+    const candidatePrices = hasAllFuelTypesSelected
+      ? station.prices
+      : station.prices.filter((fuel) => mapFilters.fuelTypes.includes(fuel.type));
+
+    if (candidatePrices.length > 0) {
+      const availablePrices = candidatePrices
+        .map((fuel) => fuel.price)
+        .filter((price) => typeof price === "number");
+
+      return availablePrices.length > 0 ? Math.min(...availablePrices) : 0;
+    }
+    return 0;
   };
 
   // --------------------------------------------------------
@@ -289,47 +368,49 @@ export function Map() {
     }
     
     // 2. Selected Fuel Type (Main Header Tabs)
-    if (selectedFuelType !== "All") {
-      const hasFuel = station.prices.some(p => p.type === selectedFuelType);
+    if (mapFilters.fuelTypes.length > 0) {
+      const hasFuel = station.prices.some((p) => mapFilters.fuelTypes.includes(p.type));
       if (!hasFuel) return false;
     }
 
     // 3. Radius vs City Logic (Priority: City > Nearby)
-    const locationMode = appliedFilters?.location || "nearby";
-    if (locationMode === "city" && appliedFilters?.selectedCity) {
-      const cityMatch = station.city === appliedFilters.selectedCity || 
-                        station.address?.toLowerCase().includes(appliedFilters.selectedCity.toLowerCase());
+    const locationMode = mapFilters.location || "nearby";
+    if (locationMode === "city" && mapFilters.selectedCity) {
+      const cityMatch = station.city === mapFilters.selectedCity || 
+                        station.address?.toLowerCase().includes(mapFilters.selectedCity.toLowerCase());
       if (!cityMatch) return false;
     } else {
       // Nearby mode (default)
-      const radiusLimit = parseFloat(appliedFilters?.radius || "3");
+      const radiusLimit = parseFloat(mapFilters.radius || "3");
       // Only apply radius if userLocation is known, otherwise show all
       if (userLocation && station.distance > radiusLimit) return false;
     }
 
-    if (!appliedFilters) return true;
-
     // 4. Sheet Filters (Brands / Verified / Fuel)
-    if (appliedFilters.brands?.length > 0) {
-      if (!appliedFilters.brands.includes(station.brand)) return false;
+    if (mapFilters.brands.length > 0) {
+      if (!mapFilters.brands.includes(station.brand)) return false;
     }
     
-    if (appliedFilters.verifiedOnly) {
+    if (mapFilters.verifiedOnly) {
       if (!station.verified) return false;
     }
     
     // fuelTypes from filter sheet (must have AT LEAST ONE of the selected fuels)
-    if (appliedFilters.fuelTypes?.length > 0) {
-      const hasAnySelectedFuel = station.prices.some(p => appliedFilters.fuelTypes.includes(p.type));
-      if (!hasAnySelectedFuel) return false;
-    }
-
     return true;
   });
 
   const avgPrice = filteredStations.length > 0 
     ? filteredStations.reduce((sum, station) => sum + getStationPrice(station), 0) / filteredStations.length 
     : 0;
+
+  useEffect(() => {
+    if (!selectedStation) return;
+
+    const selectedStationStillVisible = filteredStations.some((station) => station.id === selectedStation);
+    if (!selectedStationStillVisible) {
+      setSelectedStation(null);
+    }
+  }, [filteredStations, selectedStation]);
 
   return (
     <div className="h-screen flex flex-col lg:flex-row">
@@ -523,10 +604,18 @@ export function Map() {
                   <FuelTypeChip
                     key={type}
                     label={type}
-                    active={selectedFuelType === type}
-                    onClick={() => setSelectedFuelType(type)}
+                    active={(type === "All" && hasAllFuelTypesSelected) || singleSelectedFuelType === type}
+                    onClick={() => handleFuelChipSelect(type)}
                   />
                 ))}
+                {hasMultipleFuelTypesSelected && (
+                  <button
+                    onClick={() => setShowFilters(true)}
+                    className="px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-2 border-amber-300 dark:border-amber-800 shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+                  >
+                    {mapFilters.fuelTypes.length} fuel types active
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -642,6 +731,9 @@ export function Map() {
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onApply={handleApplyFilters}
+        onReset={handleResetFilters}
+        filters={mapFilters}
+        onChange={handleMapFiltersChange}
         availableCities={getAvailableCities(stations)}
       />
     </div>

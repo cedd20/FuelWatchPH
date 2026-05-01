@@ -1,9 +1,14 @@
 import { useNavigate } from "react-router";
 import { LogIn, UserPlus, X } from "lucide-react";
 import { Button } from "./Button";
+import { isAuthBypassEnabled } from "@/app/providers/authBypass";
 
 export function AuthPrompt({ isOpen, onClose, message }) {
   const navigate = useNavigate();
+
+  // TEMP: Auth bypass enabled for frontend testing only.
+  // Re-enable when backend/auth is ready.
+  if (isAuthBypassEnabled()) return null;
 
   if (!isOpen) return null;
 
