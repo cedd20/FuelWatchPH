@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 
 const brands = [
@@ -17,18 +18,19 @@ const brands = [
 
 const fuelTypes = FUEL_TYPES;
 
-export function MapFilterSheet({
-  isOpen,
-  onClose,
-  onApply,
-  onReset,
-  filters,
-  onChange,
-  availableCities = [],
-}) {
-  const setFilters = (nextFilters) => {
-    onChange(nextFilters);
-  };
+export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [] }) {
+  const [filters, setFilters] = useState({
+    location: "nearby",
+    selectedCity: "",
+    radius: "3",
+    fuelTypes: [],
+    brands: [],
+    priceSort: "lowest",
+    verifiedOnly: false,
+    recentlyUpdated: "7",
+    openNow: false,
+    is24_7: false,
+  });
 
   const toggleFuelType = (fuel) => {
     setFilters((prev) => ({
@@ -48,8 +50,23 @@ export function MapFilterSheet({
     }));
   };
 
+  const handleReset = () => {
+    setFilters({
+      location: "nearby",
+      selectedCity: "",
+      radius: "5",
+      fuelTypes: [],
+      brands: [],
+      priceSort: "lowest",
+      verifiedOnly: false,
+      recentlyUpdated: "7",
+      openNow: false,
+      is24_7: false,
+    });
+  };
+
   const handleApply = () => {
-    onApply();
+    onApply(filters);
     onClose();
   };
 
@@ -79,7 +96,7 @@ export function MapFilterSheet({
                 <input
                   type="radio"
                   checked={filters.location === "nearby"}
-                  onChange={() => setFilters({ ...filters, location: "nearby", selectedCity: "" })}
+                  onChange={() => setFilters({ ...filters, location: "nearby" })}
                   className="w-4 h-4 text-primary"
                 />
                 <span className="text-foreground">Near me</span>
@@ -131,16 +148,6 @@ export function MapFilterSheet({
           <div>
             <h3 className="font-semibold text-foreground mb-3">Fuel Type</h3>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setFilters({ ...filters, fuelTypes: [] })}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                  filters.fuelTypes.length === 0
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
-                }`}
-              >
-                All
-              </button>
               {fuelTypes.map((fuel) => (
                 <button
                   key={fuel}
@@ -259,7 +266,7 @@ export function MapFilterSheet({
         {/* Footer */}
         <div className="p-4 lg:p-6 pb-28 lg:pb-6 border-t-2 border-gray-200 dark:border-neutral-700 flex gap-3 lg:gap-4 bg-white dark:bg-neutral-900">
           <button
-            onClick={onReset}
+            onClick={handleReset}
             className="flex-1 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl border-2 border-gray-200 dark:border-neutral-700 text-foreground font-bold bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
           >
             Reset Filter

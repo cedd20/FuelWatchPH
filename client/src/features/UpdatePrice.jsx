@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info, Trash2, FilePlus2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
 import { useAuth } from "@/app/providers/AuthContext";
 import { toast } from "sonner";
-import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
-import { deleteStationPrice, getStationById, updateExistingStationPrice } from "@/shared/utils/stationStorage";
+import { MOCK_STATIONS } from "@/shared/utils/mockStations";
+import { getUserStations, getMockOverrides, updateStationPrices } from "@/shared/utils/stationStorage";
 
 export function UpdatePrice() {
   const navigate = useNavigate();
@@ -19,8 +19,6 @@ export function UpdatePrice() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [fuelToDelete, setFuelToDelete] = useState(null);
 
   const [station, setStation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,8 +31,17 @@ export function UpdatePrice() {
       try {
         // Simulate API Fetch: GET /api/stations/:id
         await new Promise((resolve) => setTimeout(resolve, 800));
-
-        setStation(getStationById(id));
+        
+        const userStations = getUserStations();
+        const overrides = getMockOverrides();
+        const all = [...MOCK_STATIONS, ...userStations].map(s => {
+          if (overrides[s.id]) {
+            return { ...s, ...overrides[s.id] };
+          }
+          return s;
+        });
+        const found = all.find(s => s.id === id);
+        setStation(found);
       } catch (error) {
         console.error("Failed to fetch station for update:", error);
       } finally {
@@ -55,11 +62,6 @@ export function UpdatePrice() {
       currentPrice: p.price
     }));
   }, [station, isLoading]);
-
-  const missingFuelTypes = useMemo(() => {
-    const existing = new Set(fuelTypes.map((fuel) => fuel.label));
-    return FUEL_TYPES.filter((fuelType) => !existing.has(fuelType));
-  }, [fuelTypes]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -120,23 +122,8 @@ export function UpdatePrice() {
         };
       });
 
-      const invalidEntry = updatedPrices.find((entry) => !Number.isFinite(entry.price) || entry.price <= 0);
-      if (invalidEntry) {
-        toast.error(`Enter a valid updated price for ${invalidEntry.type}.`);
-        return;
-      }
-
-      for (const updatedPrice of updatedPrices) {
-        const result = updateExistingStationPrice(id, updatedPrice.type, {
-          price: updatedPrice.price,
-          reportedAt: new Date().toISOString(),
-        });
-
-        if (!result.success) {
-          toast.error(result.message || `Failed to update ${updatedPrice.type}.`);
-          return;
-        }
-      }
+      // Local save (Simulated)
+      updateStationPrices(id, updatedPrices);
       
       setShowSuccess(true);
       setTimeout(() => {
@@ -147,34 +134,6 @@ export function UpdatePrice() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleRequestDelete = (fuelLabel) => {
-    setFuelToDelete(fuelLabel);
-    setShowDeleteConfirmation(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!fuelToDelete) return;
-
-    setShowDeleteConfirmation(false);
-    setIsSubmitting(true);
-    const result = deleteStationPrice(id, fuelToDelete);
-    setIsSubmitting(false);
-
-    if (!result.success) {
-      toast.error(result.message || "Unable to remove fuel price.");
-      return;
-    }
-
-    toast.success(result.message);
-    setStation(getStationById(id));
-    setPrices((prev) => {
-      const next = { ...prev };
-      delete next[fuelToDelete.toLowerCase().replace(/ /g, "")];
-      return next;
-    });
-    setFuelToDelete(null);
   };
 
   if (isLoading) {
@@ -300,26 +259,11 @@ export function UpdatePrice() {
                         <div className="flex flex-col flex-1 gap-4">
                           {/* Fuel Info */}
                           <div>
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <div className="font-bold text-foreground text-lg mb-0.5">
-                                  {fuel.label}
-                                </div>
-                                <div className="text-sm text-muted-foreground font-semibold">
-                                  Current Record: ₱{fuel.currentPrice.toFixed(2)}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRequestDelete(fuel.label)}
-                                className="w-10 h-10 rounded-xl border-2 border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 flex items-center justify-center hover:scale-105 transition-all"
-                                title={`Remove ${fuel.label}`}
-                              >
-                                <Trash2 className="w-4 h-4" strokeWidth={2.5} />
-                              </button>
+                            <div className="font-bold text-foreground text-lg mb-0.5">
+                              {fuel.label}
                             </div>
-                            <div className="text-xs text-rose-500 font-medium mt-2">
-                              Remove this fuel if it is no longer offered or the saved record should be deleted.
+                            <div className="text-sm text-muted-foreground font-semibold">
+                              Current Record: ₱{fuel.currentPrice.toFixed(2)}
                             </div>
                           </div>
 
@@ -367,27 +311,6 @@ export function UpdatePrice() {
                 </div>
               </div>
 
-              {missingFuelTypes.length > 0 && (
-                <div className="bg-white dark:bg-neutral-900 border-2 border-dashed border-emerald-300/60 dark:border-emerald-800/60 rounded-2xl p-5 lg:p-6 shadow-lg">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h4 className="font-bold text-foreground text-lg mb-1">Add or Restore a Missing Fuel Type</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Missing from this station right now: {missingFuelTypes.join(", ")}.
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => navigate(`/app/report/${id}`)}
-                      variant="secondary"
-                      size="sm"
-                      icon={FilePlus2}
-                    >
-                      Report New Price
-                    </Button>
-                  </div>
-                </div>
-              )}
-
               <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border-2 border-emerald-200/50 dark:border-emerald-800/30 rounded-2xl p-6 shadow-lg">
                 <h4 className="font-bold text-foreground text-base lg:text-lg mb-3 flex items-center gap-2">
                   <Info className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -433,19 +356,6 @@ export function UpdatePrice() {
         confirmText="Update Prices"
         cancelText="Cancel"
         type="info"
-      />
-      <ConfirmationModal
-        isOpen={showDeleteConfirmation}
-        onClose={() => {
-          setShowDeleteConfirmation(false);
-          setFuelToDelete(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Remove Fuel Price?"
-        message={`Removing ${fuelToDelete || "this fuel"} will immediately update local station data and show it as unavailable across the app. You can add it back later with Report Fuel Price.`}
-        confirmText="Delete Price"
-        cancelText="Keep Price"
-        type="warning"
       />
     </>
   );

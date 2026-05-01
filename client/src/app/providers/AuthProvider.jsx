@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isValidUrl } from "../../lib/supabase";
-import { getMockAuthenticatedUser, isAuthBypassEnabled } from "./authBypass";
 
 const AuthContext = createContext();
 
@@ -11,17 +10,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function getUser() {
       try {
-        // TEMP: Auth bypass enabled for frontend testing only.
-        // Re-enable when backend/auth is ready.
-        if (isAuthBypassEnabled()) {
-          setUser(getMockAuthenticatedUser());
-          setLoading(false);
-          return;
-        }
-
         if (!isValidUrl) {
           console.warn("Supabase credentials missing, providing mock user session.");
-          setUser(getMockAuthenticatedUser());
+          setUser({
+            id: 'demo-user-id',
+            email: 'user@fuelwatch.ph',
+            name: 'FuelWatch Explorer',
+            initials: 'FE',
+            contributionCount: 142,
+            accuracy: 98,
+            points: 2500,
+            rank: 'Gold Contributor'
+          });
           setLoading(false);
           return;
         }
@@ -37,12 +37,6 @@ export function AuthProvider({ children }) {
 
     getUser();
 
-    // TEMP: Auth bypass enabled for frontend testing only.
-    // Re-enable when backend/auth is ready.
-    if (isAuthBypassEnabled()) {
-      return undefined;
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -56,32 +50,12 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     loading,
     login: async (email, password) => {
-      // TEMP: Auth bypass enabled for frontend testing only.
-      // Re-enable when backend/auth is ready.
-      if (isAuthBypassEnabled()) {
-        const mockUser = getMockAuthenticatedUser();
-        setUser(mockUser);
-        return { user: mockUser, session: { user: mockUser } };
-      }
-
       if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       return data;
     },
     signUp: async (email, password, metadata) => {
-      // TEMP: Auth bypass enabled for frontend testing only.
-      // Re-enable when backend/auth is ready.
-      if (isAuthBypassEnabled()) {
-        const mockUser = {
-          ...getMockAuthenticatedUser(),
-          email,
-          name: metadata?.full_name || getMockAuthenticatedUser().name,
-        };
-        setUser(mockUser);
-        return { user: mockUser, session: { user: mockUser } };
-      }
-
       if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -92,13 +66,6 @@ export function AuthProvider({ children }) {
       return data;
     },
     logout: async () => {
-      // TEMP: Auth bypass enabled for frontend testing only.
-      // Re-enable when backend/auth is ready.
-      if (isAuthBypassEnabled()) {
-        setUser(getMockAuthenticatedUser());
-        return;
-      }
-
       if (!isValidUrl) {
         setUser(null);
         return;

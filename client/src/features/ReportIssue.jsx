@@ -1,32 +1,36 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, AlertCircle, CheckCircle2, MapPinned, Store } from "lucide-react";
+import { ArrowLeft, AlertCircle, CheckCircle2, Upload } from "lucide-react";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
-import { getStationById, submitStationIssueReport } from "@/shared/utils/stationStorage";
-import { toast } from "sonner";
 
 const issueTypes = [
-  "Incorrect station information",
-  "Wrong location pin",
+  "Incorrect fuel price",
   "Station closed",
-  "Station temporarily unavailable",
+  "Wrong location",
   "Duplicate station",
-  "Incorrect brand/logo",
-  "Other station-related concern",
+  "Fuel type not available",
+  "Other issue",
+];
+
+const mockPrices = [
+  { type: "Diesel", price: 58.40, lastUpdated: "2 hours ago" },
+  { type: "Premium Diesel", price: 62.50, lastUpdated: "2 hours ago" },
+  { type: "Unleaded 91", price: 64.30, lastUpdated: "1 hour ago" },
+  { type: "Premium 95", price: 68.20, lastUpdated: "1 hour ago" },
+  { type: "Premium 97", price: 72.80, lastUpdated: "3 hours ago" },
 ];
 
 export function ReportIssue() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { isAuthenticated, user } = useAuth();
-  const [station, setStation] = useState(null);
+  const { isAuthenticated } = useAuth();
   const [issueType, setIssueType] = useState("");
+  const [selectedPrices, setSelectedPrices] = useState([]);
+  const [corrections, setCorrections] = useState({});
   const [notes, setNotes] = useState("");
-  const [reporterReference, setReporterReference] = useState(() => user?.email || "frontend-tester");
   const [submitted, setSubmitted] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -34,44 +38,31 @@ export function ReportIssue() {
     }
   }, [isAuthenticated]);
 
-  useEffect(() => {
-    setStation(getStationById(id));
-  }, [id]);
-
-  useEffect(() => {
-    if (user?.email) {
-      setReporterReference(user.email);
+  const togglePriceSelection = (fuelType) => {
+    if (selectedPrices.includes(fuelType)) {
+      setSelectedPrices(selectedPrices.filter((f) => f !== fuelType));
+      const newCorrections = { ...corrections };
+      delete newCorrections[fuelType];
+      setCorrections(newCorrections);
+    } else {
+      setSelectedPrices([...selectedPrices, fuelType]);
     }
-  }, [user]);
+  };
 
-  const handleSubmit = async () => {
+  const handleCorrectionChange = (fuelType, value) => {
+    setCorrections({ ...corrections, [fuelType]: value });
+  };
+
+  const handleSubmit = () => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
-      return;
-    }
-
-    if (!issueType) {
-      toast.error("Please select an issue type.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const result = submitStationIssueReport(id, {
-      issueType,
-      details: notes,
-      reporterReference,
-    });
-    setIsSubmitting(false);
-
-    if (!result.success) {
-      toast.error(result.message || "Unable to submit station issue report.");
       return;
     }
 
     setSubmitted(true);
     setTimeout(() => {
       navigate(-1);
-    }, 1600);
+    }, 2000);
   };
 
   if (submitted) {
@@ -82,7 +73,7 @@ export function ReportIssue() {
             <CheckCircle2 className="w-10 h-10 text-emerald-600" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2 tracking-tight">Report Submitted</h2>
-          <p className="text-sm text-muted-foreground font-medium">The station issue report has been saved locally for frontend testing.</p>
+          <p className="text-sm text-muted-foreground font-medium">Thank you for helping keep FuelWatch PH accurate.</p>
         </div>
       </div>
     );
@@ -111,18 +102,6 @@ export function ReportIssue() {
         </div>
 
         <div className="max-w-4xl mx-auto px-6 py-10 space-y-8">
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border-2 border-gray-100 dark:border-neutral-800 p-5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="w-11 h-11 rounded-xl bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center">
-                <Store className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <div className="font-semibold text-foreground">{station?.name || "Selected station"}</div>
-                <div className="text-sm text-muted-foreground mt-1">{station?.address || "Station reference will be attached to this issue report."}</div>
-              </div>
-            </div>
-          </div>
-
           <div>
             <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">What's the issue?</label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -142,45 +121,52 @@ export function ReportIssue() {
             </div>
           </div>
 
+          {issueType === "Incorrect fuel price" && (
+            <div>
+              <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">Which fuel prices are incorrect?</label>
+              <div className="space-y-3">
+                {mockPrices.map((fuel) => (
+                  <button
+                    key={fuel.type}
+                    onClick={() => togglePriceSelection(fuel.type)}
+                    className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                      selectedPrices.includes(fuel.type) 
+                        ? "border-emerald-500 bg-emerald-50" 
+                        : "border-gray-100 bg-white dark:bg-neutral-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 text-left">
+                      <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center ${selectedPrices.includes(fuel.type) ? "border-emerald-500 bg-emerald-500" : "border-gray-200"}`}>
+                        {selectedPrices.includes(fuel.type) && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      </div>
+                      <div className="font-bold text-foreground">{fuel.type}</div>
+                    </div>
+                    <div className="text-right font-bold text-foreground">₱{fuel.price.toFixed(2)}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {issueType && (
             <div>
               <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">Additional Details</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Describe the station issue in more detail. Example: the map pin is one block away from the actual station entrance."
+                placeholder="Describe the issue... (e.g., station is closed for renovation)"
                 className="w-full p-5 rounded-2xl border-2 border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:border-emerald-500 outline-none transition-all shadow-sm"
                 rows={4}
               />
             </div>
           )}
 
-          <div>
-            <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">Reporter Reference</label>
-            <input
-              type="text"
-              value={reporterReference}
-              onChange={(e) => setReporterReference(e.target.value)}
-              placeholder="frontend-tester"
-              className="w-full p-4 rounded-2xl border-2 border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:border-emerald-500 outline-none transition-all shadow-sm text-foreground"
-            />
-          </div>
-
-          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl p-4 flex items-start gap-3">
-            <MapPinned className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-foreground">
-              <p className="font-semibold mb-1">Station Issues only</p>
-              <p className="text-muted-foreground">Use this form for station-related problems like wrong location, duplicate listings, and closed stations. Fuel price submissions belong in Report Fuel Price.</p>
-            </div>
-          </div>
-
           {issueType && (
             <button
               onClick={handleSubmit}
-              disabled={isSubmitting}
               className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all"
             >
-              {isSubmitting ? "Submitting..." : "Submit Report"}
+              Submit Report
             </button>
           )}
         </div>
