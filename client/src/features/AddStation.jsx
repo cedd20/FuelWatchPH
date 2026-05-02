@@ -192,13 +192,6 @@ export function AddStation() {
     toast.success("Pin repositioned! Address updated.");
   }, [handlePinSet]);
 
-  // ── Handle map move ────────────────────────────────────────────────────────
-  const handleMapMove = useCallback((lat, lng) => {
-    // Update map center and fetch suggestions based on new center
-    setMapCenter([lat, lng]);
-    fetchOSMSuggestions(lat, lng);
-  }, [fetchOSMSuggestions]);
-
   // ── Fetch OSM Suggestions ────────────────────────────────────────────────
   const fetchOSMSuggestions = useCallback(async (lat, lng) => {
     if (isEditMode) return;
@@ -224,6 +217,13 @@ export function AddStation() {
       setIsFetchingOSM(false);
     }
   }, [isEditMode]);
+
+  // ── Handle map move ────────────────────────────────────────────────────────
+  const handleMapMove = useCallback((lat, lng) => {
+    // Update map center and fetch suggestions based on new center
+    setMapCenter([lat, lng]);
+    fetchOSMSuggestions(lat, lng);
+  }, [fetchOSMSuggestions]);
 
 
   const handleOSMSuggestionClick = useCallback(async (suggestion) => {
