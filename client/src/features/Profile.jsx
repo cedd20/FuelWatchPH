@@ -4,6 +4,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Award,
+  Trophy,
   Bell,
   ChevronRight,
   LogOut,
@@ -22,6 +23,13 @@ export function Profile() {
   const { user, isAuthenticated, logout } = useAuth();
 
   const guestMenuItems = [
+    {
+      icon: Trophy,
+      label: "Leaderboard",
+      subtitle: "Top community contributors",
+      onClick: () => navigate("/app/leaderboard"),
+      badge: null,
+    },
     {
       icon: Settings,
       label: "Settings",
@@ -51,6 +59,13 @@ export function Profile() {
       label: "My Contributions",
       subtitle: `${user?.contributionCount || 0} price updates`,
       onClick: () => navigate("/app/contributions"),
+      badge: null,
+    },
+    {
+      icon: Trophy,
+      label: "Leaderboard",
+      subtitle: "See top contributors",
+      onClick: () => navigate("/app/leaderboard"),
       badge: null,
     },
     {

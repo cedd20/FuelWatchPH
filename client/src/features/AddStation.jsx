@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
-import { addUserStation, checkDuplicateLocation } from "@/shared/utils/stationStorage";
+import { useCreateStation, useUpdateStation } from "@/hooks/useStations";
+import { useReportPrice, useReportPricesBatch } from "@/hooks/usePrices";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -41,6 +42,12 @@ function MapInteractions({ onPinSet }) {
       // TODO: Replace with map click event from backend map tile provider
       onPinSet(e.latlng.lat, e.latlng.lng, "click");
     },
+    moveend(e) {
+      const center = e.target.getCenter();
+      if (center && !isNaN(center.lat) && !isNaN(center.lng)) {
+        onMapMove(center.lat, center.lng);
+      }
+    }
   });
   return null;
 }
@@ -70,37 +77,53 @@ async function reverseGeocode(lat, lng) {
   };
 }
 
+function getFuelPriceValue(station, fuelLabel) {
+  const price = station?.prices?.find((entry) => entry.type === fuelLabel)?.price;
+  return price === undefined || price === null ? "" : String(price);
+}
+
 // ─── Main AddStation Component ──────────────────────────────────────────────
 export function AddStation() {
+  const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const mapRef = useRef(null);
+  const existingStation = location.state?.station ?? null;
+  const isEditMode = Boolean(existingStation);
+
+  const createStationMutation = useCreateStation();
+  const updateStationMutation = useUpdateStation();
+  const reportPricesBatchMutation = useReportPricesBatch();
 
   // Form state
-  const [stationName, setStationName] = useState("");
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
+  const [stationName, setStationName] = useState(existingStation?.name ?? "");
+  const [address, setAddress] = useState(existingStation?.address ?? "");
+  const [city, setCity] = useState(existingStation?.city ?? "");
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [prices, setPrices] = useState({
-    diesel: "",
-    premiumdiesel: "",
-    unleaded91: "",
-    premium95: "",
-    premium97: "",
-    kerosene: "",
+    diesel: getFuelPriceValue(existingStation, "Diesel"),
+    premiumdiesel: getFuelPriceValue(existingStation, "Premium Diesel"),
+    unleaded91: getFuelPriceValue(existingStation, "Unleaded 91"),
+    unleaded95: getFuelPriceValue(existingStation, "Unleaded 95"),
+    unleaded98: getFuelPriceValue(existingStation, "Unleaded 98"),
+    kerosene: getFuelPriceValue(existingStation, "Kerosene"),
   });
 
   // Pin placement state
-  const [stationLat, setStationLat] = useState(null);
-  const [stationLng, setStationLng] = useState(null);
+  const [stationLat, setStationLat] = useState(existingStation?.lat ?? null);
+  const [stationLng, setStationLng] = useState(existingStation?.lng ?? null);
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocodingPin, setIsGeocodingPin] = useState(false);
   const [pinMode, setPinMode] = useState(false); // true = user placing pin manually
   // Default map center: Metro Manila
-  const [mapCenter, setMapCenter] = useState([14.5995, 120.9842]);
+  const [mapCenter, setMapCenter] = useState(existingStation?.lat && existingStation?.lng ? [existingStation.lat, existingStation.lng] : [14.5995, 120.9842]);
+  
+  // OSM Suggestions state
+  const [osmSuggestions, setOsmSuggestions] = useState([]);
+  const [isFetchingOSM, setIsFetchingOSM] = useState(false);
 
   // ── Auth Check ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -111,8 +134,23 @@ export function AddStation() {
 
   // ── Auto-fly map to new pin position ──────────────────────────────────────
   useEffect(() => {
-    if (stationLat && stationLng && mapRef.current) {
-      mapRef.current.flyTo([stationLat, stationLng], 17, { animate: true, duration: 0.8 });
+    // Robust check for valid coordinates to prevent "Invalid LatLng object: (NaN, NaN)"
+    const isValidLat = typeof stationLat === 'number' && Number.isFinite(stationLat);
+    const isValidLng = typeof stationLng === 'number' && Number.isFinite(stationLng);
+    
+    if (isValidLat && isValidLng && mapRef.current) {
+      try {
+        const map = mapRef.current;
+        const currentCenter = map.getCenter();
+        
+        // Only fly if the distance is significant to avoid loops
+        const dist = Math.sqrt(Math.pow(currentCenter.lat - stationLat, 2) + Math.pow(currentCenter.lng - stationLng, 2));
+        if (dist > 0.0001) {
+          map.flyTo([stationLat, stationLng], 17, { animate: true, duration: 0.8 });
+        }
+      } catch (e) {
+        console.warn("flyTo failed:", e);
+      }
     }
   }, [stationLat, stationLng]);
 
@@ -151,6 +189,43 @@ export function AddStation() {
     toast.success("Pin repositioned! Address updated.");
   }, [handlePinSet]);
 
+  // ── Fetch OSM Suggestions ────────────────────────────────────────────────
+  const fetchOSMSuggestions = useCallback(async (lat, lng) => {
+    if (isEditMode) return;
+    setIsFetchingOSM(true);
+    try {
+      const radius = 1500; // 1.5km
+      const query = `[out:json];node["amenity"="fuel"](around:${radius},${lat},${lng});out;`;
+      const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      const suggestions = (data.elements || []).map(el => ({
+        id: el.id,
+        lat: el.lat,
+        lng: el.lon,
+        name: el.tags.name || "Unknown Station",
+        brand: el.tags.brand || el.tags.name || "Independent",
+      }));
+      setOsmSuggestions(suggestions);
+    } catch (err) {
+      console.warn("Failed to fetch OSM suggestions", err);
+    } finally {
+      setIsFetchingOSM(false);
+    }
+  }, [isEditMode]);
+
+  // Fetch when map center changes significantly
+  const handleMapMove = useCallback((lat, lng) => {
+    fetchOSMSuggestions(lat, lng);
+  }, [fetchOSMSuggestions]);
+
+  const handleOSMSuggestionClick = useCallback(async (suggestion) => {
+    setStationName(suggestion.name);
+    await handlePinSet(suggestion.lat, suggestion.lng, "osm");
+    toast.success(`Auto-filled from OSM: ${suggestion.name}`);
+  }, [handlePinSet]);
+
   // ── Use GPS Current Location ───────────────────────────────────────────────
   const handleUseCurrentLocation = () => {
     if (!("geolocation" in navigator)) {
@@ -181,63 +256,59 @@ export function AddStation() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validate pin is placed
     if (stationLat == null || stationLng == null) {
-      toast.error("Please place a pin on the map or use 'Use current location' to set the station's coordinates.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Radius-based duplicate detection (20 meters)
-    // TODO: Replace with API call: GET /api/stations/check-duplicate
-    const { isDuplicate, existingStation, distance } = checkDuplicateLocation(stationLat, stationLng, 20);
-    if (isDuplicate) {
-      setShowDuplicateWarning(true);
-      setDuplicateInfo({ name: existingStation.name, distance: Math.round(distance) });
-      toast.error(`A station already exists ${Math.round(distance)}m away: "${existingStation.name}".`);
+      toast.error("Please place a pin on the map.");
       setIsSubmitting(false);
       return;
     }
 
     try {
-      // Simulate API Fetch: POST /api/stations
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      // Build prices array from non-empty fields
-      const priceEntries = [
-        { key: "diesel", type: "Diesel" },
-        { key: "premiumdiesel", type: "Premium Diesel" },
-        { key: "unleaded91", type: "Unleaded 91" },
-        { key: "premium95", type: "Premium 95" },
-        { key: "premium97", type: "Premium 97" },
-        { key: "kerosene", type: "Kerosene" },
-      ]
-        .filter((entry) => prices[entry.key] !== "")
-        .map((entry) => ({ type: entry.type, price: parseFloat(prices[entry.key]) }));
-
-      // Save to localStorage — TODO: Replace with API call to Supabase backend
-      const result = addUserStation({
+      const stationPayload = {
         name: stationName,
         brand: stationName.split(" ")[0] || "Independent",
         address,
         city,
+        province: "Philippines", // Default
         lat: stationLat,
         lng: stationLng,
-        prices: priceEntries,
-      });
+      };
 
-      if (!result.success) {
-        toast.error(result.message);
-        return;
+      let stationId;
+      if (isEditMode && existingStation?.id) {
+        await updateStationMutation.mutateAsync({ id: existingStation.id, data: stationPayload });
+        stationId = existingStation.id;
+      } else {
+        const newStation = await createStationMutation.mutateAsync(stationPayload);
+        stationId = newStation.id;
+      }
+
+      // Submit prices in batch
+      const priceBatch = [
+        { key: "diesel", type: "Diesel" },
+        { key: "premiumdiesel", type: "Premium Diesel" },
+        { key: "unleaded91", type: "Unleaded 91" },
+        { key: "unleaded95", type: "Unleaded 95" },
+        { key: "unleaded98", type: "Unleaded 98" },
+        { key: "kerosene", type: "Kerosene" },
+      ]
+      .filter((entry) => prices[entry.key] !== "")
+      .map(entry => ({
+        station_id: stationId,
+        fuel_type: entry.type,
+        price: parseFloat(prices[entry.key]),
+        observed_at: new Date().toISOString()
+      }));
+
+      if (priceBatch.length > 0) {
+        await reportPricesBatchMutation.mutateAsync(priceBatch);
       }
 
       setShowSuccess(true);
       setTimeout(() => {
-        toast.success(result.message);
-        navigate("/app/map");
+        navigate(isEditMode ? `/app/station/${stationId}` : "/app/map");
       }, 2000);
     } catch (error) {
-      toast.error("Failed to add station. Please try again.");
+      toast.error("Failed to save station. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -250,9 +321,9 @@ export function AddStation() {
         <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-teal-500/50">
           <CheckCircle className="w-14 h-14 text-white" strokeWidth={2.5} />
         </div>
-        <h2 className="text-3xl font-bold text-foreground mb-3 tracking-tight">Station Added!</h2>
+        <h2 className="text-3xl font-bold text-foreground mb-3 tracking-tight">{isEditMode ? "Station Updated!" : "Station Added!"}</h2>
         <p className="text-center text-muted-foreground font-medium">
-          Thank you for contributing to the community
+          {isEditMode ? "Your station changes have been saved" : "Thank you for contributing to the community"}
         </p>
         <p className="text-center text-sm text-muted-foreground mt-2">
           Redirecting to map...
@@ -286,7 +357,7 @@ export function AddStation() {
               >
                 <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
               </button>
-              <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Add New Station</h1>
+              <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">{isEditMode ? "Edit Station" : "Add New Station"}</h1>
             </div>
             <p className="text-white/95 text-sm lg:text-base font-medium drop-shadow-lg pl-1 lg:pl-0">
               Place a pin on the map to set the exact location
@@ -398,9 +469,24 @@ export function AddStation() {
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       />
                       {/* Click handler */}
-                      <MapInteractions onPinSet={handlePinSet} />
+                      <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
+                      {/* OSM Suggestions */}
+                      {osmSuggestions.map(s => (
+                        <Marker 
+                          key={s.id} 
+                          position={[s.lat, s.lng]} 
+                          icon={L.divIcon({
+                            className: "",
+                            html: `<div style="width: 12px; height: 12px; background: #9ca3af; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                          })}
+                          eventHandlers={{ click: () => handleOSMSuggestionClick(s) }}
+                        >
+                        </Marker>
+                      ))}
                       {/* Draggable Pin */}
-                      {stationLat && stationLng && (
+                      {Number.isFinite(stationLat) && Number.isFinite(stationLng) && (
                         <Marker
                           position={[stationLat, stationLng]}
                           icon={placementIcon}
@@ -432,8 +518,8 @@ export function AddStation() {
                       { key: "diesel", label: "Diesel" },
                       { key: "premiumdiesel", label: "Premium Diesel" },
                       { key: "unleaded91", label: "Unleaded 91" },
-                      { key: "premium95", label: "Premium 95" },
-                      { key: "premium97", label: "Premium 97" },
+                      { key: "unleaded95", label: "Unleaded 95" },
+                      { key: "unleaded98", label: "Unleaded 98" },
                       { key: "kerosene", label: "Kerosene" },
                     ].map((fuel) => (
                       <div key={fuel.key}>
@@ -521,7 +607,7 @@ export function AddStation() {
                   {/* Submit Button */}
                   <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10">
                     <Button type="submit" fullWidth disabled={!stationLat}>
-                      {stationLat ? "Add Station" : "Place pin first"}
+                      {stationLat ? (isEditMode ? "Save Changes" : "Add Station") : "Place pin first"}
                     </Button>
                     {!stationLat && (
                       <p className="text-xs text-muted-foreground text-center mt-2">
@@ -642,8 +728,8 @@ export function AddStation() {
                     { key: "diesel", label: "Diesel" },
                     { key: "premiumdiesel", label: "Premium Diesel" },
                     { key: "unleaded91", label: "Unleaded 91" },
-                    { key: "premium95", label: "Premium 95" },
-                    { key: "premium97", label: "Premium 97" },
+                    { key: "unleaded95", label: "Unleaded 95" },
+                    { key: "unleaded98", label: "Unleaded 98" },
                     { key: "kerosene", label: "Kerosene" },
                   ].map((fuel) => (
                     <div key={fuel.key}>
@@ -678,7 +764,7 @@ export function AddStation() {
               {/* Submit */}
               <div className="pt-4">
                 <Button type="submit" fullWidth disabled={!stationLat || isSubmitting} loading={isSubmitting}>
-                  {isSubmitting ? "Adding Station..." : stationLat ? "Add Station" : "Place pin on map first"}
+                  {isSubmitting ? (isEditMode ? "Saving Changes..." : "Adding Station...") : stationLat ? (isEditMode ? "Save Changes" : "Add Station") : "Place pin on map first"}
                 </Button>
               </div>
             </div>

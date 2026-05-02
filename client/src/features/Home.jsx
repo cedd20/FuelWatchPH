@@ -8,12 +8,12 @@ import { CityCard } from "@/shared/components/CityCard";
 import { RecommendedStationCard } from "@/shared/components/RecommendedStationCard";
 import { Logo } from "@/shared/components/Logo";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
-import { getUserStations, getDistanceMeters, getStations } from "@/shared/utils/stationStorage";
+import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
 
 export function Home() {
   const navigate = useNavigate();
-  const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
+  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
   const [searchQuery, setSearchQuery] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(true);
@@ -41,34 +41,25 @@ export function Home() {
     );
   }, []);
 
-  const [stations, setStations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch all stations (Simulated API)
-  useEffect(() => {
-    const fetchStations = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API Fetch: GET /api/stations
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        const data = getStations();
-        setStations(data);
-      } catch (error) {
-        console.error("Failed to fetch stations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStations();
-  }, []);
-
-  const allStations = stations;
+  const { data: allStations = [], isLoading: stationsLoading } = useStations();
+  const isLoading = stationsLoading || isLocating;
 
   // Helper to get price
   const getStationPrice = (station, fuelType) => {
-    const fuel = station.prices.find((p) => p.type.toLowerCase() === fuelType.toLowerCase());
-    return fuel ? fuel.price : undefined;
+    return station.latest_prices?.[fuelType]?.price;
+  };
+
+  // Distance helper (Haversine simplified for this usage)
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   };
 
   // Calculate KPIs
@@ -99,12 +90,12 @@ export function Home() {
     return allStations
       .map(s => ({
         ...s,
-        distance: getDistanceMeters(userLocation.lat, userLocation.lng, s.lat, s.lng) / 1000,
+        distance: userLocation ? getDistance(userLocation.lat, userLocation.lng, s.lat, s.lng) : 0,
         lowestPrice: getStationPrice(s, selectedFuelType),
         fuelType: selectedFuelType
       }))
-      .filter(s => s.distance <= 5 && s.lowestPrice !== undefined) // Only within 5km and has price
-      .sort((a, b) => a.lowestPrice - b.lowestPrice) // Sort by cheapest price
+      .filter(s => s.lowestPrice !== undefined)
+      .sort((a, b) => a.lowestPrice - b.lowestPrice)
       .slice(0, 4);
   }, [allStations, userLocation, selectedFuelType]);
 

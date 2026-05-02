@@ -1,9 +1,9 @@
 export const FUEL_TYPES = [
+  "Unleaded 91",
+  "Unleaded 95",
+  "Unleaded 98",
   "Diesel",
   "Premium Diesel",
-  "Unleaded 91",
-  "Premium 95",
-  "Premium 97",
   "Kerosene",
 ];
 

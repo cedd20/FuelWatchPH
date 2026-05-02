@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeftRight, TrendingDown, MapPin, Map as MapIcon, SearchX } from "lucide-react";
+import { ArrowLeftRight, TrendingDown, MapPin, Map as MapIcon, SearchX, Loader2 } from "lucide-react";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
-import { getStations } from "@/shared/utils/stationStorage";
+import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
 import { StationLogo } from "@/shared/components/StationLogo";
 
@@ -11,19 +11,26 @@ const fuelTypes = FUEL_TYPES;
 
 export function Compare() {
   const navigate = useNavigate();
-  const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
+  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
   
-  const allStations = getStations();
+  const { data: allStations = [], isLoading } = useStations();
   
   const cities = useMemo(() => {
     return getAvailableCities(allStations);
   }, [allStations]);
 
-  const [selectedCity, setSelectedCity] = useState(cities[0] || "Quezon City");
+  const [selectedCity, setSelectedCity] = useState("Quezon City");
+
+  // Sync selected city if it's not in the list anymore or if we just loaded
+  useMemo(() => {
+    if (cities.length > 0 && !cities.includes(selectedCity)) {
+      setSelectedCity(cities[0]);
+    }
+  }, [cities, selectedCity]);
 
   const getStationPrice = (station, fuelType) => {
-    const fuel = station.prices.find((p) => p.type.toLowerCase() === fuelType.toLowerCase());
-    return fuel ? fuel.price : undefined;
+    const priceEntry = station.latest_prices?.[fuelType];
+    return priceEntry?.price;
   };
 
   const getSortedStations = () => {
@@ -112,7 +119,12 @@ export function Compare() {
       {/* Main Content */}
       <div className="px-4 lg:px-8 py-6 lg:py-10">
         <div className="max-w-6xl mx-auto">
-          {!hasStations ? (
+          {isLoading ? (
+            <div className="py-20 flex flex-col items-center justify-center">
+              <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
+              <p className="text-muted-foreground font-medium">Comparing prices...</p>
+            </div>
+          ) : !hasStations ? (
             // Empty State
             <div className="bg-white dark:bg-neutral-900 rounded-3xl border-2 border-dashed border-gray-200 dark:border-neutral-800 p-12 flex flex-col items-center justify-center text-center shadow-xl shadow-black/5">
               <div className="w-20 h-20 bg-gray-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mb-6">
@@ -152,7 +164,7 @@ export function Compare() {
                         <div className="text-base lg:text-lg font-bold opacity-95 mb-1.5">{sortedStations[0].name}</div>
                         <div className="text-sm lg:text-base opacity-90 flex items-center gap-1.5 font-medium">
                           <MapPin className="w-4 h-4 lg:w-5 lg:h-5" />
-                          {sortedStations[0].distance} km away in {sortedStations[0].city}
+                          {sortedStations[0].address} in {sortedStations[0].city}
                         </div>
                       </div>
                       <button
@@ -202,28 +214,30 @@ export function Compare() {
                             <div className="flex items-center gap-4 lg:gap-6 flex-1 min-w-0">
                               <StationLogo name={station.name} size="md" />
                               <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2.5 mb-2.5 lg:mb-3">
-                                <span className="font-bold text-foreground text-base lg:text-lg truncate">
-                                  {station.name}
-                                </span>
-                                {isLowest && (
-                                  <span className="px-3 py-1 lg:px-4 lg:py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs lg:text-sm rounded-full font-bold shadow-lg shadow-teal-500/30 flex-shrink-0">
-                                    Best
+                                <div className="flex items-center gap-2.5 mb-2.5 lg:mb-3">
+                                  <span className="font-bold text-foreground text-base lg:text-lg truncate">
+                                    {station.name}
                                   </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-4 text-sm lg:text-base">
-                                <div className="flex items-center gap-1.5 text-muted-foreground">
-                                  <MapPin className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
-                                  <span className="font-semibold">{station.distance} km</span>
+                                  {isLowest && (
+                                    <span className="px-3 py-1 lg:px-4 lg:py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs lg:text-sm rounded-full font-bold shadow-lg shadow-teal-500/30 flex-shrink-0">
+                                      Best
+                                    </span>
+                                  )}
                                 </div>
-                                {!isLowest && (
-                                  <span className="text-rose-600 dark:text-rose-400 font-bold text-sm lg:text-base">
-                                    +₱{priceDiff.toFixed(2)}
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-4 text-sm lg:text-base">
+                                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                                    <MapPin className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" />
+                                    <span className="font-semibold text-xs lg:text-sm truncate max-w-[150px]">
+                                      {station.address}
+                                    </span>
+                                  </div>
+                                  {!isLowest && (
+                                    <span className="text-rose-600 dark:text-rose-400 font-bold text-sm lg:text-base">
+                                      +₱{priceDiff.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
                           </div>
                           <div className="text-right flex-shrink-0">
                               <div

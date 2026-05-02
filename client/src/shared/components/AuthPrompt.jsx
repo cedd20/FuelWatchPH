@@ -4,6 +4,8 @@ import { Button } from "./Button";
 
 export function AuthPrompt({ isOpen, onClose, message }) {
   const navigate = useNavigate();
+  const returnTo = typeof message === "object" && message?.returnTo ? message.returnTo : undefined;
+  const promptMessage = typeof message === "string" ? message : message?.text || "";
 
   if (!isOpen) return null;
 
@@ -24,19 +26,19 @@ export function AuthPrompt({ isOpen, onClose, message }) {
           <h3 className="text-xl font-bold text-foreground mb-2">
             Sign In Required
           </h3>
-          <p className="text-muted-foreground text-sm font-medium">{message}</p>
+          <p className="text-muted-foreground text-sm font-medium">{promptMessage}</p>
         </div>
 
         <div className="space-y-3">
           <Button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login", { state: { returnTo } })}
             fullWidth
             icon={LogIn}
           >
             Sign In
           </Button>
           <Button
-            onClick={() => navigate("/signup")}
+            onClick={() => navigate("/signup", { state: { returnTo } })}
             variant="secondary"
             fullWidth
             icon={UserPlus}

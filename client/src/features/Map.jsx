@@ -1,20 +1,21 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MapPin, Navigation, Filter, List, Search, Loader2 } from "lucide-react";
+import { MapPin, Navigation, Filter, List, Search, Loader2, Plus } from "lucide-react";
 import { StationCard } from "@/shared/components/StationCard";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { MapFilterSheet } from "@/shared/components/MapFilterSheet";
 import { FilterChip } from "@/shared/components/FilterChip";
 import { BrandLogoPin } from "@/shared/components/BrandLogoPin";
 import { MapPriceLegend } from "@/shared/components/MapPriceLegend";
-import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
-import { getStations, getUserStations } from "@/shared/utils/stationStorage";
-import { MOCK_STATIONS } from "@/shared/utils/mockStations";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, CircleMarker } from "react-leaflet";
 import { renderToString } from "react-dom/server";
-import { getAvailableCities } from "@/shared/utils/cityUtils";
+import { useStations } from "@/hooks/useStations";
+import { getCitiesSortedByProximity } from "@/shared/utils/philippineCities";
+import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+
+const MAP_STATE_KEY = "fuelwatch_map_state";
 
 // Fix for Leaflet default marker icons in Vite/Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -53,27 +54,117 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
+function loadStoredMapState() {
+  try {
+    const raw = localStorage.getItem(MAP_STATE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredMapState(state) {
+  try {
+    localStorage.setItem(MAP_STATE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error("Failed to save map state:", error);
+  }
+}
+
+function buildActiveFilterLabels(filters) {
+  if (!filters) return [];
+
+  const labels = [];
+  if (filters.location === "city" && filters.selectedCity) {
+    labels.push(`City: ${filters.selectedCity}`);
+  }
+  if (filters.fuelTypes?.length > 0) {
+    labels.push(`${filters.fuelTypes.length} fuels`);
+  }
+  if (filters.brands?.length > 0) {
+    labels.push(`${filters.brands.length} brands`);
+  }
+  if (filters.verifiedOnly) {
+    labels.push("Verified");
+  }
+  if (filters.openNow) {
+    labels.push("Open now");
+  }
+
+  return labels;
+}
+
 export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [stations, setStations] = useState([]); // Empty until GPS + OSM loads
-  const [selectedFuelType, setSelectedFuelType] = useState("Diesel");
+  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
   const [showList, setShowList] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilters, setActiveFilters] = useState([]); // Used purely for UI rendering of filter chips
   const [appliedFilters, setAppliedFilters] = useState(null); // Used for actual data filtering
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
-  const [isLoadingStations, setIsLoadingStations] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const mapRef = useRef(null);
 
-  // Sync search query from URL
+  // Fetch real stations from backend
+  const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
+    city: appliedFilters?.location === "city" ? appliedFilters.selectedCity : undefined,
+    fuel_type: selectedFuelType !== "All" ? selectedFuelType : undefined,
+    lat: userLocation?.[0],
+    lng: userLocation?.[1],
+    radius_km: appliedFilters?.location === "nearby" ? appliedFilters.radius : undefined,
+  });
+
+  // Process stations for UI components
+  const stations = rawStations.map(s => ({
+    ...s,
+    prices: Object.entries(s.latest_prices || {}).map(([type, details]) => ({
+      type,
+      price: details.price
+    })),
+    lastUpdated: s.latest_prices && Object.keys(s.latest_prices).length > 0 
+      ? new Date(Math.max(...Object.values(s.latest_prices).map(p => new Date(p.observed_at)))).toLocaleDateString()
+      : 'No reports',
+    verified: s.is_active // Simple mapping for now
+  }));
+
+  // Restore persisted map state and sync search query from URL.
   useEffect(() => {
+    const storedState = loadStoredMapState();
     const q = searchParams.get("search");
-    if (q) {
+
+    if (storedState?.selectedFuelType && fuelTypes.includes(storedState.selectedFuelType)) {
+      setSelectedFuelType(storedState.selectedFuelType);
+    }
+    if (typeof storedState?.showList === "boolean") {
+      setShowList(storedState.showList);
+    }
+    if (storedState?.appliedFilters) {
+      setAppliedFilters(storedState.appliedFilters);
+      setActiveFilters(buildActiveFilterLabels(storedState.appliedFilters));
+    }
+
+    if (q !== null) {
       setSearchQuery(q);
       setShowList(true);
+    } else if (typeof storedState?.searchQuery === "string") {
+      setSearchQuery(storedState.searchQuery);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    setActiveFilters(buildActiveFilterLabels(appliedFilters));
+  }, [appliedFilters]);
+
+  useEffect(() => {
+    saveStoredMapState({
+      selectedFuelType,
+      searchQuery,
+      showList,
+      appliedFilters,
+    });
+  }, [appliedFilters, searchQuery, selectedFuelType, showList]);
 
   const getFilterDescription = () => {
     if (appliedFilters?.location === "city" && appliedFilters.selectedCity) {
@@ -84,42 +175,17 @@ export function Map() {
   };
 
   const handleApplyFilters = (filters) => {
-    // TODO: Send filter object to backend API: api.getStations(filters)
-    // Example: api.getStations({ ...filters, lat: userLocation[0], lng: userLocation[1] });
-    
     setAppliedFilters(filters);
-    
-    const applied = [];
+
     if (filters.location === "city" && filters.selectedCity) {
-      applied.push(`City: ${filters.selectedCity}`);
-      
       const coords = CITY_COORDS[filters.selectedCity];
       if (coords && mapRef.current) {
         mapRef.current.flyTo(coords, 14, { animate: true });
-        
-        // Also fetch live stations for the new city location
-        setIsLoadingStations(true);
-        fetchRealGasStations(coords[0], coords[1]);
       }
     }
-    if (filters.fuelTypes && filters.fuelTypes.length > 0) {
-      applied.push(`${filters.fuelTypes.length} fuels`);
-    }
-    if (filters.brands && filters.brands.length > 0) {
-      applied.push(`${filters.brands.length} brands`);
-    }
-    if (filters.verifiedOnly) {
-      applied.push("Verified");
-    }
-    if (filters.openNow) {
-      applied.push("Open now");
-    }
-    setActiveFilters(applied);
   };
 
   const removeFilter = (filterLabel) => {
-    setActiveFilters((prev) => prev.filter((f) => f !== filterLabel));
-    
     setAppliedFilters((prev) => {
       if (!prev) return null;
       const updated = { ...prev };
@@ -139,85 +205,6 @@ export function Map() {
     });
   };
 
-  const [userLocation, setUserLocation] = useState(null);
-  const mapRef = useRef(null);
-
-  const fetchRealGasStations = async (lat, lng) => {
-    try {
-      const query = `
-        [out:json];
-        node["amenity"="fuel"](around:3000, ${lat}, ${lng});
-        out;
-      `;
-      const response = await fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        body: query
-      });
-      const data = await response.json();
-      
-      const realStations = data.elements.map(el => {
-        const brandTag = el.tags?.brand || "";
-        const nameTag = el.tags?.name || "";
-        const nBrand = brandTag.toLowerCase() || nameTag.toLowerCase();
-        
-        let normalizedBrand = "Independent";
-        if (nBrand.includes("shell")) normalizedBrand = "Shell";
-        else if (nBrand.includes("petron")) normalizedBrand = "Petron";
-        else if (nBrand.includes("caltex")) normalizedBrand = "Caltex";
-        else if (nBrand.includes("seaoil")) normalizedBrand = "Seaoil";
-        else if (nBrand.includes("cleanfuel")) normalizedBrand = "Cleanfuel";
-        else if (nBrand.includes("unioil")) normalizedBrand = "Unioil";
-        else if (nBrand.includes("phoenix")) normalizedBrand = "Phoenix";
-        else if (nBrand.includes("total")) normalizedBrand = "TotalEnergies";
-        else if (nBrand.includes("jetti")) normalizedBrand = "Jetti";
-        else if (nBrand.includes("rephil")) normalizedBrand = "RePhil";
-        else if (nBrand.includes("flying")) normalizedBrand = "Flying V";
-        else normalizedBrand = nameTag || brandTag || "Gas Station";
-        
-        return {
-          id: el.id.toString(),
-          name: nameTag || `${normalizedBrand} Station`,
-          brand: normalizedBrand,
-          address: el.tags?.['addr:full'] || el.tags?.['addr:street'] || "Address unlisted in OpenStreetMap",
-          distance: 0,
-          prices: [
-             { type: "Unleaded 91", price: 62.00 + Math.random() * 5 },
-             { type: "Premium 95", price: 65.00 + Math.random() * 5 },
-             { type: "Diesel", price: 55.00 + Math.random() * 5 },
-          ],
-          lastUpdated: "Live Map Data",
-          verified: false,
-          lat: el.lat,
-          lng: el.lon,
-        };
-      });
-
-      // Merge OSM stations with user-added stations from localStorage
-      // TODO: Replace getUserStations() with API call when backend is ready
-      const userStations = getUserStations();
-      if (realStations.length > 0) {
-        const allStations = [...realStations.slice(0, 30), ...userStations, ...MOCK_STATIONS];
-        setStations(allStations);
-        setIsLoadingStations(false);
-      } else {
-        // No OSM results, but still show user-added stations and mock data
-        const fallbackStations = [...userStations, ...MOCK_STATIONS];
-        if (fallbackStations.length > 0) {
-          setStations(fallbackStations);
-        }
-        setIsLoadingStations(false);
-      }
-    } catch (e) {
-      console.error("Failed to fetch real stations via Overpass:", e);
-      // On fetch failure, still show user-added stations
-      const userStations = getUserStations();
-      if (userStations.length > 0) {
-        setStations(userStations);
-      }
-      setIsLoadingStations(false);
-    }
-  };
-
   const handlePreciseLocation = (isSilent = false) => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -229,10 +216,6 @@ export function Map() {
           if (mapRef.current) {
             mapRef.current.flyTo(newLoc, 15, { animate: true });
           }
-
-          // Fetch actual physical gas stations from OSM
-          setIsLoadingStations(true);
-          fetchRealGasStations(latitude, longitude);
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -248,20 +231,8 @@ export function Map() {
   };
 
   useEffect(() => {
-    // Load any user-added stations from localStorage immediately on mount
-    // so they appear even before geolocation resolves
-    // TODO: Replace with API call when backend is ready
-    const stations = getStations();
-    if (stations.length > 0) {
-      setStations((prev) => {
-        const existingIds = new Set(prev.map((s) => s.id));
-        const newOnes = stations.filter((s) => !existingIds.has(s.id));
-        return [...prev, ...newOnes];
-      });
-    }
     // Attempt automatic location finding quietly on mount
     handlePreciseLocation(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate average price for the selected fuel type
@@ -289,7 +260,8 @@ export function Map() {
     }
     
     // 2. Selected Fuel Type (Main Header Tabs)
-    if (selectedFuelType !== "All") {
+    // Always show stations with no prices — only filter stations that HAVE prices but lack the selected type
+    if (selectedFuelType !== "All" && station.prices.length > 0) {
       const hasFuel = station.prices.some(p => p.type === selectedFuelType);
       if (!hasFuel) return false;
     }
@@ -335,7 +307,7 @@ export function Map() {
     <div className="h-screen flex flex-col lg:flex-row">
       {/* Desktop Side Panel - Station List */}
       {showList && (
-        <div className="hidden lg:flex lg:flex-col lg:w-[420px] bg-white dark:bg-neutral-900 border-r-2 border-gray-200 dark:border-neutral-700 shadow-xl z-20">
+        <div className="hidden lg:flex lg:flex-col lg:w-[min(420px,38vw)] bg-white dark:bg-neutral-900 border-r-2 border-gray-200 dark:border-neutral-700 shadow-xl z-20">
           <div className="p-6 border-b-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xl font-bold text-foreground tracking-tight">
@@ -535,10 +507,17 @@ export function Map() {
         <div className="absolute right-4 lg:right-6 top-36 lg:top-44 z-20">
           <button 
             onClick={() => handlePreciseLocation(false)}
-            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-110 transition-transform"
+            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-110 transition-transform mb-3"
             title="Go to my location"
           >
             <Navigation className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+          </button>
+          <button 
+            onClick={() => navigate("/app/add-station")}
+            className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 transition-transform border-2 border-emerald-400/30"
+            title="Add new station"
+          >
+            <Plus className="w-8 h-8 text-white" strokeWidth={3} />
           </button>
         </div>
 
@@ -570,7 +549,7 @@ export function Map() {
 
         {/* Desktop Selected Station Panel */}
         {selectedStation && !showList && (
-          <div className="hidden lg:block absolute bottom-6 right-6 w-[420px] bg-white/98 dark:bg-neutral-900/98 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border-2 border-gray-200 dark:border-neutral-700 z-30">
+          <div className="hidden lg:block absolute bottom-6 right-6 w-[min(420px,38vw)] bg-white/98 dark:bg-neutral-900/98 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border-2 border-gray-200 dark:border-neutral-700 z-30">
             <button
               onClick={() => setSelectedStation(null)}
               className="absolute top-5 right-5 w-9 h-9 bg-muted hover:bg-muted/80 rounded-full flex items-center justify-center transition-all shadow-md z-10"
@@ -580,14 +559,19 @@ export function Map() {
             {filteredStations
               .filter((s) => s.id === selectedStation)
               .map((station) => (
-                <StationCard key={station.id} {...station} onClick={() => navigate(`/app/station/${station.id}`)} />
+                <StationCard 
+                  key={station.id} 
+                  {...station} 
+                  prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                  onClick={() => navigate(`/app/station/${station.id}`)} 
+                />
               ))}
           </div>
         )}
 
         {/* Bottom Sheet - Selected Station (Mobile Only) */}
         {selectedStation && !showList && (
-          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[50vh] overflow-y-auto z-30">
+          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[58vh] overflow-y-auto z-30">
             <div className="w-16 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
             <div className="relative">
               <button
@@ -599,7 +583,12 @@ export function Map() {
               {filteredStations
                 .filter((s) => s.id === selectedStation)
                 .map((station) => (
-                  <StationCard key={station.id} {...station} onClick={() => navigate(`/app/station/${station.id}`)} />
+                  <StationCard 
+                    key={station.id} 
+                    {...station} 
+                    prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                    onClick={() => navigate(`/app/station/${station.id}`)} 
+                  />
                 ))}
             </div>
           </div>
@@ -607,7 +596,7 @@ export function Map() {
 
         {/* Bottom Sheet - Station List (Mobile Only) */}
         {showList && (
-          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[70vh] overflow-y-auto flex flex-col z-30">
+          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[72vh] overflow-y-auto flex flex-col z-30">
             <div className="flex items-center justify-between mb-5 shrink-0">
               <div className="flex flex-col gap-1">
                 <h3 className="text-lg font-bold text-foreground tracking-tight">
@@ -626,6 +615,7 @@ export function Map() {
                 <StationCard
                   key={station.id}
                   {...station}
+                  prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
                   onClick={() => {
                     setSelectedStation(station.id);
                     setShowList(false);
@@ -642,7 +632,8 @@ export function Map() {
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         onApply={handleApplyFilters}
-        availableCities={getAvailableCities(stations)}
+        availableCities={[...new Set(getCitiesSortedByProximity(userLocation?.[0], userLocation?.[1]).map(c => c.city))]}
+        initialFilters={appliedFilters}
       />
     </div>
   );

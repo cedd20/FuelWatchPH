@@ -11,7 +11,7 @@ export function Settings() {
     nearbyStations: true,
     weeklyDigest: false,
   });
-  const [defaultFuelType, setDefaultFuelType] = useState("Diesel");
+  const [defaultFuelType, setDefaultFuelType] = useState("Unleaded 91");
   const [radius, setRadius] = useState("5");
 
   return (
@@ -78,9 +78,12 @@ export function Settings() {
                 <label className="block text-xs font-black text-muted-foreground mb-3 uppercase tracking-widest pl-1">Default Fuel Type</label>
                 <div className="relative">
                   <select value={defaultFuelType} onChange={(e) => setDefaultFuelType(e.target.value)} className="w-full p-4 lg:p-5 bg-gray-50 dark:bg-neutral-800 rounded-2xl border-2 border-transparent focus:border-emerald-500/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 text-foreground font-bold transition-all appearance-none cursor-pointer">
+                    <option>Unleaded 91</option>
+                    <option>Unleaded 95</option>
+                    <option>Unleaded 98</option>
                     <option>Diesel</option>
-                    <option>Gasoline 91</option>
-                    <option>Gasoline 95</option>
+                    <option>Premium Diesel</option>
+                    <option>Kerosene</option>
                   </select>
                   <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
                     <ChevronDown className="w-5 h-5 text-muted-foreground" />

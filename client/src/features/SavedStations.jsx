@@ -5,40 +5,26 @@ import { StationCard } from "@/shared/components/StationCard";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
-import { getStations, getSavedStationIds } from "@/shared/utils/stationStorage";
+import { useStations } from "@/hooks/useStations";
+import { getSavedStationIds } from "@/shared/utils/favorites";
 
 export function SavedStations() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [savedStations, setSavedStations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: allStations = [], isLoading } = useStations();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+
+  const savedStations = useMemo(() => {
+    if (isLoading) return [];
+    const savedIds = getSavedStationIds();
+    return allStations.filter(s => savedIds.includes(s.id));
+  }, [allStations, isLoading]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
-      setIsLoading(false);
-      return;
     }
-
-    // Simulate API Fetch: GET /api/user/saved-stations
-    const fetchSavedStations = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
-        const allStations = getStations();
-        const savedIds = getSavedStationIds();
-        const matched = allStations.filter(s => savedIds.includes(s.id));
-        setSavedStations(matched);
-      } catch (err) {
-        console.error("Failed to load saved stations:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchSavedStations();
   }, [isAuthenticated]);
 
   const filteredStations = useMemo(() => {
@@ -101,7 +87,11 @@ export function SavedStations() {
             {filteredStations.length > 0 ? (
               <div className="grid gap-4 lg:gap-6">
                 {filteredStations.map((station) => (
-                  <StationCard key={station.id} {...station} />
+                  <StationCard 
+                    key={station.id} 
+                    {...station} 
+                    prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                  />
                 ))}
               </div>
             ) : (

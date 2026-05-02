@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 
 const brands = [
@@ -17,20 +17,29 @@ const brands = [
 ];
 
 const fuelTypes = FUEL_TYPES;
+const DEFAULT_FILTERS = {
+  location: "nearby",
+  selectedCity: "",
+  radius: "3",
+  fuelTypes: [],
+  brands: [],
+  priceSort: "lowest",
+  verifiedOnly: false,
+  recentlyUpdated: "7",
+  openNow: false,
+  is24_7: false,
+};
 
-export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [] }) {
-  const [filters, setFilters] = useState({
-    location: "nearby",
-    selectedCity: "",
-    radius: "3",
-    fuelTypes: [],
-    brands: [],
-    priceSort: "lowest",
-    verifiedOnly: false,
-    recentlyUpdated: "7",
-    openNow: false,
-    is24_7: false,
-  });
+export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [], initialFilters = null }) {
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setFilters({
+      ...DEFAULT_FILTERS,
+      ...(initialFilters || {}),
+    });
+  }, [initialFilters, isOpen]);
 
   const toggleFuelType = (fuel) => {
     setFilters((prev) => ({
@@ -51,18 +60,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [] 
   };
 
   const handleReset = () => {
-    setFilters({
-      location: "nearby",
-      selectedCity: "",
-      radius: "5",
-      fuelTypes: [],
-      brands: [],
-      priceSort: "lowest",
-      verifiedOnly: false,
-      recentlyUpdated: "7",
-      openNow: false,
-      is24_7: false,
-    });
+    setFilters(DEFAULT_FILTERS);
   };
 
   const handleApply = () => {

@@ -1,18 +1,20 @@
-import { useState, useEffect, useMemo } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useState, useMemo } from "react";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
-import { useAuth } from "@/app/providers/AuthContext";
+import { useAuthGuard } from "@/shared/hooks/useAuthGuard";
+import { useStation } from "@/hooks/useStations";
+import { useReportPricesBatch } from "@/hooks/usePrices";
 import { toast } from "sonner";
-import { MOCK_STATIONS } from "@/shared/utils/mockStations";
-import { getUserStations, getMockOverrides, updateStationPrices } from "@/shared/utils/stationStorage";
+import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 
 export function UpdatePrice() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const selectedFuelType = location.state?.fuelType;
   
   const [prices, setPrices] = useState({});
   const [isNearStation] = useState(true); 
@@ -20,54 +22,40 @@ export function UpdatePrice() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const [station, setStation] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: rawStation, isLoading } = useStation(id);
+  const reportPricesBatchMutation = useReportPricesBatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load actual station data (Simulated API)
-  useEffect(() => {
-    const fetchStation = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API Fetch: GET /api/stations/:id
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        
-        const userStations = getUserStations();
-        const overrides = getMockOverrides();
-        const all = [...MOCK_STATIONS, ...userStations].map(s => {
-          if (overrides[s.id]) {
-            return { ...s, ...overrides[s.id] };
-          }
-          return s;
-        });
-        const found = all.find(s => s.id === id);
-        setStation(found);
-      } catch (error) {
-        console.error("Failed to fetch station for update:", error);
-      } finally {
-        setIsLoading(false);
-      }
+  const station = useMemo(() => {
+    if (!rawStation) return null;
+    return {
+      ...rawStation,
+      prices: Object.entries(rawStation.latest_prices || {}).map(([type, details]) => ({
+        type,
+        price: details.price
+      }))
     };
+  }, [rawStation]);
 
-    fetchStation();
-  }, [id]);
-
-  // Map station prices to standard fuelTypes format
-  const fuelTypes = useMemo(() => {
-    if (isLoading) return [];
-    if (!station) return [];
-    return station.prices.map(p => ({
-      id: p.type.toLowerCase().replace(/ /g, ''),
-      label: p.type,
-      currentPrice: p.price
+  const fuelTypesList = useMemo(() => {
+    if (isLoading || !rawStation) return [];
+    
+    // Create a map of existing prices for easy lookup
+    const existingPrices = rawStation.latest_prices || {};
+    
+    // Return all standard fuel types, noting current prices if they exist
+    return FUEL_TYPES.map(label => ({
+      id: label.toLowerCase().replace(/ /g, ''),
+      label: label,
+      currentPrice: existingPrices[label]?.price || null,
+      isNew: !existingPrices[label]
     }));
-  }, [station, isLoading]);
+  }, [rawStation, isLoading]);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setShowAuthPrompt(true);
-    }
-  }, [isAuthenticated]);
+  const { showAuthPrompt: isAuthPromptOpen, closeAuthPrompt, requireAuth, returnTo } = useAuthGuard({
+    defaultReturnTo: `/app/station/${id}`,
+    message: "Sign in to report or update fuel prices.",
+  });
 
   const handlePriceChange = (fuelId, value) => {
     setPrices(prev => {
@@ -86,8 +74,7 @@ export function UpdatePrice() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!isAuthenticated) {
-      setShowAuthPrompt(true);
+    if (!requireAuth(`/app/station/${id}`)) {
       return;
     }
 
@@ -110,27 +97,30 @@ export function UpdatePrice() {
     setIsSubmitting(true);
     
     try {
-      // Simulate API Fetch: POST /api/stations/:id/prices
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Prepare payload
-      const updatedPrices = fuelTypes.map(f => {
-        const enteredValue = prices[f.id];
+      const priceEntries = Object.entries(prices);
+      const batchData = priceEntries.map(([fuelId, value]) => {
+        const fuelType = fuelTypesList.find(f => f.id === fuelId)?.label;
         return {
-          type: f.label,
-          price: enteredValue !== undefined ? parseFloat(enteredValue) : f.currentPrice
+          station_id: id,
+          fuel_type: fuelType,
+          price: parseFloat(value),
+          observed_at: new Date().toISOString()
         };
-      });
+      }).filter(entry => entry.fuel_type);
 
-      // Local save (Simulated)
-      updateStationPrices(id, updatedPrices);
+      if (batchData.length === 0) {
+        setIsSubmitting(false);
+        return;
+      }
+
+      await reportPricesBatchMutation.mutateAsync(batchData);
       
       setShowSuccess(true);
       setTimeout(() => {
         navigate(`/app/station/${id}`);
       }, 2500);
     } catch (error) {
-      toast.error("Failed to update prices. Please try again.");
+      toast.error(error.message || "Failed to update prices. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -166,12 +156,9 @@ export function UpdatePrice() {
   return (
     <>
       <AuthPrompt
-        isOpen={showAuthPrompt}
-        onClose={() => {
-          setShowAuthPrompt(false);
-          navigate(-1);
-        }}
-        message="Sign in to contribute updates and help keep fuel prices accurate."
+        isOpen={isAuthPromptOpen}
+        onClose={closeAuthPrompt}
+        message={{ text: "Sign in to report or update fuel prices.", returnTo }}
       />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-10">
         {/* Header */}
@@ -194,6 +181,11 @@ export function UpdatePrice() {
             <p className="text-white/95 text-base lg:text-lg font-medium drop-shadow-lg pl-1 lg:pl-2">
               {station?.name || "Loading..."}
             </p>
+            {selectedFuelType && (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
+                Editing {selectedFuelType}
+              </div>
+            )}
           </div>
         </div>
 
@@ -243,7 +235,7 @@ export function UpdatePrice() {
                   Enter new prices for any fuel types you want to update. Leave fields blank if the price hasn't changed.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
-                  {fuelTypes.map((fuel) => {
+                  {fuelTypesList.map((fuel) => {
                     const currentEnteredPrice = prices[fuel.id];
                     const isEdited = currentEnteredPrice !== undefined && currentEnteredPrice !== "";
                     
@@ -253,17 +245,28 @@ export function UpdatePrice() {
                         className={`w-full p-4 lg:p-5 rounded-2xl border-2 transition-all shadow-lg flex flex-col ${
                           isEdited
                             ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-emerald-500/10"
-                            : "border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50"
+                            : fuel.isNew
+                              ? "border-dashed border-gray-300 dark:border-neutral-700 bg-gray-50/30 dark:bg-neutral-900/30 opacity-80"
+                              : "border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50"
                         }`}
                       >
                         <div className="flex flex-col flex-1 gap-4">
                           {/* Fuel Info */}
                           <div>
-                            <div className="font-bold text-foreground text-lg mb-0.5">
-                              {fuel.label}
+                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                              <div className="font-bold text-foreground text-lg">
+                                {fuel.label}
+                              </div>
+                              {fuel.isNew && (
+                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-gray-400 rounded-md">
+                                  Not Setup
+                                </span>
+                              )}
                             </div>
                             <div className="text-sm text-muted-foreground font-semibold">
-                              Current Record: ₱{fuel.currentPrice.toFixed(2)}
+                              {fuel.currentPrice 
+                                ? `Current Record: ₱${fuel.currentPrice.toFixed(2)}`
+                                : "No price recorded yet"}
                             </div>
                           </div>
 
@@ -284,7 +287,7 @@ export function UpdatePrice() {
                         </div>
 
                         {/* Price Difference Indicator */}
-                        {isEdited && (
+                        {isEdited && fuel.currentPrice && (
                           <div className="mt-4 pt-4 border-t border-gray-200 dark:border-neutral-700 flex items-center justify-between">
                             <span className="text-sm font-bold text-muted-foreground">Diff:</span>
                             <div

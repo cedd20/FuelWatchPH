@@ -1,29 +1,46 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Logo } from "@/shared/components/Logo";
 import { useAuth } from "@/app/providers/AuthContext";
 import { toast } from "sonner";
 
+// DEV TEST ACCOUNT: test@fuelwatch.ph / Test1234!
+// Remove this comment before production
+
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const returnTo = location.state?.returnTo || "/app/map";
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      console.log("Calling login...");
       await login(email, password);
+      console.log("Login successful, showing toast...");
       toast.success("Welcome back!");
-      navigate("/app/map");
+      console.log("Navigating to:", returnTo);
+      navigate(returnTo, { replace: true });
     } catch (error) {
-      toast.error(error.message || "Invalid email or password");
+      console.error("Login handler error:", error);
+      const message = error.message || "";
+      if (message.toLowerCase().includes("email not confirmed")) {
+        toast.error("Email not confirmed. Please check your inbox for the verification link.");
+      } else if (message.toLowerCase().includes("invalid login credentials")) {
+        toast.error("Invalid email or password. Please try again.");
+      } else {
+        toast.error(message || "An error occurred during login");
+      }
     } finally {
       setIsLoading(false);
     }

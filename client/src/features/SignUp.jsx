@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   User,
   Mail,
@@ -13,33 +13,116 @@ import { Logo } from "@/shared/components/Logo";
 import { useAuth } from "@/app/providers/AuthContext";
 import { toast } from "sonner";
 
+// NOTE: Email confirmation is disabled in Supabase Dashboard for development.
+// Re-enable before production deployment.
+// DEV: To disable, go to Supabase Dashboard → Authentication → Email → Disable "Confirm email"
+
 export function SignUp() {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const location = useLocation();
+  const { signUp, resendVerification } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [isEmailSent, setIsEmailSent] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  const returnTo = location.state?.returnTo || "/app/map";
 
   const handleSignUp = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setFormError("");
 
     try {
-      await signUp(email, password, { full_name: name });
-      toast.success("Account created successfully! Please check your email for verification.");
-      navigate("/app/map");
-    } catch (error) {
-      toast.error(error.message || "Failed to create account");
+      const { data, error } = await signUp(email, password, { full_name: name });
+
+      if (error) {
+        if (error.status === 429 || error.message?.includes('rate limit') || error.message?.includes('email rate limit')) {
+          setFormError("Too many sign-up attempts. Please wait a few minutes and try again.");
+        } else if (error.message?.includes('already registered') || error.message?.includes('User already registered')) {
+          setFormError("This email is already registered. Try logging in instead.");
+        } else {
+          setFormError(error.message || "Sign up failed. Please try again.");
+        }
+        return;
+      }
+
+      if (data?.user) {
+        // If email confirmation is enabled, data.session will be null
+        if (!data.session) {
+          setIsEmailSent(true);
+          toast.success("Account created! Please check your email to verify.");
+        } else {
+          toast.success("Account created successfully! Welcome to FuelWatch PH.");
+          navigate(returnTo, { replace: true });
+        }
+      }
+    } catch (err) {
+      // Network or unexpected errors
+      if (err.message?.includes('rate limit')) {
+        setFormError("Too many sign-up attempts. Please wait a few minutes and try again.");
+      } else {
+        setFormError(err.message || "An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleResend = async () => {
+    setIsResending(true);
+    try {
+      await resendVerification(email);
+      toast.success("Verification email resent!");
+    } catch (err) {
+      toast.error(err.message || "Failed to resend verification email.");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+
   const handleContinueAsGuest = () => {
     navigate("/app/map");
   };
+
+  if (isEmailSent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-teal-500/50">
+          <Mail className="w-12 h-12 text-white" strokeWidth={2.5} />
+        </div>
+        <h2 className="text-4xl font-bold text-foreground mb-4 tracking-tight">Check your email</h2>
+        <p className="text-lg text-muted-foreground max-w-md mb-8 font-medium">
+          We've sent a verification link to <span className="text-emerald-600 dark:text-emerald-400 font-bold">{email}</span>. 
+          Please click the link in the email to confirm your account.
+        </p>
+        <div className="space-y-4 w-full max-w-sm">
+          <Button fullWidth onClick={() => navigate("/login")}>
+            Go to Login
+          </Button>
+          <Button 
+            fullWidth 
+            variant="outline" 
+            onClick={handleResend} 
+            disabled={isResending}
+          >
+            {isResending ? "Resending..." : "Resend Email"}
+          </Button>
+          <button 
+            onClick={() => setIsEmailSent(false)}
+            className="text-muted-foreground hover:text-foreground font-bold text-sm pt-2"
+          >
+            Entered wrong email? Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex flex-col lg:flex-row">
@@ -252,6 +335,13 @@ export function SignUp() {
               By signing up, you agree to our Terms of Service
               and Privacy Policy
             </p>
+
+            {/* Inline error message for 429/rate-limit/etc */}
+            {formError && (
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-2 border-red-200 dark:border-red-800 text-sm font-medium text-red-700 dark:text-red-400">
+                {formError}
+              </div>
+            )}
 
             <Button
                type="submit"

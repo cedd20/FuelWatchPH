@@ -5,6 +5,7 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
+import { useMyContributions } from "@/hooks/usePrices";
 
 const MOCK_CONTRIBUTIONS = [
   {
@@ -38,31 +39,22 @@ export function ContributionHistory() {
   const { isAuthenticated, user } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [contributions, setContributions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: rawContributions = [], isLoading } = useMyContributions();
 
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
-      setIsLoading(false);
-      return;
     }
-
-    // Simulate API Fetch: GET /api/user/contributions
-    const fetchContributions = async () => {
-      setIsLoading(true);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate delay
-        setContributions(MOCK_CONTRIBUTIONS);
-      } catch (err) {
-        console.error("Failed to fetch contributions:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchContributions();
   }, [isAuthenticated]);
+
+  const contributions = rawContributions.map(c => ({
+    id: c.id,
+    stationName: c.stations?.name || "Unknown Station",
+    fuelType: c.fuel_type,
+    price: parseFloat(c.price),
+    date: new Date(c.observed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+    status: c.confirmation_count > 0 ? "verified" : "pending"
+  }));
 
   const filteredContributions = contributions.filter((contribution) => {
     if (statusFilter === "all") return true;
@@ -115,11 +107,11 @@ export function ContributionHistory() {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-4 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">24</div>
+                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">{user?.contributionCount || 0}</div>
                 <div className="text-sm text-muted-foreground font-semibold">Total Updates</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-4 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">95%</div>
+                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">{user?.accuracy || 0}%</div>
                 <div className="text-sm text-muted-foreground font-semibold">Accuracy Rate</div>
               </div>
             </div>
@@ -212,11 +204,11 @@ export function ContributionHistory() {
                 <div className="text-base text-muted-foreground font-semibold">Total Updates</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">95%</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{user?.accuracy || 0}%</div>
                 <div className="text-base text-muted-foreground font-semibold">Accuracy Rate</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{contributions.length * 5}</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{user?.points || 0}</div>
                 <div className="text-base text-muted-foreground font-semibold">Points Earned</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
@@ -372,7 +364,7 @@ export function ContributionHistory() {
                       <span className="font-bold text-sm text-foreground">Trusted Contributor</span>
                     </div>
                     <p className="text-xs text-muted-foreground/80">
-                      95% accuracy rate • Keep up the great work!
+                      {user?.accuracy || 0}% accuracy rate • Keep up the great work!
                     </p>
                   </div>
                 </div>

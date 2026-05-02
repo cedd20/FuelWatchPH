@@ -16,6 +16,7 @@ import { ContributionHistory } from "@/features/ContributionHistory";
 import { Notifications } from "@/features/Notifications";
 import { Profile } from "@/features/Profile";
 import { Settings } from "@/features/Settings";
+import { Leaderboard } from "@/features/Leaderboard";
 import { ReportPrice } from "@/features/ReportPrice";
 import { GasHistory } from "@/features/GasHistory";
 import { ReportIssue } from "@/features/ReportIssue";
@@ -74,6 +75,10 @@ export const router = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "leaderboard",
+        element: <Leaderboard />,
       },
       {
         path: "station/:id",
