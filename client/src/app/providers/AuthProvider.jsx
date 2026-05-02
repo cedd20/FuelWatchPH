@@ -54,6 +54,8 @@ export function AuthProvider({ children }) {
                 ...profile,
                 contributionCount: count || 0,
                 points: profile?.reputation || 0,
+                avatar_url: profile?.avatar_url || prev?.avatar_url,
+                bio: profile?.bio || "",
                 initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
                 name: profile?.username || prev?.name || 'User'
               }));
@@ -104,6 +106,8 @@ export function AuthProvider({ children }) {
               ...profile,
               contributionCount: count || 0,
               points: profile?.reputation || 0,
+              avatar_url: profile?.avatar_url || prev?.avatar_url,
+              bio: profile?.bio || "",
               initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
               name: profile?.username || prev?.name || 'User'
             }));

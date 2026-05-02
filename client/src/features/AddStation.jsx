@@ -36,7 +36,7 @@ const placementIcon = L.divIcon({
 
 // ─── Map Click & Drag Handler Component ────────────────────────────────────
 // This inner component uses useMapEvents so it can only be rendered inside MapContainer
-function MapInteractions({ onPinSet }) {
+function MapInteractions({ onPinSet, onMapMove }) {
   useMapEvents({
     click(e) {
       // TODO: Replace with map click event from backend map tile provider
@@ -45,7 +45,10 @@ function MapInteractions({ onPinSet }) {
     moveend(e) {
       const center = e.target.getCenter();
       if (center && !isNaN(center.lat) && !isNaN(center.lng)) {
-        onMapMove(center.lat, center.lng);
+        // Use an explicit check for the prop to avoid potential ReferenceError in some environments
+        if (typeof onMapMove === 'function') {
+          onMapMove(center.lat, center.lng);
+        }
       }
     }
   });
@@ -189,6 +192,13 @@ export function AddStation() {
     toast.success("Pin repositioned! Address updated.");
   }, [handlePinSet]);
 
+  // ── Handle map move ────────────────────────────────────────────────────────
+  const handleMapMove = useCallback((lat, lng) => {
+    // Update map center and fetch suggestions based on new center
+    setMapCenter([lat, lng]);
+    fetchOSMSuggestions(lat, lng);
+  }, [fetchOSMSuggestions]);
+
   // ── Fetch OSM Suggestions ────────────────────────────────────────────────
   const fetchOSMSuggestions = useCallback(async (lat, lng) => {
     if (isEditMode) return;
@@ -215,10 +225,6 @@ export function AddStation() {
     }
   }, [isEditMode]);
 
-  // Fetch when map center changes significantly
-  const handleMapMove = useCallback((lat, lng) => {
-    fetchOSMSuggestions(lat, lng);
-  }, [fetchOSMSuggestions]);
 
   const handleOSMSuggestionClick = useCallback(async (suggestion) => {
     setStationName(suggestion.name);
@@ -682,7 +688,7 @@ export function AddStation() {
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
-                    <MapInteractions onPinSet={handlePinSet} />
+                    <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
                     {stationLat && stationLng && (
                       <Marker
                         position={[stationLat, stationLng]}

@@ -14,3 +14,11 @@ export function useSummaryStats() {
     queryFn: () => apiClient.get("/stats/summary"),
   });
 }
+
+export function useNotifications() {
+  return useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => apiClient.get("/notifications"),
+  });
+}
+

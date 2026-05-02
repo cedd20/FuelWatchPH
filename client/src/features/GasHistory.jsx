@@ -181,7 +181,7 @@ export function GasHistory() {
                   >
                     <option value="">Select a city...</option>
                     {sortedCities.map((c) => (
-                      <option key={c.city} value={c.city}>{c.city}</option>
+                      <option key={`${c.city}-${c.province}`} value={c.city}>{c.city}, {c.province}</option>
                     ))}
                   </select>
                 )}

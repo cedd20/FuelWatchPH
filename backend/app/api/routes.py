@@ -15,6 +15,9 @@ from app.models.schemas import (
     StationCreate,
     StationOut,
     StationUpdate,
+    UserProfileBase,
+    UserProfileOut,
+    NotificationOut,
 )
 from app.services import report_service
 from app.services.supabase_client import supabase, get_authenticated_client
@@ -156,7 +159,7 @@ def list_stations(
 
 
 @router.post("/stations", response_model=StationOut, status_code=201)
-@limiter.limit("10/hour")
+@limiter.limit("100/hour")
 def create_station(
     request: Request,
     station: StationCreate,
@@ -172,20 +175,30 @@ def create_station(
         user_id = user_res.user.id
     except Exception as e:
         print(f"Auth failed in create_station: {e}")
+        # Log the full error for debugging
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
     station_data = station.model_dump()
     station_data["created_by"] = user_id
     
-    result = client.table("stations").insert(station_data).execute()
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Failed to create station")
-    
-    return result.data[0]
+    try:
+        result = client.table("stations").insert(station_data).execute()
+        if not result.data:
+            print(f"Station creation failed - no data returned. Request: {station_data}")
+            raise HTTPException(status_code=500, detail="Failed to create station in database")
+        return result.data[0]
+    except Exception as e:
+        print(f"CRITICAL ERROR in create_station database insert: {e}")
+        import traceback
+        traceback.print_exc()
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=f"Database error during station creation: {str(e)}")
 
 
 @router.put("/stations/{station_id}", response_model=StationOut)
-@limiter.limit("10/hour")
+@limiter.limit("100/hour")
 def update_station(
     request: Request,
     station_id: str,
@@ -194,16 +207,18 @@ def update_station(
 ):
     client = get_authenticated_client(token)
     
-    # Check if station exists and user has permission
-    # In a real app, you'd use RLS. Here we'll do a quick check or rely on RLS.
     updates = station.model_dump(exclude_unset=True)
     _validate_station_payload(updates, partial=True)
 
-    result = client.table("stations").update(updates).eq("id", station_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Station not found or permission denied")
-    
-    return result.data[0]
+    try:
+        result = client.table("stations").update(updates).eq("id", station_id).execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Station not found or permission denied")
+        return result.data[0]
+    except Exception as e:
+        print(f"Error updating station {station_id}: {e}")
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/stations/{station_id}", status_code=204)
@@ -247,7 +262,7 @@ def list_prices(
 
 
 @router.post("/prices", response_model=PriceOut, status_code=201)
-@limiter.limit("10/hour")
+@limiter.limit("100/hour")
 def create_price(
     request: Request,
     price: PriceCreate,
@@ -287,7 +302,7 @@ def create_price(
 
 
 @router.post("/prices/batch", status_code=201)
-@limiter.limit("5/hour")
+@limiter.limit("60/hour")
 def create_prices_batch(
     request: Request,
     prices: List[PriceCreate],
@@ -297,51 +312,46 @@ def create_prices_batch(
     Creates multiple price reports in a single transaction-like batch.
     """
     user_id = None
-    # Use the service-role client or anon client for the insert if anonymous,
-    # but the authenticated client is better for RLS if we have a token.
     db_client = get_authenticated_client(token) if token else supabase
     
     if token:
         try:
-            # Use the global supabase client to verify the token and get user info
             user_res = supabase.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
         except Exception as e:
             print(f"Auth verification failed in batch: {e}")
-            # If token is invalid/expired, we treat as anonymous
-            pass
+            # Non-critical: allow anonymous batch if token fails but was optional
     
     to_insert = []
     for p in prices:
         data = p.model_dump()
         try:
             _validate_price_payload(data)
+            data["reported_by"] = user_id
+            if isinstance(data["observed_at"], datetime):
+                data["observed_at"] = data["observed_at"].isoformat()
+            to_insert.append(data)
         except HTTPException as e:
             raise e
         except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-        data["reported_by"] = user_id
-        if isinstance(data["observed_at"], datetime):
-            data["observed_at"] = data["observed_at"].isoformat()
-        to_insert.append(data)
+            raise HTTPException(status_code=400, detail=f"Validation error for record: {str(e)}")
 
     if not to_insert:
-        return {"count": 0}
+        return {"count": 0, "records": []}
 
     try:
         result = db_client.table("price_reports").insert(to_insert).execute()
         if not result.data:
-            raise HTTPException(status_code=500, detail="Failed to report prices")
+            print(f"Batch insert failed - no data returned. Request size: {len(to_insert)}")
+            raise HTTPException(status_code=500, detail="Failed to report prices to database")
+        return {"count": len(result.data), "records": result.data}
     except Exception as e:
         print(f"CRITICAL ERROR in create_prices_batch: {e}")
         import traceback
         traceback.print_exc()
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
-    
-    return {"count": len(result.data), "records": result.data}
 
 
 @router.put("/prices/{price_id}", response_model=PriceOut)
@@ -519,6 +529,7 @@ async def create_report(report: PriceReportIn):
 @router.get("/prices/history")
 async def get_price_history(
     fuel_type: Optional[str] = None,
+    location: Optional[str] = None,
     city: Optional[str] = None,
     station_id: Optional[str] = None
 ):
@@ -579,3 +590,117 @@ async def get_price_history(
             ]
         }
     ]
+
+# --- Notifications ---
+
+@router.get("/notifications", response_model=List[NotificationOut])
+async def get_notifications(
+    token: str = Depends(get_jwt_token),
+    limit: int = 20
+):
+    """
+    Returns notifications for the current user.
+    """
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        user_id = user_res.user.id
+        
+        result = supabase.table("notifications") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .order("created_at", desc=True) \
+            .limit(limit) \
+            .execute()
+            
+        return result.data
+    except Exception as e:
+        print(f"CRITICAL ERROR fetching notifications: {e}")
+        import traceback
+        traceback.print_exc()
+        if "schema cache" in str(e) or "not find the table" in str(e):
+             raise HTTPException(status_code=500, detail="Database table 'notifications' is missing. Please apply the migration 002.")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch notifications: {str(e)}")
+
+@router.patch("/notifications/{notification_id}/read", response_model=NotificationOut)
+async def mark_notification_as_read(
+    notification_id: str,
+    token: str = Depends(get_jwt_token)
+):
+    client = get_authenticated_client(token)
+    result = client.table("notifications").update({"is_read": True}).eq("id", notification_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return result.data[0]
+
+@router.post("/notifications/mark-all-read")
+async def mark_all_notifications_as_read(
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
+        result = supabase.table("notifications") \
+            .update({"is_read": True}) \
+            .eq("user_id", user_res.user.id) \
+            .eq("is_read", False) \
+            .execute()
+            
+        return {"count": len(result.data)}
+    except Exception as e:
+        print(f"Error marking all notifications as read: {e}")
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- Profile ---
+
+@router.get("/me/profile", response_model=UserProfileOut)
+async def get_my_profile(token: str = Depends(get_jwt_token)):
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        user_id = user_res.user.id
+        
+        result = supabase.table("user_profiles").select("*").eq("id", user_id).single().execute()
+        return result.data
+    except Exception as e:
+        print(f"Error fetching profile for user: {e}")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail="Failed to fetch profile")
+
+@router.put("/me/profile", response_model=UserProfileOut)
+async def update_my_profile(
+    profile_data: UserProfileBase,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        
+        user_id = user_res.user.id
+        client = get_authenticated_client(token)
+        
+        # Whitelist allowed fields from model
+        updates = profile_data.model_dump(exclude_unset=True)
+        
+        print(f"Updating profile for user {user_id} with data: {updates}")
+        
+        result = client.table("user_profiles").update(updates).eq("id", user_id).execute()
+        if not result.data:
+            print(f"Profile update failed - no data returned for user {user_id}")
+            raise HTTPException(status_code=400, detail="Update failed: Profile not found or no changes made")
+        
+        return result.data[0]
+    except Exception as e:
+        print(f"CRITICAL ERROR in update_my_profile: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

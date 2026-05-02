@@ -74,3 +74,27 @@ class PriceOut(PriceBase):
     reported_by: Optional[str] = None
     is_active: bool = True
     confirmation_count: int = 0
+
+
+class UserProfileBase(BaseModel):
+    username: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserProfileOut(UserProfileBase):
+    id: str
+    reputation: int = 0
+    role: str = "user"
+    created_at: datetime
+
+
+class NotificationOut(BaseModel):
+    id: str
+    user_id: str
+    type: str
+    title: str
+    message: str
+    metadata: dict = Field(default_factory=dict)
+    is_read: bool = False
+    created_at: datetime

@@ -14,6 +14,7 @@ import {
   LogIn,
   UserPlus,
   User,
+  Info,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
@@ -183,22 +184,58 @@ export function Profile() {
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
 
-        <div className="relative z-10 flex items-start gap-4 lg:gap-6 max-w-6xl mx-auto">
-          <div className="w-24 h-24 lg:w-28 lg:h-28 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30">
-            <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">{user?.initials || "U"}</span>
-          </div>
-          <div className="flex-1">
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-2 drop-shadow-2xl tracking-tight">{user?.name || "User"}</h2>
-            <p className="text-white/95 text-sm lg:text-base font-medium mb-4 drop-shadow-lg">
-              {user?.email || ""}
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="px-4 py-1.5 lg:px-5 lg:py-2 bg-yellow-400/90 backdrop-blur-md rounded-full flex items-center gap-2 shadow-xl border border-yellow-300/50">
-                <Award className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-900" strokeWidth={2.5} />
-                <span className="text-xs lg:text-sm font-bold text-yellow-900">
-                  Trusted Contributor
+        <div className="relative z-10 max-w-6xl mx-auto">
+          <div className="flex items-start gap-4 lg:gap-6">
+            <div className="w-24 h-24 lg:w-28 lg:h-28 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 overflow-hidden shrink-0">
+              {user?.avatar_url ? (
+                <img 
+                  src={user.avatar_url} 
+                  alt={user.name} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">
+                  {user?.initials || "U"}
                 </span>
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl lg:text-4xl font-bold text-white mb-1 drop-shadow-2xl tracking-tight">
+                  {user?.username || user?.name || "User"}
+                </h2>
+                <button 
+                  onClick={() => navigate("/app/edit-profile")}
+                  className="px-4 py-2 bg-white/20 backdrop-blur-xl rounded-full text-xs lg:text-sm font-bold text-white border border-white/30 hover:bg-white/30 transition-all flex items-center gap-2"
+                >
+                  <Settings className="w-4 h-4" />
+                  Edit Profile
+                </button>
               </div>
+              <p className="text-white/95 text-sm lg:text-base font-medium mb-4 drop-shadow-lg">
+                {user?.email || ""}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="px-4 py-1.5 lg:px-5 lg:py-2 bg-yellow-400/90 backdrop-blur-md rounded-full flex items-center gap-2 shadow-xl border border-yellow-300/50">
+                  <Award className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-900" strokeWidth={2.5} />
+                  <span className="text-xs lg:text-sm font-bold text-yellow-900">
+                    Trusted Contributor
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 max-w-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors" />
+            <div className="relative z-10">
+              <h4 className="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                <Info className="w-3 h-3" />
+                Bio
+              </h4>
+              <p className={`text-sm lg:text-base font-medium leading-relaxed ${user?.bio ? "text-white/90" : "text-white/40 italic"}`}>
+                {user?.bio || "No bio added yet. Click 'Edit Profile' to tell the community about yourself!"}
+              </p>
             </div>
           </div>
         </div>

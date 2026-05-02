@@ -52,8 +52,6 @@ export const PHILIPPINE_CITIES = [
   { city: 'Urdaneta', province: 'Pangasinan', region: 'Region I', lat: 15.9750, lng: 120.5708 },
   { city: 'Alaminos', province: 'Pangasinan', region: 'Region I', lat: 16.1555, lng: 119.9805 },
   { city: 'Lingayen', province: 'Pangasinan', region: 'Region I', lat: 16.0210, lng: 120.2320 },
-  { city: 'Mangaldan', province: 'Pangasinan', region: 'Region I', lat: 16.0680, lng: 120.4020 },
-  { city: 'Malasiqui', province: 'Pangasinan', region: 'Region I', lat: 15.9180, lng: 120.4140 },
 
   // Region II — Cagayan Valley
   { city: 'Tuguegarao', province: 'Cagayan', region: 'Region II', lat: 17.6132, lng: 121.7271 },
@@ -61,7 +59,6 @@ export const PHILIPPINE_CITIES = [
   { city: 'Ilagan', province: 'Isabela', region: 'Region II', lat: 17.1367, lng: 121.8833 },
   { city: 'Santiago', province: 'Isabela', region: 'Region II', lat: 16.6885, lng: 121.5492 },
   { city: 'Bayombong', province: 'Nueva Vizcaya', region: 'Region II', lat: 16.4833, lng: 121.1500 },
-  { city: 'Solano', province: 'Nueva Vizcaya', region: 'Region II', lat: 16.5167, lng: 121.1833 },
 
   // Region III — Central Luzon
   { city: 'Angeles City', province: 'Pampanga', region: 'Region III', lat: 15.1450, lng: 120.5887 },
@@ -71,164 +68,87 @@ export const PHILIPPINE_CITIES = [
   { city: 'Malolos', province: 'Bulacan', region: 'Region III', lat: 14.8527, lng: 120.8119 },
   { city: 'Meycauayan', province: 'Bulacan', region: 'Region III', lat: 14.7362, lng: 120.9609 },
   { city: 'San Jose del Monte', province: 'Bulacan', region: 'Region III', lat: 14.8142, lng: 121.0453 },
-  { city: 'Marilao', province: 'Bulacan', region: 'Region III', lat: 14.7596, lng: 120.9550 },
-  { city: 'Baliuag', province: 'Bulacan', region: 'Region III', lat: 14.9540, lng: 120.9010 },
-  { city: 'Santa Maria', province: 'Bulacan', region: 'Region III', lat: 14.8190, lng: 120.9590 },
   { city: 'Cabanatuan', province: 'Nueva Ecija', region: 'Region III', lat: 15.4885, lng: 120.9734 },
-  { city: 'Gapan', province: 'Nueva Ecija', region: 'Region III', lat: 15.3128, lng: 120.9472 },
-  { city: 'Palayan', province: 'Nueva Ecija', region: 'Region III', lat: 15.5414, lng: 121.0847 },
-  { city: 'San Jose', province: 'Nueva Ecija', region: 'Region III', lat: 15.7911, lng: 120.9906 },
   { city: 'Tarlac City', province: 'Tarlac', region: 'Region III', lat: 15.4755, lng: 120.5960 },
   { city: 'Balanga', province: 'Bataan', region: 'Region III', lat: 14.6781, lng: 120.5394 },
-  { city: 'Dinalupihan', province: 'Bataan', region: 'Region III', lat: 14.8850, lng: 120.4630 },
-  { city: 'Subic', province: 'Zambales', region: 'Region III', lat: 14.8820, lng: 120.2310 },
-  { city: 'Iba', province: 'Zambales', region: 'Region III', lat: 15.3280, lng: 119.9810 },
 
   // Region IV-A — CALABARZON
   { city: 'Antipolo', province: 'Rizal', region: 'Region IV-A', lat: 14.5865, lng: 121.1760 },
-  { city: 'Cainta', province: 'Rizal', region: 'Region IV-A', lat: 14.5770, lng: 121.1140 },
-  { city: 'Taytay', province: 'Rizal', region: 'Region IV-A', lat: 14.5140, lng: 121.1340 },
-  { city: 'Binangonan', province: 'Rizal', region: 'Region IV-A', lat: 14.4530, lng: 121.1920 },
   { city: 'Bacoor', province: 'Cavite', region: 'Region IV-A', lat: 14.4624, lng: 120.9645 },
   { city: 'Dasmariñas', province: 'Cavite', region: 'Region IV-A', lat: 14.3294, lng: 120.9367 },
   { city: 'Imus', province: 'Cavite', region: 'Region IV-A', lat: 14.4297, lng: 120.9367 },
-  { city: 'Cavite City', province: 'Cavite', region: 'Region IV-A', lat: 14.4842, lng: 120.9008 },
   { city: 'Tagaytay', province: 'Cavite', region: 'Region IV-A', lat: 14.1153, lng: 120.9621 },
-  { city: 'Trece Martires', province: 'Cavite', region: 'Region IV-A', lat: 14.2817, lng: 120.8669 },
-  { city: 'General Trias', province: 'Cavite', region: 'Region IV-A', lat: 14.3831, lng: 120.8842 },
   { city: 'Calamba', province: 'Laguna', region: 'Region IV-A', lat: 14.2116, lng: 121.1653 },
   { city: 'Sta. Rosa', province: 'Laguna', region: 'Region IV-A', lat: 14.3122, lng: 121.1114 },
   { city: 'Biñan', province: 'Laguna', region: 'Region IV-A', lat: 14.3406, lng: 121.0803 },
   { city: 'San Pedro', province: 'Laguna', region: 'Region IV-A', lat: 14.3588, lng: 121.0472 },
-  { city: 'Cabuyao', province: 'Laguna', region: 'Region IV-A', lat: 14.2778, lng: 121.1242 },
   { city: 'San Pablo', province: 'Laguna', region: 'Region IV-A', lat: 14.0711, lng: 121.3250 },
-  { city: 'Los Baños', province: 'Laguna', region: 'Region IV-A', lat: 14.1700, lng: 121.2200 },
   { city: 'Batangas City', province: 'Batangas', region: 'Region IV-A', lat: 13.7565, lng: 121.0583 },
   { city: 'Lipa', province: 'Batangas', region: 'Region IV-A', lat: 13.9411, lng: 121.1640 },
   { city: 'Tanauan', province: 'Batangas', region: 'Region IV-A', lat: 14.0847, lng: 121.1517 },
-  { city: 'Sto. Tomas', province: 'Batangas', region: 'Region IV-A', lat: 14.1060, lng: 121.1410 },
-  { city: 'Nasugbu', province: 'Batangas', region: 'Region IV-A', lat: 14.0730, lng: 120.6270 },
   { city: 'Lucena', province: 'Quezon', region: 'Region IV-A', lat: 13.9373, lng: 121.6170 },
-  { city: 'Tayabas', province: 'Quezon', region: 'Region IV-A', lat: 14.0253, lng: 121.5892 },
-  { city: 'Candelaria', province: 'Quezon', region: 'Region IV-A', lat: 13.9300, lng: 121.4230 },
 
   // Region IV-B — MIMAROPA
   { city: 'Calapan', province: 'Oriental Mindoro', region: 'Region IV-B', lat: 13.4116, lng: 121.1794 },
   { city: 'Puerto Princesa', province: 'Palawan', region: 'Region IV-B', lat: 9.7392, lng: 118.7353 },
-  { city: 'San Jose', province: 'Occidental Mindoro', region: 'Region IV-B', lat: 12.3530, lng: 121.0660 },
 
   // Region V — Bicol
   { city: 'Legazpi', province: 'Albay', region: 'Region V', lat: 13.1391, lng: 123.7438 },
-  { city: 'Tabaco', province: 'Albay', region: 'Region V', lat: 13.3592, lng: 123.7314 },
-  { city: 'Ligao', province: 'Albay', region: 'Region V', lat: 13.2386, lng: 123.5350 },
   { city: 'Naga', province: 'Camarines Sur', region: 'Region V', lat: 13.6192, lng: 123.1814 },
-  { city: 'Iriga', province: 'Camarines Sur', region: 'Region V', lat: 13.4217, lng: 123.4150 },
   { city: 'Sorsogon City', province: 'Sorsogon', region: 'Region V', lat: 12.9667, lng: 124.0000 },
   { city: 'Masbate City', province: 'Masbate', region: 'Region V', lat: 12.3667, lng: 123.6167 },
-  { city: 'Daet', province: 'Camarines Norte', region: 'Region V', lat: 14.1130, lng: 122.9550 },
 
   // Region VI — Western Visayas
   { city: 'Iloilo City', province: 'Iloilo', region: 'Region VI', lat: 10.7202, lng: 122.5621 },
-  { city: 'Passi', province: 'Iloilo', region: 'Region VI', lat: 11.1070, lng: 122.6410 },
   { city: 'Bacolod', province: 'Negros Occidental', region: 'Region VI', lat: 10.6765, lng: 122.9509 },
-  { city: 'Bago', province: 'Negros Occidental', region: 'Region VI', lat: 10.5367, lng: 122.8406 },
-  { city: 'Cadiz', province: 'Negros Occidental', region: 'Region VI', lat: 10.9572, lng: 123.2986 },
-  { city: 'Escalante', province: 'Negros Occidental', region: 'Region VI', lat: 10.8403, lng: 123.4981 },
-  { city: 'Himamaylan', province: 'Negros Occidental', region: 'Region VI', lat: 10.0950, lng: 122.8683 },
-  { city: 'Kabankalan', province: 'Negros Occidental', region: 'Region VI', lat: 9.9930, lng: 122.8120 },
-  { city: 'La Carlota', province: 'Negros Occidental', region: 'Region VI', lat: 10.4233, lng: 122.9208 },
-  { city: 'Sagay', province: 'Negros Occidental', region: 'Region VI', lat: 10.9167, lng: 123.4167 },
   { city: 'San Carlos', province: 'Negros Occidental', region: 'Region VI', lat: 10.4833, lng: 123.4167 },
-  { city: 'Silay', province: 'Negros Occidental', region: 'Region VI', lat: 10.7961, lng: 122.9739 },
-  { city: 'Sipalay', province: 'Negros Occidental', region: 'Region VI', lat: 9.7500, lng: 122.4667 },
-  { city: 'Talisay', province: 'Negros Occidental', region: 'Region VI', lat: 10.7410, lng: 122.9730 },
-  { city: 'Victorias', province: 'Negros Occidental', region: 'Region VI', lat: 10.8925, lng: 123.0722 },
   { city: 'Roxas City', province: 'Capiz', region: 'Region VI', lat: 11.5854, lng: 122.7511 },
-  { city: 'Kalibo', province: 'Aklan', region: 'Region VI', lat: 11.7100, lng: 122.3660 },
-  { city: 'San Jose de Buenavista', province: 'Antique', region: 'Region VI', lat: 10.7430, lng: 121.9400 },
 
   // Region VII — Central Visayas
   { city: 'Cebu City', province: 'Cebu', region: 'Region VII', lat: 10.3157, lng: 123.8854 },
   { city: 'Mandaue', province: 'Cebu', region: 'Region VII', lat: 10.3540, lng: 123.9311 },
   { city: 'Lapu-Lapu', province: 'Cebu', region: 'Region VII', lat: 10.3103, lng: 123.9494 },
   { city: 'Talisay', province: 'Cebu', region: 'Region VII', lat: 10.2447, lng: 123.8483 },
-  { city: 'Toledo', province: 'Cebu', region: 'Region VII', lat: 10.3789, lng: 123.6358 },
-  { city: 'Danao', province: 'Cebu', region: 'Region VII', lat: 10.5233, lng: 124.0308 },
-  { city: 'Bogo', province: 'Cebu', region: 'Region VII', lat: 11.0506, lng: 124.0044 },
-  { city: 'Carcar', province: 'Cebu', region: 'Region VII', lat: 10.1083, lng: 123.6397 },
-  { city: 'Naga', province: 'Cebu', region: 'Region VII', lat: 10.2117, lng: 123.7578 },
   { city: 'Tagbilaran', province: 'Bohol', region: 'Region VII', lat: 9.6500, lng: 123.8500 },
   { city: 'Dumaguete', province: 'Negros Oriental', region: 'Region VII', lat: 9.3068, lng: 123.3054 },
-  { city: 'Bais', province: 'Negros Oriental', region: 'Region VII', lat: 9.5911, lng: 123.1194 },
-  { city: 'Bayawan', province: 'Negros Oriental', region: 'Region VII', lat: 9.3667, lng: 122.8000 },
-  { city: 'Canlaon', province: 'Negros Oriental', region: 'Region VII', lat: 10.3833, lng: 123.2167 },
-  { city: 'Guihulngan', province: 'Negros Oriental', region: 'Region VII', lat: 10.1167, lng: 123.2667 },
-  { city: 'Tanjay', province: 'Negros Oriental', region: 'Region VII', lat: 9.5167, lng: 123.1500 },
 
   // Region VIII — Eastern Visayas
   { city: 'Tacloban', province: 'Leyte', region: 'Region VIII', lat: 11.2543, lng: 125.0000 },
   { city: 'Ormoc', province: 'Leyte', region: 'Region VIII', lat: 11.0000, lng: 124.6000 },
-  { city: 'Baybay', province: 'Leyte', region: 'Region VIII', lat: 10.6761, lng: 124.7958 },
   { city: 'Calbayog', province: 'Samar', region: 'Region VIII', lat: 12.0667, lng: 124.6000 },
-  { city: 'Catbalogan', province: 'Samar', region: 'Region VIII', lat: 11.7778, lng: 124.8814 },
-  { city: 'Borongan', province: 'Eastern Samar', region: 'Region VIII', lat: 11.6067, lng: 125.4300 },
-  { city: 'Maasin', province: 'Southern Leyte', region: 'Region VIII', lat: 10.1333, lng: 124.8333 },
 
   // Region IX — Zamboanga Peninsula
   { city: 'Zamboanga City', province: 'Zamboanga del Sur', region: 'Region IX', lat: 6.9103, lng: 122.0739 },
   { city: 'Pagadian', province: 'Zamboanga del Sur', region: 'Region IX', lat: 7.8250, lng: 123.4333 },
   { city: 'Dipolog', province: 'Zamboanga del Norte', region: 'Region IX', lat: 8.5833, lng: 123.3333 },
-  { city: 'Dapitan', province: 'Zamboanga del Norte', region: 'Region IX', lat: 8.6556, lng: 123.4222 },
-  { city: 'Isabela City', province: 'Basilan', region: 'Region IX', lat: 6.7042, lng: 121.9711 },
-  { city: 'Ipil', province: 'Zamboanga Sibugay', region: 'Region IX', lat: 7.7830, lng: 122.5830 },
 
   // Region X — Northern Mindanao
   { city: 'Cagayan de Oro', province: 'Misamis Oriental', region: 'Region X', lat: 8.4542, lng: 124.6319 },
-  { city: 'El Salvador', province: 'Misamis Oriental', region: 'Region X', lat: 8.5647, lng: 124.5244 },
-  { city: 'Gingoog', province: 'Misamis Oriental', region: 'Region X', lat: 8.8256, lng: 125.1017 },
   { city: 'Iligan', province: 'Lanao del Norte', region: 'Region X', lat: 8.2280, lng: 124.2452 },
   { city: 'Malaybalay', province: 'Bukidnon', region: 'Region X', lat: 8.1575, lng: 125.1278 },
-  { city: 'Valencia', province: 'Bukidnon', region: 'Region X', lat: 7.9047, lng: 125.0936 },
-  { city: 'Oroquieta', province: 'Misamis Occidental', region: 'Region X', lat: 8.4833, lng: 123.8000 },
   { city: 'Ozamiz', province: 'Misamis Occidental', region: 'Region X', lat: 8.1472, lng: 123.8428 },
-  { city: 'Tangub', province: 'Misamis Occidental', region: 'Region X', lat: 8.0667, lng: 123.7500 },
 
   // Region XI — Davao
   { city: 'Davao City', province: 'Davao del Sur', region: 'Region XI', lat: 7.1907, lng: 125.4553 },
-  { city: 'Digos', province: 'Davao del Sur', region: 'Region XI', lat: 6.7498, lng: 125.3574 },
   { city: 'Tagum', province: 'Davao del Norte', region: 'Region XI', lat: 7.4478, lng: 125.8077 },
-  { city: 'Panabo', province: 'Davao del Norte', region: 'Region XI', lat: 7.3078, lng: 125.6833 },
-  { city: 'Samal', province: 'Davao del Norte', region: 'Region XI', lat: 7.0422, lng: 125.7114 },
-  { city: 'Mati', province: 'Davao Oriental', region: 'Region XI', lat: 6.9500, lng: 126.2167 },
+  { city: 'Digos', province: 'Davao del Sur', region: 'Region XI', lat: 6.7498, lng: 125.3574 },
 
   // Region XII — SOCCSKSARGEN
   { city: 'General Santos', province: 'South Cotabato', region: 'Region XII', lat: 6.1164, lng: 125.1716 },
   { city: 'Koronadal', province: 'South Cotabato', region: 'Region XII', lat: 6.5036, lng: 124.8464 },
-  { city: 'Tacurong', province: 'Sultan Kudarat', region: 'Region XII', lat: 6.6833, lng: 124.6667 },
-  { city: 'Kidapawan', province: 'Cotabato', region: 'Region XII', lat: 7.0083, lng: 125.0894 },
   { city: 'Cotabato City', province: 'Maguindanao del Norte', region: 'Region XII', lat: 7.2208, lng: 124.2444 },
 
   // Region XIII — Caraga
   { city: 'Butuan', province: 'Agusan del Norte', region: 'Region XIII', lat: 8.9476, lng: 125.5430 },
-  { city: 'Cabadbaran', province: 'Agusan del Norte', region: 'Region XIII', lat: 9.1228, lng: 125.5414 },
   { city: 'Surigao City', province: 'Surigao del Norte', region: 'Region XIII', lat: 9.7833, lng: 125.4833 },
-  { city: 'Bislig', province: 'Surigao del Sur', region: 'Region XIII', lat: 8.2111, lng: 126.3111 },
-  { city: 'Tandag', province: 'Surigao del Sur', region: 'Region XIII', lat: 9.0833, lng: 126.2000 },
-  { city: 'Bayugan', province: 'Agusan del Sur', region: 'Region XIII', lat: 8.7117, lng: 125.7483 },
 
   // BARMM — Bangsamoro
   { city: 'Marawi', province: 'Lanao del Sur', region: 'BARMM', lat: 8.0000, lng: 124.3000 },
   { city: 'Lamitan', province: 'Basilan', region: 'BARMM', lat: 6.6583, lng: 122.1333 },
-  { city: 'Jolo', province: 'Sulu', region: 'BARMM', lat: 6.0500, lng: 121.0000 },
-  { city: 'Bongao', province: 'Tawi-Tawi', region: 'BARMM', lat: 5.0333, lng: 119.7667 },
 
   // CAR — Cordillera
   { city: 'Baguio', province: 'Benguet', region: 'CAR', lat: 16.4023, lng: 120.5960 },
   { city: 'Tabuk', province: 'Kalinga', region: 'CAR', lat: 17.4500, lng: 121.4333 },
-  { city: 'Bangued', province: 'Abra', region: 'CAR', lat: 17.5950, lng: 120.6150 },
-  { city: 'Lagawe', province: 'Ifugao', region: 'CAR', lat: 16.8000, lng: 121.1167 },
-  { city: 'Bontoc', province: 'Mountain Province', region: 'CAR', lat: 17.0833, lng: 120.9833 },
-  { city: 'La Trinidad', province: 'Benguet', region: 'CAR', lat: 16.4500, lng: 120.5833 },
 ];
 
 /**
