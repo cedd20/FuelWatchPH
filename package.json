@@ -5,8 +5,11 @@
     "client"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@fuelwatchph/client",
+    "dev": "concurrently \"npm run dev --workspace=@fuelwatchph/client\" \"uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 --app-dir backend\"",
     "build": "npm run build --workspace=@fuelwatchph/client",
     "preview": "npm run preview --workspace=@fuelwatchph/client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

@@ -201,6 +201,12 @@ export function AddStation() {
       const query = `[out:json];node["amenity"="fuel"](around:${radius},${lat},${lng});out;`;
       const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
       const res = await fetch(url);
+      
+      if (!res.ok) {
+        console.warn(`OSM API returned status ${res.status}`);
+        return;
+      }
+      
       const data = await res.json();
       
       const suggestions = (data.elements || []).map(el => ({
@@ -218,11 +224,20 @@ export function AddStation() {
     }
   }, [isEditMode]);
 
+  const osmFetchTimeoutRef = useRef(null);
+
   // ── Handle map move ────────────────────────────────────────────────────────
   const handleMapMove = useCallback((lat, lng) => {
     // Update map center and fetch suggestions based on new center
     setMapCenter([lat, lng]);
-    fetchOSMSuggestions(lat, lng);
+    
+    if (osmFetchTimeoutRef.current) {
+      clearTimeout(osmFetchTimeoutRef.current);
+    }
+    
+    osmFetchTimeoutRef.current = setTimeout(() => {
+      fetchOSMSuggestions(lat, lng);
+    }, 1500);
   }, [fetchOSMSuggestions]);
 
 

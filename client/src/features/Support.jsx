@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, MessageCircle, Mail, HelpCircle, ChevronRight, Phone, ExternalLink } from "lucide-react";
 import * as Accordion from "@radix-ui/react-accordion";
+import { ContactModal } from "@/shared/components/ContactModal";
 
 export function Support() {
   const navigate = useNavigate();
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   const faqs = [
     {
@@ -44,24 +47,6 @@ export function Support() {
 
       <div className="px-4 lg:px-8 py-6 lg:py-10">
         <div className="max-w-3xl mx-auto space-y-10">
-          {/* Quick Contact */}
-          <div className="grid grid-cols-2 gap-4 lg:gap-6">
-            <button className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl p-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-xl hover:border-emerald-400/50 transition-all text-center group">
-              <div className="w-14 h-14 bg-emerald-100 dark:bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                <MessageCircle className="w-7 h-7 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-              </div>
-              <div className="font-bold text-foreground">Live Chat</div>
-              <div className="text-xs text-muted-foreground mt-1 font-semibold">Available 9am-6pm</div>
-            </button>
-            <button className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl p-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-xl hover:border-emerald-400/50 transition-all text-center group">
-              <div className="w-14 h-14 bg-teal-100 dark:bg-teal-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                <Mail className="w-7 h-7 text-teal-600 dark:text-teal-400" strokeWidth={2.5} />
-              </div>
-              <div className="font-bold text-foreground">Email Us</div>
-              <div className="text-xs text-muted-foreground mt-1 font-semibold">Response in 24h</div>
-            </button>
-          </div>
-
           {/* FAQs */}
           <div>
             <div className="flex items-center gap-3 mb-6 px-1">
@@ -70,7 +55,7 @@ export function Support() {
               </div>
               <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Frequently Asked Questions</h2>
             </div>
-            
+
             <Accordion.Root type="single" collapsible className="space-y-4">
               {faqs.map((faq, index) => (
                 <Accordion.Item
@@ -92,18 +77,32 @@ export function Support() {
             </Accordion.Root>
           </div>
 
+          {/* Contact */}
+          <div className="flex justify-center pt-2">
+            <button 
+              onClick={() => setIsContactModalOpen(true)}
+              className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl px-12 py-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-xl hover:border-emerald-400/50 transition-all text-center group w-full max-w-sm block"
+            >
+              <div className="w-14 h-14 bg-teal-100 dark:bg-teal-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <Mail className="w-7 h-7 text-teal-600 dark:text-teal-400" strokeWidth={2.5} />
+              </div>
+              <div className="font-bold text-foreground text-lg">Email Us</div>
+              <div className="text-sm text-muted-foreground mt-1 font-semibold">Response in 24h</div>
+            </button>
+          </div>
+
           {/* Social / Links */}
           <div className="pt-6">
             <div className="bg-gradient-to-br from-neutral-800 to-neutral-900 dark:from-neutral-800 dark:to-neutral-950 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-125 transition-transform duration-1000" />
-              
+
               <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
                   <h3 className="text-xl font-bold mb-2">Join the Community</h3>
                   <p className="text-neutral-300 text-sm font-medium">Follow us for real-time fuel price alerts and community updates.</p>
                 </div>
                 <div className="flex gap-3">
-                   <button className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors backdrop-blur-md border border-white/10">
+                  <button className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors backdrop-blur-md border border-white/10">
                     <ExternalLink className="w-5 h-5" />
                   </button>
                   <button className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-500/20">
@@ -115,6 +114,10 @@ export function Support() {
           </div>
         </div>
       </div>
+      <ContactModal 
+        isOpen={isContactModalOpen} 
+        onClose={() => setIsContactModalOpen(false)} 
+      />
     </div>
   );
 }

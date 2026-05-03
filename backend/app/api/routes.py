@@ -188,7 +188,21 @@ def create_station(
         if not result.data:
             print(f"Station creation failed - no data returned. Request: {station_data}")
             raise HTTPException(status_code=500, detail="Failed to create station in database")
-        return result.data[0]
+        new_station = result.data[0]
+        
+        # Create notification for the user who added the station
+        try:
+            supabase.table("notifications").insert({
+                "user_id": user_id,
+                "type": "new_station",
+                "title": "Station Added Successfully!",
+                "message": f"Thank you for adding {new_station['name']}! It is now visible to the community.",
+                "metadata": {"station_id": new_station["id"]}
+            }).execute()
+        except Exception as n_err:
+            print(f"Failed to create notification for new station: {n_err}")
+            
+        return new_station
     except Exception as e:
         print(f"CRITICAL ERROR in create_station database insert: {e}")
         import traceback
@@ -345,6 +359,24 @@ def create_prices_batch(
         if not result.data:
             print(f"Batch insert failed - no data returned. Request size: {len(to_insert)}")
             raise HTTPException(status_code=500, detail="Failed to report prices to database")
+            
+        # Create notification for the user
+        if user_id:
+            try:
+                station_id = to_insert[0]["station_id"]
+                station = supabase.table("stations").select("name").eq("id", station_id).single().execute()
+                station_name = station.data.get("name") if station.data else "a station"
+                
+                supabase.table("notifications").insert({
+                    "user_id": user_id,
+                    "type": "verification", # Using verification type as it fits contribution
+                    "title": "Contribution Recorded!",
+                    "message": f"Thanks for updating prices at {station_name}! Your contribution helps the community.",
+                    "metadata": {"count": len(result.data), "station_id": station_id}
+                }).execute()
+            except Exception as n_err:
+                print(f"Failed to create notification for batch update: {n_err}")
+                
         return {"count": len(result.data), "records": result.data}
     except Exception as e:
         print(f"CRITICAL ERROR in create_prices_batch: {e}")
@@ -414,10 +446,38 @@ async def confirm_price(price_id: str, request: Request):
         "ip_hash": ip_hash
     }).execute()
 
-    # Increment confirmation count
-    current = supabase.table("price_reports").select("confirmation_count").eq("id", price_id).single().execute()
+    # Increment confirmation count and get reporter ID
+    current = supabase.table("price_reports") \
+        .select("confirmation_count, reported_by, station_id") \
+        .eq("id", price_id) \
+        .single() \
+        .execute()
+    
+    if not current.data:
+        raise HTTPException(status_code=404, detail="Price report not found")
+        
     new_count = (current.data.get("confirmation_count") or 0) + 1
+    reporter_id = current.data.get("reported_by")
+    station_id = current.data.get("station_id")
+    
     supabase.table("price_reports").update({"confirmation_count": new_count}).eq("id", price_id).execute()
+
+    # If this was reported by a registered user, notify them
+    if reporter_id:
+        try:
+            # Get station name for the notification
+            station = supabase.table("stations").select("name").eq("id", station_id).single().execute()
+            station_name = station.data.get("name") if station.data else "a station"
+            
+            supabase.table("notifications").insert({
+                "user_id": reporter_id,
+                "type": "verification",
+                "title": "Update Verified!",
+                "message": f"Your price update at {station_name} was confirmed by another community member.",
+                "metadata": {"price_id": price_id, "station_id": station_id}
+            }).execute()
+        except Exception as n_err:
+            print(f"Failed to create notification for price confirmation: {n_err}")
 
     return {"confirmation_count": new_count}
 

@@ -50,26 +50,26 @@ export function useMyContributions() {
   });
 }
 
-export function useUpdatePrice(id) {
+export function useUpdatePrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data) => api.put(`/prices/${id}`, data),
+    mutationFn: ({ id, data }) => api.put(`/prices/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["prices"] }),
   });
 }
 
-export function useDeletePrice(id) {
+export function useDeletePrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.delete(`/prices/${id}`),
+    mutationFn: (id) => api.delete(`/prices/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["prices"] }),
   });
 }
 
-export function useConfirmPrice(id) {
+export function useConfirmPrice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post(`/prices/${id}/confirm`, {}),
+    mutationFn: (id) => api.post(`/prices/${id}/confirm`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["prices"] }),
   });
 }

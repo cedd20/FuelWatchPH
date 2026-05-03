@@ -18,10 +18,13 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
+import { useNotifications } from "@/hooks/useUsers";
 
 export function Profile() {
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { data: notifications = [] } = useNotifications({ enabled: isAuthenticated });
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const guestMenuItems = [
     {
@@ -81,7 +84,7 @@ export function Profile() {
       label: "Notifications",
       subtitle: "Price alerts & updates",
       onClick: () => navigate("/app/notifications"),
-      badge: "3",
+      badge: unreadCount > 0 ? unreadCount.toString() : null,
     },
     {
       icon: Settings,

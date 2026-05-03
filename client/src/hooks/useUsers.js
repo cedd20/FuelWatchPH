@@ -15,10 +15,11 @@ export function useSummaryStats() {
   });
 }
 
-export function useNotifications() {
+export function useNotifications(options = {}) {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: () => apiClient.get("/notifications"),
+    ...options,
   });
 }
 
