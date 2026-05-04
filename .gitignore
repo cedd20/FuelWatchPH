@@ -136,3 +136,18 @@ build/
 .tmp/
 temp/
 tmp/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python build files
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
