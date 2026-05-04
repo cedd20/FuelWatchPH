@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, TrendingDown, MapPin, CheckCircle, Bell, Loader2, Info } from "lucide-react";
+import { ArrowLeft, TrendingDown, TrendingUp, MapPin, CheckCircle, Bell, Loader2, Info } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { useNotifications } from "@/hooks/useUsers";
+import { useAuth } from "@/app/providers/AuthContext";
 import { api as apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -11,6 +12,11 @@ const TYPE_CONFIG = {
     icon: TrendingDown,
     iconBg: "from-emerald-500/10 to-teal-500/10",
     iconColor: "text-emerald-600 dark:text-emerald-400",
+  },
+  price_increase: {
+    icon: TrendingUp,
+    iconBg: "from-amber-500/10 to-orange-500/10",
+    iconColor: "text-amber-600 dark:text-amber-400",
   },
   new_station: {
     icon: MapPin,
@@ -31,32 +37,42 @@ const TYPE_CONFIG = {
 
 export function Notifications() {
   const navigate = useNavigate();
-  const { data: notificationsData, isLoading, refetch } = useNotifications();
-  const [localNotifications, setLocalNotifications] = useState([]);
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const { data: notifications = [], isLoading } = useNotifications({ enabled: isAuthenticated });
 
-  useEffect(() => {
-    if (notificationsData) {
-      setLocalNotifications(notificationsData);
-    }
-  }, [notificationsData]);
-
+  // Optimistically mark all read in cache, then sync with server
   const markAllRead = async () => {
+    // Optimistic update
+    queryClient.setQueryData(["notifications"], (old = []) =>
+      old.map((n) => ({ ...n, is_read: true }))
+    );
     try {
       await apiClient.post("/notifications/mark-all-read");
-      setLocalNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
       toast.success("All caught up!");
-      refetch();
     } catch (error) {
+      // Revert on failure
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       toast.error("Failed to mark all as read");
     }
   };
 
+  // Optimistically mark one notification read in cache
   const markAsRead = async (id) => {
+    // Only make the request if currently unread
+    const current = queryClient.getQueryData(["notifications"]) ?? [];
+    const target = current.find((n) => n.id === id);
+    if (!target || target.is_read) return;
+
+    // Optimistic update
+    queryClient.setQueryData(["notifications"], (old = []) =>
+      old.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
     try {
       await apiClient.patch(`/notifications/${id}/read`);
-      setLocalNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
-      refetch();
     } catch (error) {
+      // Revert on failure
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       console.error("Failed to mark as read:", error);
     }
   };
@@ -70,13 +86,12 @@ export function Notifications() {
     );
   }
 
-  const notifications = localNotifications;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 relative overflow-hidden">
-        {/* Enhanced radial glow background */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
@@ -90,9 +105,16 @@ export function Notifications() {
               >
                 <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
               </button>
-              <h1 className="text-2xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Notifications</h1>
+              <div>
+                <h1 className="text-2xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Notifications</h1>
+                {unreadCount > 0 && (
+                  <p className="text-white/70 text-sm font-medium mt-0.5">
+                    {unreadCount} unread
+                  </p>
+                )}
+              </div>
             </div>
-            {notifications.some(n => !n.is_read) && (
+            {unreadCount > 0 && (
               <button 
                 onClick={markAllRead}
                 className="px-5 py-2.5 lg:px-6 lg:py-3 bg-white dark:bg-neutral-800 backdrop-blur-xl rounded-full text-xs lg:text-base font-bold text-emerald-600 dark:text-emerald-400 shadow-xl shadow-black/20 hover:scale-105 transition-transform border-2 border-white/40 dark:border-neutral-700/50"
@@ -107,10 +129,11 @@ export function Notifications() {
       {/* Notifications List */}
       <div className="px-4 lg:px-8 py-6 lg:py-10">
         <div className="max-w-6xl mx-auto">
-        {notifications.length > 0 ? (
-          <div className="space-y-4 lg:space-y-6">
-            {notifications.map((notification) => {
-              const Icon = notification.icon;
+        {(() => {
+          const unreadNotifications = notifications.filter(n => !n.is_read);
+          return unreadNotifications.length > 0 ? (
+            <div className="space-y-4 lg:space-y-6">
+              {unreadNotifications.map((notification) => {
               return (
                 <div
                   key={notification.id}
@@ -154,18 +177,20 @@ export function Notifications() {
                 </div>
               );
             })}
-          </div>
-        ) : (
-          <div className="pt-20">
-            <EmptyState
-              icon={Bell}
-              title="No notifications yet"
-              description="Stay tuned! We'll notify you about price drops, new stations, and when your updates are verified."
-            />
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className="pt-20">
+              <EmptyState
+                icon={Bell}
+                title="No notifications yet"
+                description="Stay tuned! We'll notify you about price drops, new stations, and when your updates are verified."
+              />
+            </div>
+          );
+        })()}
         </div>
       </div>
     </div>
   );
 }
+

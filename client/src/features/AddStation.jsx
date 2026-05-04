@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
 import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move } from "lucide-react";
 import { Button } from "@/shared/components/Button";
@@ -94,6 +95,7 @@ export function AddStation() {
   const existingStation = location.state?.station ?? null;
   const isEditMode = Boolean(existingStation);
 
+  const queryClient = useQueryClient();
   const createStationMutation = useCreateStation();
   const updateStationMutation = useUpdateStation();
   const reportPricesBatchMutation = useReportPricesBatch();
@@ -324,9 +326,12 @@ export function AddStation() {
         await reportPricesBatchMutation.mutateAsync(priceBatch);
       }
 
+      // Invalidate notifications to show the "Station Added" notification immediately
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+
       setShowSuccess(true);
       setTimeout(() => {
-        navigate(isEditMode ? `/app/station/${stationId}` : "/app/map");
+        navigate(isEditMode ? `/app/station/${stationId}` : "/app/home");
       }, 2000);
     } catch (error) {
       toast.error("Failed to save station. Please try again.");

@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router";
+import { useMemo } from "react";
 import { ArrowLeft, Award, Crown, MapPin, ShieldCheck, Star, Trophy, TrendingUp, Users, Loader2 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 
 import { useLeaderboard, useSummaryStats } from "@/hooks/useUsers";
+import { useMyContributions } from "@/hooks/usePrices";
 
 const RANK_COLORS = [
   "from-yellow-400 via-orange-500 to-rose-500",
@@ -24,7 +26,25 @@ export function Leaderboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: rawLeaderboard = [], isLoading } = useLeaderboard();
+  const { data: rawContributions = [] } = useMyContributions();
   const { data: stats } = useSummaryStats();
+
+  const myStats = useMemo(() => {
+    if (!user) return { total: 0, verified: 0, points: 0, accuracy: 0 };
+    
+    const total = rawContributions.length;
+    const verified = rawContributions.filter(c => 
+      c.status === "confirmed" || c.status === "approved"
+    ).length;
+    
+    const submissions = rawContributions.filter(c => !String(c.id).startsWith('conf-')).length;
+    const confirmations = rawContributions.filter(c => String(c.id).startsWith('conf-')).length;
+    
+    const points = (submissions * 10) + (confirmations * 5) + ((user?.total_stations || 0) * 20);
+    const accuracy = total > 0 ? Math.round((verified / total) * 100) : 0;
+    
+    return { total, verified, points, accuracy };
+  }, [rawContributions, user]);
 
   const leaderboard = rawLeaderboard.map((entry, index) => ({
     rank: index + 1,
@@ -33,19 +53,27 @@ export function Leaderboard() {
     city: "Philippines",
     updates: entry.total_updates,
     accuracy: entry.accuracy || 0,
-    points: entry.reputation,
-    badge: entry.reputation > 1000 ? "Fuel Guardian" : "Trusted Contributor",
+    points: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
+    badge: (entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0)) > 1000 ? "Fuel Guardian" : "Trusted Contributor",
     color: RANK_COLORS[index % RANK_COLORS.length],
-  }));
+  })).sort((a, b) => (b.points || 0) - (a.points || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
 
   const me = leaderboard.find((entry) => entry.id === user?.id) || {
-    rank: "-",
-    name: user?.user_metadata?.full_name || "You",
-    updates: 0,
-    accuracy: 0,
-    points: 0,
-    badge: "New Contributor"
+    rank: leaderboard.length + 1, // Fallback if not in top 10
+    name: user?.username || user?.name || "You",
+    updates: myStats.total,
+    accuracy: myStats.accuracy,
+    points: myStats.points,
+    badge: myStats.points > 1000 ? "Fuel Guardian" : "Trusted Contributor"
   };
+
+  // If I am in the leaderboard list, override its static values with my real-time ones
+  const myIndex = leaderboard.findIndex(e => e.id === user?.id);
+  if (myIndex !== -1) {
+    me.updates = myStats.total;
+    me.accuracy = myStats.accuracy;
+    me.points = myStats.points;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-white dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950 pb-16">

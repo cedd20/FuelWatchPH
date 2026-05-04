@@ -20,7 +20,7 @@ const fuelTypes = FUEL_TYPES;
 const DEFAULT_FILTERS = {
   location: "nearby",
   selectedCity: "",
-  radius: "3",
+  radius: "20",
   fuelTypes: [],
   brands: [],
   priceSort: "lowest",
@@ -138,6 +138,10 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
                 <option value="3">3 km</option>
                 <option value="5">5 km</option>
                 <option value="10">10 km</option>
+                <option value="20">20 km</option>
+                <option value="50">50 km</option>
+                <option value="100">100 km</option>
+                <option value="all">All stations (Global)</option>
               </select>
             </div>
           </div>

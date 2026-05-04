@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, CheckCircle, Clock3, Fuel, NotebookPen } from "lucide-react";
 import { Button } from "@/shared/components/Button";
@@ -24,6 +25,7 @@ export function ReportPrice() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAnonymousConfirm, setShowAnonymousConfirm] = useState(false);
+  const queryClient = useQueryClient();
   const { data: rawStation, isLoading } = useStation(id);
   const reportPriceMutation = useReportPrice();
 
@@ -67,6 +69,9 @@ export function ReportPrice() {
         observed_at: new Date(observedAt).toISOString(),
         notes: notes || undefined,
       });
+
+      // Invalidate notifications to show the update notification immediately
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
       setShowSuccess(true);
       toast.success(anonymous ? "Price saved anonymously." : "Price reported successfully!");

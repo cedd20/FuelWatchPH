@@ -36,33 +36,51 @@ const MOCK_CONTRIBUTIONS = [
 
 export function ContributionHistory() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshProfile, loading } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const { data: rawContributions = [], isLoading } = useMyContributions();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setShowAuthPrompt(true);
+    if (isAuthenticated) {
+      refreshProfile();
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      setShowAuthPrompt(true);
+    }
+  }, [isAuthenticated, loading]);
+
   const contributions = rawContributions.map(c => ({
     id: c.id,
-    stationName: c.stations?.name || "Unknown Station",
+    type: c.type || "Submitted",
+    stationName: c.stationName || "Unknown Station",
     fuelType: c.fuel_type,
-    price: parseFloat(c.price),
+    price: c.price != null ? parseFloat(c.price) : null,
     date: new Date(c.observed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
-    status: c.confirmation_count > 0 ? "verified" : "pending"
+    status: c.status || "pending",
+    confirmation_count: c.confirmation_count || 0
   }));
 
   const filteredContributions = contributions.filter((contribution) => {
     if (statusFilter === "all") return true;
+    if (statusFilter === "verified") {
+      return contribution.status === "confirmed" || contribution.status === "approved";
+    }
     return contribution.status === statusFilter;
   });
 
-  const verifiedCount = contributions.filter((c) => c.status === "verified").length;
+  const verifiedCount = contributions.filter((c) => c.status === "confirmed" || c.status === "approved").length;
   const pendingCount = contributions.filter((c) => c.status === "pending").length;
+  const accuracyRate = contributions.length > 0 ? Math.round((verifiedCount / contributions.length) * 100) : 0;
+  
+  // Dynamic points calculation for the UI
+  // 10 pts for reports, 5 pts for confirmations
+  const pointsEarned = (contributions.filter(c => c.type === "Submitted").length * 10) + 
+                       (contributions.filter(c => c.type === "Confirmed").length * 5) +
+                       (contributions.filter(c => c.type === "Created Station").length * 20);
 
   if (isLoading) {
     return (
@@ -129,16 +147,25 @@ export function ContributionHistory() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="font-bold text-foreground mb-2 text-base">
-                        {contribution.stationName}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-bold text-foreground text-base">
+                          {contribution.stationName}
+                        </h3>
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border-2 ${
+                          contribution.type === "Confirmed" 
+                            ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                            : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                        }`}>
+                          {contribution.type}
+                        </span>
+                      </div>
                       <div className="text-sm text-muted-foreground/80 font-medium">
                         {contribution.fuelType}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-foreground tracking-tighter">
-                        ₱{contribution.price.toFixed(2)}
+                        {contribution.price !== null ? `₱${contribution.price.toFixed(2)}` : "N/A"}
                       </div>
                     </div>
                   </div>
@@ -148,10 +175,15 @@ export function ContributionHistory() {
                       <Clock className="w-4 h-4" strokeWidth={2.5} />
                       <span className="font-semibold">{contribution.date}</span>
                     </div>
-                    {contribution.status === "verified" ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full shadow-lg shadow-teal-500/30">
+                    {contribution.status === "approved" ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-full shadow-lg shadow-emerald-500/30">
                         <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
-                        <span className="font-bold text-xs">Verified</span>
+                        <span className="font-bold text-xs">Approved</span>
+                      </div>
+                    ) : contribution.status === "confirmed" ? (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white rounded-full shadow-lg shadow-emerald-400/30">
+                        <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
+                        <span className="font-bold text-xs">Confirmed</span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full shadow-lg shadow-yellow-500/30">
@@ -204,11 +236,11 @@ export function ContributionHistory() {
                 <div className="text-base text-muted-foreground font-semibold">Total Updates</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{user?.accuracy || 0}%</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{accuracyRate}%</div>
                 <div className="text-base text-muted-foreground font-semibold">Accuracy Rate</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{user?.points || 0}</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{Math.max(pointsEarned, user?.points || 0)}</div>
                 <div className="text-base text-muted-foreground font-semibold">Points Earned</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
@@ -272,18 +304,29 @@ export function ContributionHistory() {
                           <div className="flex items-start gap-4 lg:gap-5 mb-4">
                             <StationLogo name={contribution.stationName} size="md" />
                             <div className="flex-1">
-                              <h4 className="font-bold text-foreground mb-1 text-lg">
-                                {contribution.stationName}
-                              </h4>
+                              <div className="flex items-center gap-3 mb-1">
+                                <h4 className="font-bold text-foreground text-lg">
+                                  {contribution.stationName}
+                                </h4>
+                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border-2 ${
+                                  contribution.type === "Confirmed" 
+                                    ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                                    : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                                }`}>
+                                  {contribution.type}
+                                </span>
+                              </div>
                               <div className="text-base text-muted-foreground/80 font-medium">
                                 {contribution.fuelType}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-3xl font-bold text-foreground tracking-tighter mb-1">
-                                ₱{contribution.price.toFixed(2)}
+                                {contribution.price !== null ? `₱${contribution.price.toFixed(2)}` : "N/A"}
                               </div>
-                              <div className="text-sm text-muted-foreground/70 font-semibold">per liter</div>
+                              <div className="text-sm text-muted-foreground/70 font-semibold">
+                                {contribution.price !== null ? "per liter" : "station added"}
+                              </div>
                             </div>
                           </div>
 
@@ -292,10 +335,15 @@ export function ContributionHistory() {
                               <Clock className="w-5 h-5" strokeWidth={2.5} />
                               <span className="font-semibold text-base">{contribution.date}</span>
                             </div>
-                            {contribution.status === "verified" ? (
-                              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full shadow-lg shadow-teal-500/30">
+                            {contribution.status === "approved" ? (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-full shadow-lg shadow-emerald-500/30">
                                 <CheckCircle className="w-5 h-5" strokeWidth={2.5} />
-                                <span className="font-bold text-sm">Verified</span>
+                                <span className="font-bold text-sm">Approved</span>
+                              </div>
+                            ) : contribution.status === "confirmed" ? (
+                              <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white rounded-full shadow-lg shadow-emerald-400/30">
+                                <CheckCircle className="w-5 h-5" strokeWidth={2.5} />
+                                <span className="font-bold text-sm">Confirmed</span>
                               </div>
                             ) : (
                               <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full shadow-lg shadow-yellow-500/30">
@@ -364,7 +412,7 @@ export function ContributionHistory() {
                       <span className="font-bold text-sm text-foreground">Trusted Contributor</span>
                     </div>
                     <p className="text-xs text-muted-foreground/80">
-                      {user?.accuracy || 0}% accuracy rate • Keep up the great work!
+                      {accuracyRate}% accuracy rate • Keep up the great work!
                     </p>
                   </div>
                 </div>

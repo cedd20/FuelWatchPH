@@ -35,24 +35,18 @@ export function AuthProvider({ children }) {
           };
           setUser(basicUser);
 
-          // Enrich asynchronously
+          // Enrich asynchronously using backend API for calculated stats (accuracy, contributionCount)
           (async () => {
             try {
-              const { data: profile } = await supabase
-                .from('user_profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
+              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/me/profile`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+              });
+              if (!res.ok) throw new Error("Failed to fetch profile from API");
+              const profile = await res.json();
               
-              const { count } = await supabase
-                .from('price_reports')
-                .select('*', { count: 'exact', head: true })
-                .eq('reported_by', session.user.id);
-
               setUser(prev => ({
                 ...prev,
                 ...profile,
-                contributionCount: count || 0,
                 points: profile?.reputation || 0,
                 avatar_url: profile?.avatar_url || prev?.avatar_url,
                 bio: profile?.bio || "",
@@ -88,35 +82,7 @@ export function AuthProvider({ children }) {
         setUser(basicUser);
 
         // Enrich asynchronously
-        const enrichUser = async () => {
-          try {
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            const { count } = await supabase
-              .from('price_reports')
-              .select('*', { count: 'exact', head: true })
-              .eq('reported_by', session.user.id);
-
-            setUser(prev => ({
-              ...prev,
-              ...profile,
-              contributionCount: count || 0,
-              points: profile?.reputation || 0,
-              avatar_url: profile?.avatar_url || prev?.avatar_url,
-              bio: profile?.bio || "",
-              initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
-              name: profile?.username || prev?.name || 'User'
-            }));
-          } catch (e) {
-            console.warn("Enrichment failed:", e);
-          }
-        };
-        
-        enrichUser();
+        refreshProfile();
       } else {
         setUser(null);
       }
@@ -126,10 +92,47 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const refreshProfile = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      // No session means user just signed out — do nothing silently
+      if (!session) return;
+
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/me/profile`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+
+      // Silently ignore auth errors during sign-out — expected behavior
+      if (res.status === 401 || res.status === 403) return;
+      if (!res.ok) throw new Error("Failed to fetch profile from API");
+      const profile = await res.json();
+      
+      // Only update state if the user is still logged in (guards against race conditions)
+      setUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ...profile,
+          points: profile?.points || profile?.reputation || 0,
+          avatar_url: profile?.avatar_url || prev?.avatar_url,
+          bio: profile?.bio || "",
+          initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
+          name: profile?.username || prev?.name || 'User'
+        };
+      });
+    } catch (e) {
+      // Only warn if it's not a sign-out-related abort
+      if (!String(e).includes('Failed to fetch')) {
+        console.warn("Profile refresh failed:", e);
+      }
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
     loading,
+    refreshProfile,
     login: async (email, password) => {
       console.log("Attempting login for:", email);
       if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");

@@ -1,10 +1,42 @@
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { Home, MapPin, ArrowLeftRight, TrendingUp, User } from "lucide-react";
 import { Logo } from "./Logo";
+import { useAuth } from "@/app/providers/AuthContext";
+import { useNotifications, useUnreadCount } from "@/hooks/useUsers";
+import { toast } from "sonner";
+import { useEffect, useRef } from "react";
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { data: notifications = [] } = useNotifications({ enabled: isAuthenticated });
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+  
+  const lastNotifiedId = useRef(null);
+
+  useEffect(() => {
+    if (notifications.length > 0) {
+      const latest = notifications[0];
+      // Only toast if it's unread and different from the last one we toasted
+      if (!latest.is_read && latest.id !== lastNotifiedId.current) {
+        // Don't toast on the very first load of the app if it's already old
+        if (lastNotifiedId.current !== null) {
+          toast(latest.title, {
+            description: latest.message,
+            action: {
+              label: "View",
+              onClick: () => navigate("/app/notifications")
+            }
+          });
+        }
+        lastNotifiedId.current = latest.id;
+      }
+    } else if (lastNotifiedId.current === null) {
+      // Initialize the ref on first empty load so we don't toast existing ones later
+      lastNotifiedId.current = "initialized";
+    }
+  }, [notifications, navigate]);
 
   const navItems = [
     { path: "/app/home", icon: Home, label: "Home", isCenter: false },
@@ -45,7 +77,7 @@ export function Layout() {
                   <button
                     key={item.path}
                     onClick={() => navigate(item.path)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all relative ${
                       active
                         ? "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30"
                         : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-neutral-800"

@@ -20,7 +20,8 @@ from app.models.schemas import (
     NotificationOut,
 )
 from app.services import report_service
-from app.services.supabase_client import supabase, get_authenticated_client
+from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client
+from app.services import notification_service, stats_service
 
 router = APIRouter()
 
@@ -108,7 +109,11 @@ def list_stations(
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     radius_km: Optional[float] = Query(default=None, alias="radius_km"),
+    response: Response = None,
 ):
+    if response:
+        response.headers["Cache-Control"] = "public, max-age=60" # Cache for 1 minute
+    
     # Base query for active stations
     query = supabase.table("stations").select("*, price_reports(*)").eq("is_active", True)
     
@@ -118,10 +123,6 @@ def list_stations(
     result = query.execute()
     stations_data = result.data
 
-    # Map Supabase results to the StationOut model
-    # Note: price filtering and distance sorting can be done in Python for now
-    # but for production, use PostGIS or Supabase RPC for efficiency.
-    
     processed = []
     for s in stations_data:
         # Rebuild latest_prices from price_reports join
@@ -139,13 +140,19 @@ def list_stations(
                     "confirmation_count": r.get("confirmation_count", 0),
                 }
         
-        s["latest_prices"] = latest_prices
+        total_confirmations = sum(p["confirmation_count"] for p in latest_prices.values())
+        unique_reporters = len(set(p["reported_by"] for p in latest_prices.values() if p["reported_by"]))
         
-        # Filter by fuel_type if requested, but always include stations with no price data
+        contributors = max(1, unique_reporters + total_confirmations)
+        accuracy = min(100, 85 + (total_confirmations * 5)) if latest_prices else 0
+        
+        s["latest_prices"] = latest_prices
+        s["contributors"] = contributors
+        s["accuracy"] = accuracy
+        
         if fuel_type and latest_prices and fuel_type not in latest_prices:
             continue
             
-        # Calculate distance if lat/lng provided
         distance_km = None
         if lat is not None and lng is not None:
             distance_km = _distance_km(lat, lng, s["lat"], s["lng"])
@@ -154,8 +161,22 @@ def list_stations(
             s["distance_km"] = round(distance_km, 3)
 
         processed.append(s)
-
+    
     return processed
+
+
+@router.post("/stations/sync")
+async def sync_stations(lat: float, lng: float):
+    """
+    Triggers an OSM sync for the given coordinates.
+    """
+    from app.services.osm_service import osm_service
+    try:
+        await osm_service.sync_osm_stations(lat, lng)
+        return {"status": "success", "message": "Synced with OpenStreetMap"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.post("/stations", response_model=StationOut, status_code=201)
@@ -175,9 +196,6 @@ def create_station(
         user_id = user_res.user.id
     except Exception as e:
         print(f"Auth failed in create_station: {e}")
-        # Log the full error for debugging
-        import traceback
-        traceback.print_exc()
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
 
     station_data = station.model_dump()
@@ -190,17 +208,26 @@ def create_station(
             raise HTTPException(status_code=500, detail="Failed to create station in database")
         new_station = result.data[0]
         
-        # Create notification for the user who added the station
+        # 1. Notify the creator personally
         try:
-            supabase.table("notifications").insert({
-                "user_id": user_id,
-                "type": "new_station",
-                "title": "Station Added Successfully!",
-                "message": f"Thank you for adding {new_station['name']}! It is now visible to the community.",
-                "metadata": {"station_id": new_station["id"]}
-            }).execute()
+            notification_service.notify_station_added(
+                user_id=user_id,
+                station_name=new_station["name"],
+                station_id=new_station["id"],
+            )
         except Exception as n_err:
-            print(f"Failed to create notification for new station: {n_err}")
+            print(f"Failed to create personal station notification: {n_err}")
+
+        # 2. Broadcast to all other users
+        try:
+            notification_service.broadcast_new_station(
+                station_name=new_station["name"],
+                city=new_station.get("city", "your area"),
+                station_id=new_station["id"],
+                exclude_user_id=user_id,
+            )
+        except Exception as n_err:
+            print(f"Failed to broadcast new station notification: {n_err}")
             
         return new_station
     except Exception as e:
@@ -259,7 +286,10 @@ def list_prices(
     fuel_type: Optional[str] = None,
     from_date: Optional[datetime] = None,
     to_date: Optional[datetime] = None,
+    response: Response = None,
 ):
+    if response:
+        response.headers["Cache-Control"] = "public, max-age=30" # Cache for 30 seconds
     query = supabase.table("price_reports").select("*").eq("is_active", True)
     
     if station_id:
@@ -312,7 +342,25 @@ def create_price(
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to report price")
     
-    return result.data[0]
+    new_report = result.data[0]
+
+    # Trigger notification for single report
+    if user_id:
+        try:
+            station_id = new_report.get("station_id")
+            station_res = supabase.table("stations").select("name").eq("id", station_id).single().execute()
+            station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
+            
+            notification_service.notify_price_submitted(
+                user_id=user_id,
+                station_name=station_name,
+                fuel_types=[new_report.get("fuel_type", "fuel")],
+                station_id=station_id
+            )
+        except Exception as n_err:
+            print(f"Notification failed for single report: {n_err}")
+
+    return new_report
 
 
 @router.post("/prices/batch", status_code=201)
@@ -330,13 +378,33 @@ def create_prices_batch(
     
     if token:
         try:
-            user_res = supabase.auth.get_user(token)
+            # Use the authenticated client to verify the user
+            user_res = db_client.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
         except Exception as e:
             print(f"Auth verification failed in batch: {e}")
             # Non-critical: allow anonymous batch if token fails but was optional
+            # (though RLS will likely block the insert later if required)
     
+    # Fetch previous prices for price-drop detection (before inserting new ones)
+    prev_prices: dict = {}
+    if prices:
+        station_id_check = prices[0].station_id
+        try:
+            prev_res = supabase.table("price_reports") \
+                .select("fuel_type, price") \
+                .eq("station_id", station_id_check) \
+                .eq("is_active", True) \
+                .order("observed_at", desc=True) \
+                .execute()
+            for row in (prev_res.data or []):
+                ft = row["fuel_type"]
+                if ft not in prev_prices:
+                    prev_prices[ft] = float(row["price"])
+        except Exception as e:
+            print(f"Could not fetch previous prices for drop detection: {e}")
+
     to_insert = []
     for p in prices:
         data = p.model_dump()
@@ -360,22 +428,53 @@ def create_prices_batch(
             print(f"Batch insert failed - no data returned. Request size: {len(to_insert)}")
             raise HTTPException(status_code=500, detail="Failed to report prices to database")
             
-        # Create notification for the user
+        station_id = to_insert[0]["station_id"]
+        station_res = supabase.table("stations").select("name, city").eq("id", station_id).single().execute()
+        station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
+        station_city = station_res.data.get("city", "your area") if station_res.data else "your area"
+
+        # 1. Notify the contributor personally
         if user_id:
             try:
-                station_id = to_insert[0]["station_id"]
-                station = supabase.table("stations").select("name").eq("id", station_id).single().execute()
-                station_name = station.data.get("name") if station.data else "a station"
-                
-                supabase.table("notifications").insert({
-                    "user_id": user_id,
-                    "type": "verification", # Using verification type as it fits contribution
-                    "title": "Contribution Recorded!",
-                    "message": f"Thanks for updating prices at {station_name}! Your contribution helps the community.",
-                    "metadata": {"count": len(result.data), "station_id": station_id}
-                }).execute()
+                fuel_types_submitted = [r["fuel_type"] for r in to_insert]
+                notification_service.notify_price_submitted(
+                    user_id=user_id,
+                    station_name=station_name,
+                    fuel_types=fuel_types_submitted,
+                    station_id=station_id,
+                )
             except Exception as n_err:
-                print(f"Failed to create notification for batch update: {n_err}")
+                print(f"Failed to create personal price notification: {n_err}")
+
+        # 2. Broadcast price drops to all users
+        try:
+            for record in to_insert:
+                ft = record["fuel_type"]
+                new_price = float(record["price"])
+                old_price = prev_prices.get(ft)
+                if old_price is not None:
+                    if new_price < old_price:
+                        notification_service.broadcast_price_drop(
+                            station_name=station_name,
+                            city=station_city,
+                            fuel_type=ft,
+                            old_price=old_price,
+                            new_price=new_price,
+                            station_id=station_id,
+                            exclude_user_id=user_id,
+                        )
+                    elif new_price > old_price:
+                        notification_service.broadcast_price_increase(
+                            station_name=station_name,
+                            city=station_city,
+                            fuel_type=ft,
+                            old_price=old_price,
+                            new_price=new_price,
+                            station_id=station_id,
+                            exclude_user_id=user_id,
+                        )
+        except Exception as n_err:
+            print(f"Failed to broadcast price drop notifications: {n_err}")
                 
         return {"count": len(result.data), "records": result.data}
     except Exception as e:
@@ -405,7 +504,31 @@ def update_price(
     if not result.data:
         raise HTTPException(status_code=404, detail="Price report not found or permission denied")
     
-    return result.data[0]
+    updated_report = result.data[0]
+    
+    # Notify the user about their single price update
+    try:
+        # Get station info for the notification
+        station_id = updated_report.get("station_id")
+        if station_id:
+            station_res = supabase.table("stations").select("name").eq("id", station_id).single().execute()
+            station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
+            
+            # Fetch user_id from token for the notification service
+            user_res = client.auth.get_user(token)
+            user_id = user_res.user.id if user_res.user else None
+            
+            if user_id:
+                notification_service.notify_price_submitted(
+                    user_id=user_id,
+                    station_name=station_name,
+                    fuel_types=[updated_report.get("fuel_type", "fuel")],
+                    station_id=station_id
+                )
+    except Exception as n_err:
+        print(f"Failed to create notification for single update: {n_err}")
+    
+    return updated_report
 
 
 @router.delete("/prices/{price_id}", status_code=204)
@@ -425,29 +548,72 @@ def delete_price(
 
 
 @router.post("/prices/{price_id}/confirm")
-async def confirm_price(price_id: str, request: Request):
+async def confirm_price(
+    price_id: str, 
+    request: Request,
+    token: Optional[str] = Depends(get_optional_jwt)
+):
     import hashlib
     client_ip = request.client.host if request.client else "unknown"
     ip_hash = hashlib.sha256(client_ip.encode("utf-8")).hexdigest()
+    
+    user_id = None
+    if token:
+        try:
+            user_res = supabase.auth.get_user(token)
+            if user_res.user:
+                user_id = user_res.user.id
+        except Exception:
+            pass
 
     # Check for duplicate confirmation in price_verifications
-    existing = supabase.table("price_verifications") \
-        .select("id") \
-        .eq("price_report_id", price_id) \
-        .eq("ip_hash", ip_hash) \
-        .execute()
+    try:
+        if user_id:
+            # Logged-in users: check ONLY by user_id, never by IP.
+            existing = supabase_admin.table("price_verifications") \
+                .select("id") \
+                .eq("price_report_id", price_id) \
+                .eq("user_id", user_id) \
+                .execute()
+        else:
+            # Anonymous users: fall back to IP-based check only
+            existing = supabase_admin.table("price_verifications") \
+                .select("id") \
+                .eq("price_report_id", price_id) \
+                .eq("ip_hash", ip_hash) \
+                .execute()
 
-    if existing.data:
-        raise HTTPException(status_code=429, detail="Already confirmed recently.")
+        if existing.data:
+            raise HTTPException(status_code=429, detail="Already confirmed recently.")
 
-    # Insert verification record
-    supabase.table("price_verifications").insert({
-        "price_report_id": price_id,
-        "ip_hash": ip_hash
-    }).execute()
+        # Insert verification record using admin client to bypass RLS
+        insert_data = {
+            "price_report_id": price_id,
+            "ip_hash": ip_hash,
+        }
+        if user_id:
+            insert_data["user_id"] = user_id
 
-    # Increment confirmation count and get reporter ID
-    current = supabase.table("price_reports") \
+        try:
+            supabase_admin.table("price_verifications").insert(insert_data).execute()
+        except Exception as insert_err:
+            err_str = str(insert_err)
+            # Unique constraint: already confirmed (race condition between pre-check and insert)
+            if "23505" in err_str or "unique" in err_str.lower():
+                raise HTTPException(status_code=429, detail="Already confirmed recently.")
+            # Foreign key violation: should not happen for real users, but surface it clearly
+            if "23503" in err_str or "foreign key" in err_str.lower():
+                print(f"FK violation for user_id={user_id}: {insert_err}")
+                raise HTTPException(status_code=500, detail="User account not found in auth system.")
+            raise HTTPException(status_code=500, detail=f"Failed to save confirmation: {err_str[:100]}")
+
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        print(f"Error in verification logic: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process confirmation")
+
+    # Increment confirmation count and get reporter ID using admin client to bypass RLS
+    current = supabase_admin.table("price_reports") \
         .select("confirmation_count, reported_by, station_id") \
         .eq("id", price_id) \
         .single() \
@@ -460,24 +626,24 @@ async def confirm_price(price_id: str, request: Request):
     reporter_id = current.data.get("reported_by")
     station_id = current.data.get("station_id")
     
-    supabase.table("price_reports").update({"confirmation_count": new_count}).eq("id", price_id).execute()
+    supabase_admin.table("price_reports").update({"confirmation_count": new_count}).eq("id", price_id).execute()
 
-    # If this was reported by a registered user, notify them
+    # Notify the original reporter that their price was verified
     if reporter_id:
         try:
-            # Get station name for the notification
             station = supabase.table("stations").select("name").eq("id", station_id).single().execute()
-            station_name = station.data.get("name") if station.data else "a station"
-            
-            supabase.table("notifications").insert({
-                "user_id": reporter_id,
-                "type": "verification",
-                "title": "Update Verified!",
-                "message": f"Your price update at {station_name} was confirmed by another community member.",
-                "metadata": {"price_id": price_id, "station_id": station_id}
-            }).execute()
+            station_name = station.data.get("name", "a station") if station.data else "a station"
+            fuel_res = supabase.table("price_reports").select("fuel_type").eq("id", price_id).single().execute()
+            fuel_type = fuel_res.data.get("fuel_type", "Fuel") if fuel_res.data else "Fuel"
+
+            notification_service.notify_price_confirmed(
+                user_id=reporter_id,
+                station_name=station_name,
+                fuel_type=fuel_type,
+                station_id=station_id,
+            )
         except Exception as n_err:
-            print(f"Failed to create notification for price confirmation: {n_err}")
+            print(f"Failed to create price confirmation notification: {n_err}")
 
     return {"confirmation_count": new_count}
 
@@ -485,20 +651,81 @@ async def confirm_price(price_id: str, request: Request):
 @router.get("/leaderboard")
 async def get_leaderboard(limit: int = 10):
     """
-    Returns the top contributors based on reputation and total updates.
+    Returns the top contributors based on real-time calculated reputation and accuracy.
     """
     try:
-        result = supabase.table("leaderboard") \
+        # 1. Get all profiles (or top N by stored reputation as a starting point)
+        profiles_res = supabase_admin.table("user_profiles") \
             .select("*") \
             .order("reputation", desc=True) \
-            .limit(limit) \
+            .limit(limit * 2) \
             .execute()
-        return result.data
+        
+        profiles = profiles_res.data or []
+        enriched_profiles = []
+        
+        for p in profiles:
+            user_id = p["id"]
+            
+            # Count Reports
+            reports_res = supabase_admin.table("price_reports").select("id", count="exact").eq("reported_by", user_id).execute()
+            total_reports = reports_res.count or 0
+            
+            # Count Confirmations (with fallback for user_id column)
+            total_confirmations = 0
+            try:
+                confirmations_res = supabase_admin.table("price_verifications").select("id", count="exact").eq("user_id", user_id).execute()
+                total_confirmations = confirmations_res.count or 0
+            except:
+                pass
+                
+            # Count Stations
+            stations_res = supabase_admin.table("stations").select("id", count="exact").eq("created_by", user_id).execute()
+            total_stations = stations_res.count or 0
+            
+            # Count received confirmations for user's reports
+            received_conf_res = supabase_admin.table("price_reports") \
+                .select("confirmation_count") \
+                .eq("reported_by", user_id) \
+                .execute()
+            received_confirmations = sum(r.get("confirmation_count", 0) for r in (received_conf_res.data or []))
+            
+            # Calculate Points: 10 per report, 5 per confirmation made, 2 per confirmation received, 20 per station
+            points = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20)
+            
+            # Calculate Accuracy: (Reports with 2+ confirmations) / Total Reports
+            accuracy = 0
+            if total_reports > 0:
+                try:
+                    accurate_res = supabase_admin.table("price_reports") \
+                        .select("id", count="exact") \
+                        .eq("reported_by", user_id) \
+                        .gte("confirmation_count", 1) \
+                        .execute()
+                    accuracy = int((accurate_res.count or 0) / total_reports * 100)
+                except:
+                    pass
+            
+            enriched_profiles.append({
+                **p,
+                "reputation": points,
+                "total_points": points,
+                "points": points,
+                "total_updates": total_reports,
+                "accuracy": accuracy,
+                "total_confirmations": total_confirmations,
+                "total_stations": total_stations
+            })
+            
+        # 2. Sort by real-time total_points and limit
+        enriched_profiles.sort(key=lambda x: x["total_points"], reverse=True)
+        return enriched_profiles[:limit]
+        
     except Exception as e:
         print(f"CRITICAL ERROR in get_leaderboard: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Leaderboard fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Leaderboard enrichment failed: {str(e)}")
 
 
 @router.get("/me/contributions")
@@ -506,31 +733,96 @@ async def get_my_contributions(token: str = Depends(get_jwt_token)):
     """
     Returns the price reports submitted by the current user.
     """
-    client = get_authenticated_client(token)
     try:
-        # Use global supabase client to verify user
-        try:
-            user_res = supabase.auth.get_user(token)
-            if not user_res.user:
-                raise HTTPException(status_code=401, detail="Unauthorized")
-            user_id = user_res.user.id
-        except Exception as auth_error:
-            print(f"Auth verification failed: {auth_error}")
-            raise HTTPException(status_code=401, detail="Invalid session or token")
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        user_id = user_res.user.id
         
-        # Query with station join to get names
-        # Use global supabase client for consistency
-        result = supabase.table("price_reports") \
+        # 1. Fetch reports submitted by the user
+        reports_res = client.table("price_reports") \
             .select("*, stations(name, address)") \
             .eq("reported_by", user_id) \
             .order("observed_at", desc=True) \
             .execute()
+        
+        reports = []
+        for r in (reports_res.data or []):
+            # Calculate status based on confirmation count
+            status = "pending"
+            conf_count = r.get("confirmation_count", 0)
+            if conf_count >= 3: status = "approved"
+            elif conf_count >= 1: status = "confirmed"
             
-        return result.data
+            reports.append({
+                "id": r["id"],
+                "type": "Submitted",
+                "stationName": r.get("stations", {}).get("name", "Unknown"),
+                "address": r.get("stations", {}).get("address", ""),
+                "fuel_type": r["fuel_type"],
+                "price": r["price"],
+                "observed_at": r["observed_at"],
+                "confirmation_count": conf_count,
+                "status": status
+            })
+
+        # 2. Fetch verifications (confirmations) submitted by the user
+        verifications = []
+        try:
+            # Note: This requires the user_id column in price_verifications (Migration 003)
+            verifications_res = client.table("price_verifications") \
+                .select("id, price_report_id, confirmed_at, price_reports!inner(stations!inner(name, address, city), fuel_type, price)") \
+                .eq("user_id", user_id) \
+                .order("confirmed_at", desc=True) \
+                .execute()
+            
+            for v in (verifications_res.data or []):
+                report = v.get("price_reports")
+                if not report: continue
+                verifications.append({
+                    "id": f"v-{v['id']}",
+                    "price_report_id": v.get("price_report_id"),
+                    "type": "Confirmed",
+                    "stationName": report.get("stations", {}).get("name", "Unknown"),
+                    "address": report.get("stations", {}).get("address", ""),
+                    "fuel_type": report["fuel_type"],
+                    "price": report["price"],
+                    "observed_at": v["confirmed_at"],
+                    "status": "confirmed" # Confirmations are logged as confirmed
+                })
+        except Exception as v_err:
+            print(f"Notice: Skipping verifications fetch (might need Migration 003): {v_err}")
+            
+        # 3. Fetch station creations submitted by the user
+        stations = []
+        try:
+            stations_res = client.table("stations") \
+                .select("*") \
+                .eq("created_by", user_id) \
+                .order("created_at", desc=True) \
+                .execute()
+                
+            for s in (stations_res.data or []):
+                stations.append({
+                    "id": f"s-{s['id']}",
+                    "type": "Created Station",
+                    "stationName": s.get("name", "Unknown"),
+                    "address": s.get("address", ""),
+                    "fuel_type": "N/A",
+                    "price": None,
+                    "observed_at": s["created_at"],
+                    "status": "approved" # Station creations are immediate positive impact
+                })
+        except Exception as s_err:
+            print(f"Notice: Skipping stations fetch: {s_err}")
+            
+        return sorted(reports + verifications + stations, key=lambda x: x["observed_at"], reverse=True)
     except Exception as e:
         print(f"CRITICAL ERROR in get_my_contributions: {e}")
         import traceback
         traceback.print_exc()
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=f"Failed to fetch contributions: {str(e)}")
 
 
@@ -589,71 +881,22 @@ async def create_report(report: PriceReportIn):
 @router.get("/prices/history")
 async def get_price_history(
     fuel_type: Optional[str] = None,
-    location: Optional[str] = None,
+    location: str = "Nationwide",
     city: Optional[str] = None,
     station_id: Optional[str] = None
 ):
     """
-    Returns aggregated price history data.
-    Currently returns mock data but structured for future DB aggregation.
+    Returns aggregated price history data from the last 12 weeks.
     """
-    # For now, return the mock history structure the frontend expects, 
-    # but in a real app, this would query Supabase for historical reports.
-    
-    return [
-        {
-            "week": "Apr 8–14",
-            "date": "Apr 8",
-            "year": "2026",
-            "averages": {
-                "diesel": 58.40,
-                "premiumDiesel": 62.50,
-                "unleaded91": 67.20,
-                "unleaded95": 71.00,
-                "unleaded98": 75.80,
-                "kerosene": 55.30
-            },
-            "brands": [
-                {
-                    "name": "Cleanfuel",
-                    "prices": { "diesel": 55.00, "premiumDiesel": 59.20, "unleaded91": 64.20, "unleaded95": 67.90, "unleaded98": 72.50, "kerosene": 52.00 },
-                    "badge": "Cheapest Diesel",
-                    "movement": "Lower this week",
-                },
-                {
-                    "name": "Seaoil",
-                    "prices": { "diesel": 55.80, "premiumDiesel": 59.90, "unleaded91": 64.80, "unleaded95": 68.50, "unleaded98": 72.90, "kerosene": 52.80 },
-                    "badge": "Best Average",
-                    "movement": "Stable",
-                }
-            ]
-        },
-        {
-            "week": "Apr 1–7",
-            "date": "Apr 1",
-            "year": "2026",
-            "averages": {
-                "diesel": 58.05,
-                "premiumDiesel": 62.20,
-                "unleaded91": 66.80,
-                "unleaded95": 70.65,
-                "unleaded98": 75.40,
-                "kerosene": 55.00
-            },
-            "brands": [
-                {
-                    "name": "Cleanfuel",
-                    "prices": { "diesel": 54.70, "premiumDiesel": 58.90, "unleaded91": 63.90, "unleaded95": 67.60, "unleaded98": 72.20, "kerosene": 51.70 },
-                    "badge": "Cheapest Diesel",
-                    "movement": "Stable",
-                }
-            ]
-        }
-    ]
+    return await stats_service.aggregate_price_history(
+        fuel_type=fuel_type,
+        city=city,
+        location_mode=location
+    )
 
 # --- Notifications ---
 
-@router.get("/notifications", response_model=List[NotificationOut])
+@router.get("/notifications")
 async def get_notifications(
     token: str = Depends(get_jwt_token),
     limit: int = 20
@@ -662,12 +905,14 @@ async def get_notifications(
     Returns notifications for the current user.
     """
     try:
+        # 1. Verify user identity using the token explicitly
         user_res = supabase.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         user_id = user_res.user.id
         
-        result = supabase.table("notifications") \
+        # 2. Fetch using admin client to guarantee delivery
+        result = supabase_admin.table("notifications") \
             .select("*") \
             .eq("user_id", user_id) \
             .order("created_at", desc=True) \
@@ -676,34 +921,48 @@ async def get_notifications(
             
         return result.data
     except Exception as e:
-        print(f"CRITICAL ERROR fetching notifications: {e}")
-        import traceback
-        traceback.print_exc()
-        if "schema cache" in str(e) or "not find the table" in str(e):
-             raise HTTPException(status_code=500, detail="Database table 'notifications' is missing. Please apply the migration 002.")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch notifications: {str(e)}")
+        error_msg = f"Failed to fetch notifications: {str(e)}"
+        print(f"CRITICAL ERROR: {error_msg}")
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.patch("/notifications/{notification_id}/read", response_model=NotificationOut)
 async def mark_notification_as_read(
     notification_id: str,
     token: str = Depends(get_jwt_token)
 ):
-    client = get_authenticated_client(token)
-    result = client.table("notifications").update({"is_read": True}).eq("id", notification_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    return result.data[0]
+    try:
+        # Verify user
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        user_id = user_res.user.id
+        
+        # Use admin client to ensure update succeeds
+        result = supabase_admin.table("notifications") \
+            .update({"is_read": True}) \
+            .eq("id", notification_id) \
+            .eq("user_id", user_id) \
+            .execute()
+            
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Notification not found")
+        return result.data[0]
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/notifications/mark-all-read")
 async def mark_all_notifications_as_read(
     token: str = Depends(get_jwt_token)
 ):
     try:
+        # Verify user
         user_res = supabase.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         
-        result = supabase.table("notifications") \
+        result = supabase_admin.table("notifications") \
             .update({"is_read": True}) \
             .eq("user_id", user_res.user.id) \
             .eq("is_read", False) \
@@ -720,17 +979,89 @@ async def mark_all_notifications_as_read(
 @router.get("/me/profile", response_model=UserProfileOut)
 async def get_my_profile(token: str = Depends(get_jwt_token)):
     try:
-        user_res = supabase.auth.get_user(token)
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
         
-        result = supabase.table("user_profiles").select("*").eq("id", user_id).single().execute()
-        return result.data
+        # 1. Fetch profile
+        profile_res = client.table("user_profiles").select("*").eq("id", user_id).single().execute()
+        profile = profile_res.data if profile_res.data else {}
+        
+        # Fallback to prevent Pydantic 500 errors if profile row is missing
+        profile["id"] = user_id
+        
+        # 2. Compute dynamic stats
+        try:
+            reports_count = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).execute()
+            total_reports = reports_count.count or 0
+        except Exception as e:
+            print(f"Error counting reports: {e}")
+            total_reports = 0
+        
+        try:
+            # Note: This requires the user_id column in price_verifications (Migration 003)
+            confirmations_count = client.table("price_verifications").select("id", count="exact").eq("user_id", user_id).execute()
+            total_confirmations = confirmations_count.count or 0
+        except Exception as e:
+            print(f"Error counting confirmations (might need Migration 003): {e}")
+            total_confirmations = 0
+        
+        try:
+            stations_count = client.table("stations").select("id", count="exact").eq("created_by", user_id).execute()
+            total_stations = stations_count.count or 0
+        except Exception as e:
+            print(f"Error counting stations: {e}")
+            total_stations = 0
+            
+        # Count received confirmations for user's reports
+        try:
+            received_conf_res = supabase_admin.table("price_reports") \
+                .select("confirmation_count") \
+                .eq("reported_by", user_id) \
+                .execute()
+            received_confirmations = sum(r.get("confirmation_count", 0) for r in (received_conf_res.data or []))
+        except:
+            received_confirmations = 0
+            
+        # Total contributions = reports + confirmations + stations
+        profile["contributionCount"] = total_reports + total_confirmations + total_stations
+        profile["points"] = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20)
+        
+        # Accuracy = (Reports with at least 2 confirmations) / Total Reports
+        # Verified Count = Reports with at least 2 confirmations
+        profile["verified_count"] = 0
+        if total_reports > 0:
+            try:
+                accurate_reports = client.table("price_reports") \
+                    .select("id", count="exact") \
+                    .eq("reported_by", user_id) \
+                    .gte("confirmation_count", 1) \
+                    .execute()
+                
+                profile["verified_count"] = accurate_reports.count or 0
+                profile["accuracy"] = int((accurate_reports.count or 0) / total_reports * 100)
+            except:
+                profile["accuracy"] = 0
+        else:
+            profile["accuracy"] = 100 if total_confirmations > 0 else 0
+            
+        # Ensure permanent database sync for reputation
+        try:
+            # We use supabase_admin to bypass RLS in case the user isn't allowed to self-edit their reputation
+            supabase_admin.table("user_profiles").update({
+                "reputation": profile["points"]
+            }).eq("id", user_id).execute()
+        except Exception as db_err:
+            print(f"Failed to sync reputation to database: {db_err}")
+            
+        return profile
     except Exception as e:
         print(f"Error fetching profile for user: {e}")
-        if isinstance(e, HTTPException):
-            raise e
+        import traceback
+        traceback.print_exc()
+        if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail="Failed to fetch profile")
 
 @router.put("/me/profile", response_model=UserProfileOut)
@@ -739,28 +1070,19 @@ async def update_my_profile(
     token: str = Depends(get_jwt_token)
 ):
     try:
-        user_res = supabase.auth.get_user(token)
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
-        
         user_id = user_res.user.id
-        client = get_authenticated_client(token)
         
-        # Whitelist allowed fields from model
         updates = profile_data.model_dump(exclude_unset=True)
-        
-        print(f"Updating profile for user {user_id} with data: {updates}")
-        
+        # Use authenticated client for RLS
         result = client.table("user_profiles").update(updates).eq("id", user_id).execute()
         if not result.data:
-            print(f"Profile update failed - no data returned for user {user_id}")
-            raise HTTPException(status_code=400, detail="Update failed: Profile not found or no changes made")
-        
+            raise HTTPException(status_code=404, detail="Profile not found")
         return result.data[0]
     except Exception as e:
-        print(f"CRITICAL ERROR in update_my_profile: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        print(f"Error updating profile: {e}")
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail="Failed to update profile")
