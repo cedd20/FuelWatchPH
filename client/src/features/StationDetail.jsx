@@ -8,7 +8,6 @@ import {
   Share2,
   Heart,
   Pencil,
-  NotebookPen,
   Trash2,
   TrendingUp,
   TrendingDown,
@@ -22,6 +21,7 @@ import { useStation, useDeleteStation } from "@/hooks/useStations";
 import { usePrices, useDeletePrice, useConfirmPrice, useMyContributions } from "@/hooks/usePrices";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
+import { StationPriceHistoryCard } from "@/shared/components/StationPriceHistoryCard";
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
 import { toggleSaveStation, isStationSaved } from "@/shared/utils/favorites";
@@ -120,15 +120,6 @@ export function StationDetail() {
     }
 
     navigate(`/app/update-price/${id}`, { state: { fuelType: fuel.type } });
-  };
-
-  const handleReportPrice = () => {
-    if (!isAuthenticated) {
-      setShowAuthPrompt(true);
-      return;
-    }
-
-    navigate(`/app/report/${id}`);
   };
 
   const handleDeletePrice = () => {
@@ -284,32 +275,34 @@ export function StationDetail() {
         type="warning"
       />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20 lg:pb-8">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 lg:pb-12 relative overflow-hidden">
+      {/* Compact Header */}
+      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-4 pb-3 sm:pt-5 sm:pb-4 lg:pt-6 lg:pb-5 px-4 sm:px-5 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
         <div className="relative z-10 max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-6 lg:mb-8">
+          {/* Top Row: Back + Actions */}
+          <div className="flex items-center justify-between mb-3 sm:mb-3.5 gap-2">
             <button
               onClick={() => navigate(-1)}
-              className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
+              className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg shadow-black/20 hover:scale-105 transition-transform border-2 border-white/40 flex-shrink-0"
             >
-              <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
             </button>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleShare}
-                className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
+                className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg shadow-black/20 hover:scale-105 transition-transform border-2 border-white/40"
               >
-                <Share2 className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
               </button>
               <button
                 onClick={handleToggleSave}
-                className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
+                className="w-10 h-10 sm:w-11 sm:h-11 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg shadow-black/20 hover:scale-105 transition-transform border-2 border-white/40"
               >
                 <Heart
-                  className={`w-5 h-5 ${
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${
                     isSaved ? "fill-rose-500 text-rose-500" : "text-gray-700 dark:text-gray-200"
                   }`}
                   strokeWidth={2.5}
@@ -318,68 +311,64 @@ export function StationDetail() {
             </div>
           </div>
 
+          {/* Station Info Row */}
+          <div className="flex items-start gap-2.5 sm:gap-3 mb-2 sm:mb-2.5">
+            <StationLogo name={station.name} size="md" className="flex-shrink-0 shadow-lg mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white drop-shadow-lg tracking-tight line-clamp-2">{station.name}</h1>
+              <div className="flex items-center gap-1 text-white/90 text-xs sm:text-sm font-medium drop-shadow-sm mt-0.5">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="line-clamp-1">{station.address}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Metadata + Accuracy Row */}
+          <div className="flex items-center justify-between gap-2 sm:gap-3 text-xs sm:text-sm text-white/90 font-medium drop-shadow-sm">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-1">
+                <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="whitespace-nowrap">{station.distance} km</span>
+              </div>
+              <div className="w-1 h-1 bg-white/40 rounded-full flex-shrink-0" />
+              <div className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="whitespace-nowrap">{station.lastUpdated}</span>
+              </div>
+            </div>
+            
+            {/* Accuracy Badge */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-white/15 backdrop-blur-md rounded-full border border-white/20 flex-shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" strokeWidth={2.5} />
+              <span className="font-bold text-white text-xs sm:text-sm whitespace-nowrap">
+                {station.prices?.length > 0 ? (station.accuracy || 100) : 0}%
+              </span>
+            </div>
+          </div>
+
+          {/* Edit/Delete Buttons (Compact) */}
           {(canEditStation || canDeleteStation) && (
-            <div className="flex flex-wrap items-center gap-3 mb-5 lg:mb-6">
+            <div className="flex items-center gap-2 mt-2 sm:mt-2.5">
               {canEditStation && (
                 <button
                   onClick={handleEditStation}
-                  className="min-h-11 flex items-center gap-2 px-4 py-3 bg-white/15 backdrop-blur-md text-white rounded-2xl font-bold border border-white/20 shadow-lg"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-white/15 backdrop-blur-md text-white rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm border border-white/20 shadow-lg hover:bg-white/20 transition-colors"
                 >
-                  <Pencil className="w-4 h-4" />
-                  Edit Station
+                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Edit</span>
                 </button>
               )}
               {canDeleteStation && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="min-h-11 flex items-center gap-2 px-4 py-3 bg-rose-500/20 backdrop-blur-md text-white rounded-2xl font-bold border border-rose-300/30 shadow-lg"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 bg-rose-500/20 backdrop-blur-md text-white rounded-xl sm:rounded-2xl font-bold text-xs sm:text-sm border border-rose-300/30 shadow-lg hover:bg-rose-500/30 transition-colors"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete Station
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span>Delete</span>
                 </button>
               )}
             </div>
           )}
-
-          <StationLogo name={station.name} size="xl" className="mb-4 lg:mb-6 shadow-2xl" />
-          <h1 className="text-3xl lg:text-4xl font-bold text-white mb-3 lg:mb-4 drop-shadow-2xl tracking-tight">{station.name}</h1>
-          <div className="flex items-start gap-2 text-white/95 mb-4 lg:mb-5 drop-shadow-lg">
-            <MapPin className="w-4 h-4 lg:w-5 lg:h-5 mt-0.5 flex-shrink-0" />
-            <span className="text-sm lg:text-base font-medium">{station.address}</span>
-          </div>
-          <div className="flex items-center gap-4 lg:gap-6 text-sm lg:text-base text-white/95 font-medium drop-shadow-lg">
-            <div className="flex items-center gap-1.5 lg:gap-2">
-              <Navigation className="w-4 h-4 lg:w-5 lg:h-5" />
-              <span>{station.distance} km away</span>
-            </div>
-            <div className="flex items-center gap-1.5 lg:gap-2">
-              <Clock className="w-4 h-4 lg:w-5 lg:h-5" />
-              <span>Updated {station.lastUpdated}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:hidden mx-4 -mt-4 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-5 sm:p-6 border-2 border-emerald-400/30 dark:border-emerald-500/30 shadow-2xl shadow-emerald-500/10 relative overflow-hidden">
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/5 rounded-xl flex items-center justify-center shadow-lg">
-              <ShieldCheck className="w-6 h-6 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-            </div>
-            <div>
-              <div className="font-bold text-foreground text-base">
-                {station.prices?.length > 0 ? (station.accuracy || 100) : 0}% Accuracy
-              </div>
-              <div className="text-xs text-muted-foreground/80 font-medium">
-                {station.prices?.length > 0 
-                  ? `Verified by ${station.contributors || 1} contributors`
-                  : "No reports yet"}
-              </div>
-            </div>
-          </div>
-          <div className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full text-xs font-bold shadow-lg shadow-teal-500/30">
-            Trusted
-          </div>
         </div>
       </div>
 
@@ -396,18 +385,9 @@ export function StationDetail() {
                   >
                     <div className="mb-4">
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="font-bold text-foreground text-lg">
-                          {fuel.type}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEditPrice(fuel)}
-                            className="min-h-11 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
-                          >
-                            Edit
-                          </button>
-                          {canDeleteStation && (
+                        <div className="font-bold text-foreground text-lg">{fuel.type}</div>
+                        {canDeleteStation ? (
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => setPriceDeleteTarget(fuel)}
@@ -415,8 +395,8 @@ export function StationDetail() {
                             >
                               Delete
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         {fuel.trend === "up" ? (
@@ -502,13 +482,7 @@ export function StationDetail() {
                 >
                   Update Fuel Price
                 </button>
-                <button
-                  onClick={handleReportPrice}
-                  className="w-full px-6 py-4 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
-                >
-                  <NotebookPen className="w-4 h-4" strokeWidth={2.5} />
-                  Report Price
-                </button>
+                {/* Report Price removed — use Update Fuel Price flow instead */}
                 <button
                   onClick={handleGetDirections}
                   className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
@@ -522,7 +496,34 @@ export function StationDetail() {
         </div>
       </div>
 
-      <div className="lg:hidden px-4 sm:px-5 py-6">
+      {/* Mobile Accuracy Summary */}
+      <div className="lg:hidden px-4 sm:px-5 py-3 sm:py-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-b border-emerald-200 dark:border-emerald-800/40">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+            </div>
+            <div>
+              <div className="font-bold text-foreground text-sm">
+                {station.prices?.length > 0 ? (station.accuracy || 100) : 0}% Accuracy
+              </div>
+              <div className="text-xs text-muted-foreground font-medium">
+                {station.prices?.length > 0 
+                  ? `${station.contributors || 1} contributor${station.contributors !== 1 ? 's' : ''}`
+                  : "No reports yet"}
+              </div>
+            </div>
+          </div>
+          {station.prices?.length > 0 && (
+            <div className="px-2.5 py-1 bg-emerald-600 text-white rounded-full text-xs font-bold whitespace-nowrap shadow-sm">
+              Trusted
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Prices Section */}
+      <div className="lg:hidden px-4 sm:px-5 py-5 sm:py-6">
         <h3 className="text-lg font-bold text-foreground mb-4 tracking-tight">Current Prices</h3>
         <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0">
           {station.prices.map((fuel, index) => (
@@ -530,41 +531,32 @@ export function StationDetail() {
               key={index}
               className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 transition-all"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="font-bold text-foreground text-base">
-                      {fuel.type}
-                    </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="font-bold text-foreground text-base">{fuel.type}</div>
+                        {canDeleteStation ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPriceDeleteTarget(fuel)}
+                              className="min-h-11 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEditPrice(fuel)}
-                        className="min-h-11 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300"
-                      >
-                        Edit
-                      </button>
-                      {canDeleteStation && (
-                        <button
-                          type="button"
-                          onClick={() => setPriceDeleteTarget(fuel)}
-                          className="min-h-11 px-3 py-2 rounded-xl text-xs font-bold bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300"
-                        >
-                          Delete
-                        </button>
+                      {fuel.trend === "up" ? (
+                        <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
                       )}
+                      <span className={`text-sm font-bold ${fuel.trend === "up" ? "text-rose-600" : "text-emerald-600"}`}>
+                        ₱{Math.abs(fuel.change || 0).toFixed(2)} {fuel.trend === "up" ? "higher" : "lower"}
+                      </span>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {fuel.trend === "up" ? (
-                      <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
-                    )}
-                    <span className={`text-sm font-bold ${fuel.trend === "up" ? "text-rose-600" : "text-emerald-600"}`}>
-                      ₱{Math.abs(fuel.change || 0).toFixed(2)} {fuel.trend === "up" ? "higher" : "lower"}
-                    </span>
-                  </div>
                 </div>
                 <div className="text-right flex flex-col items-end">
                   <div className="text-3xl font-bold text-foreground tracking-tighter mb-1">
@@ -609,13 +601,7 @@ export function StationDetail() {
           >
             Update Fuel Price
           </button>
-          <button
-            onClick={handleReportPrice}
-            className="w-full px-6 py-4 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
-          >
-            <NotebookPen className="w-4 h-4" strokeWidth={2.5} />
-            Report Price
-          </button>
+          {/* Report Price removed — use Update Fuel Price flow instead */}
           <button
             onClick={handleGetDirections}
             className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
@@ -623,6 +609,12 @@ export function StationDetail() {
             <Navigation className="w-4 h-4" strokeWidth={2.5} />
             Get Directions
           </button>
+        </div>
+      </div>
+
+      <div className="px-4 sm:px-5 lg:px-8 pb-6 lg:pb-10">
+        <div className="max-w-6xl mx-auto">
+          <StationPriceHistoryCard stationId={id} stationName={station.name} compact />
         </div>
       </div>
       </div>

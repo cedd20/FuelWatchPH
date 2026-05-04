@@ -10,8 +10,14 @@ import { Logo } from "@/shared/components/Logo";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
+import { PHILIPPINE_CITIES } from "@/shared/utils/philippineCities";
 import { useAuth } from "@/app/providers/AuthContext";
 import { useUnreadCount } from "@/hooks/useUsers";
+
+const FALLBACK_LOCATION = PHILIPPINE_CITIES.find((city) => city.city === "Manila") || {
+  lat: 14.5995,
+  lng: 120.9842,
+};
 
 export function Home() {
   const navigate = useNavigate();
@@ -29,7 +35,7 @@ export function Home() {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (position) => {
         setUserLocation({
           lat: position.coords.latitude,
@@ -41,20 +47,29 @@ export function Home() {
         console.error("Location error:", error.code, error.message);
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 }
     );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   const { data: allStations = [], isLoading: stationsLoading } = useStations();
   const isLoading = stationsLoading || isLocating;
 
   // Helper to get price
+  const getValidPrice = (value) => {
+    const price = Number(value);
+    return Number.isFinite(price) && price >= 0 ? price : null;
+  };
+
   const getStationPrice = (station, fuelType) => {
     if (fuelType === "All") {
-      const prices = Object.values(station.latest_prices || {}).map(p => p.price);
+      const prices = Object.values(station.latest_prices || {})
+        .map((p) => getValidPrice(p?.price))
+        .filter((price) => price !== null);
       return prices.length > 0 ? Math.min(...prices) : undefined;
     }
-    return station.latest_prices?.[fuelType]?.price;
+    return getValidPrice(station.latest_prices?.[fuelType]?.price) ?? undefined;
   };
 
   // Distance helper (Haversine simplified for this usage)
@@ -68,6 +83,20 @@ export function Home() {
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  };
+
+  const getCityReferenceDistance = (cityName) => {
+    const matchingCities = PHILIPPINE_CITIES.filter((city) => city.city === cityName);
+
+    if (matchingCities.length === 0) return null;
+
+    const referenceLocation = userLocation || FALLBACK_LOCATION;
+
+    return Math.min(
+      ...matchingCities.map((city) =>
+        getDistance(referenceLocation.lat, referenceLocation.lng, city.lat, city.lng)
+      )
+    );
   };
 
   // Calculate KPIs
@@ -100,32 +129,27 @@ export function Home() {
 
   // Recommended Stations (Cheapest within 20km)
   const recommendedStations = useMemo(() => {
+    const referenceLocation = userLocation || FALLBACK_LOCATION;
+
     const stationsWithPrices = allStations
       .map(s => ({
         ...s,
-        distance: userLocation ? getDistance(userLocation.lat, userLocation.lng, s.lat, s.lng) : 0,
+        distance: Number.isFinite(Number(s.lat)) && Number.isFinite(Number(s.lng))
+          ? getDistance(referenceLocation.lat, referenceLocation.lng, Number(s.lat), Number(s.lng))
+          : null,
         lowestPrice: getStationPrice(s, selectedFuelType),
         fuelType: selectedFuelType
       }))
       .filter(s => s.lowestPrice !== undefined);
 
-    if (!userLocation) {
-      return stationsWithPrices
-        .sort((a, b) => a.lowestPrice - b.lowestPrice)
-        .slice(0, 4);
-    }
-
-    const nearby = stationsWithPrices.filter(s => s.distance <= 20);
-    
-    if (nearby.length > 0) {
-      return nearby
-        .sort((a, b) => a.lowestPrice - b.lowestPrice)
-        .slice(0, 4);
-    }
-
-    // Fallback: If no stations nearby, show cheapest nationwide
     return stationsWithPrices
-      .sort((a, b) => a.lowestPrice - b.lowestPrice)
+      .sort((a, b) => {
+        if (a.distance === null && b.distance === null) return (a.lowestPrice || 0) - (b.lowestPrice || 0);
+        if (a.distance === null) return 1;
+        if (b.distance === null) return -1;
+        if (a.distance !== b.distance) return a.distance - b.distance;
+        return a.lowestPrice - b.lowestPrice;
+      })
       .slice(0, 4);
   }, [allStations, userLocation, selectedFuelType]);
 
@@ -154,17 +178,25 @@ export function Home() {
     return cityList.map(cityName => {
       const cityStations = allStations.filter(s => s.city === cityName);
       const prices = cityStations
-        .map(s => getStationPrice(s, selectedFuelType))
-        .filter(p => p !== undefined);
-      const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+        .map((s) => getStationPrice(s, selectedFuelType))
+        .filter((price) => price !== undefined);
+      const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
+      const distance = getCityReferenceDistance(cityName);
 
       return {
         name: cityName,
         stationCount: cityStations.length,
-        avgPrice: `₱${avg.toFixed(2)}/L`
+        avgPrice: avg === null ? "No Data" : `₱${avg.toFixed(2)}/L`,
+        distance: distance ?? Number.POSITIVE_INFINITY,
       };
-    }).slice(0, 4);
-  }, [allStations, selectedFuelType]);
+    })
+    .filter((city) => city.stationCount > 0)
+    .sort((a, b) => {
+      if (a.distance !== b.distance) return a.distance - b.distance;
+      return b.stationCount - a.stationCount;
+    })
+    .slice(0, 4);
+  }, [allStations, selectedFuelType, userLocation]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950">

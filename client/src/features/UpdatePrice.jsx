@@ -1,15 +1,185 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useLocation } from "react-router";
-import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info } from "lucide-react";
+import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info, X, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
-import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
 import { useAuthGuard } from "@/shared/hooks/useAuthGuard";
 import { useStation } from "@/hooks/useStations";
 import { useReportPricesBatch } from "@/hooks/usePrices";
 import { toast } from "sonner";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import { appendStationPriceHistory } from "@/shared/utils/stationPriceHistory";
+
+function formatPeso(value) {
+  return `₱${Number(value).toFixed(2)}`;
+}
+
+function PriceUpdateConfirmationModal({
+  isOpen,
+  stationName,
+  changes,
+  isSubmitting,
+  error,
+  onCancel,
+  onConfirm,
+  onRetry,
+}) {
+  const modalRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      const handleKeyDown = (e) => {
+        if (e.key === "Escape" && !isSubmitting) {
+          onCancel();
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => window.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isOpen, isSubmitting, onCancel]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-4 overflow-y-auto">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={() => !isSubmitting && onCancel()}
+      />
+
+      {/* Modal */}
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-2xl sm:max-h-[88vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] my-auto"
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 px-5 py-6 sm:px-7 sm:py-7 text-white relative flex items-start justify-between">
+          <div className="flex-1 pr-4">
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Review Price Updates</h3>
+            <p className="mt-2 text-sm sm:text-base text-white/90 font-medium">
+              {error ? "An error occurred" : "Please review before confirming"}
+            </p>
+          </div>
+          <button
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="flex-shrink-0 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors disabled:opacity-50"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-white" strokeWidth={2.5} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(100vh-340px)] sm:max-h-[calc(88vh-280px)] px-5 sm:px-7 py-6 sm:py-7 space-y-5">
+          {error ? (
+            <div className="rounded-2xl border border-rose-300 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/30 p-4 sm:p-5 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 text-rose-600 dark:text-rose-400 flex-shrink-0" />
+              <div>
+                <p className="text-sm sm:text-base font-bold text-rose-900 dark:text-rose-200 mb-1">Update Failed</p>
+                <p className="text-sm text-rose-800 dark:text-rose-300 leading-relaxed">
+                  {error}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-emerald-200/70 dark:border-emerald-800/60 bg-emerald-50/80 dark:bg-emerald-950/30 p-4 sm:p-5">
+                <p className="text-xs uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300">Station Name</p>
+                <p className="mt-1.5 text-base sm:text-lg font-bold text-foreground">{stationName || "Unknown Station"}</p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 p-4 sm:p-5 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-sm sm:text-base text-amber-900 dark:text-amber-200 font-medium leading-relaxed">
+                  These fuel price updates will be visible to other users. Please ensure accuracy.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs sm:text-sm font-black tracking-wide text-muted-foreground uppercase">Changes ({changes.length})</p>
+                  <span className="text-xs font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full">
+                    {changes.length} {changes.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+
+                {changes.map((change) => {
+                  const diffClass = change.isNew
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : change.difference > 0
+                      ? "text-rose-600 dark:text-rose-400"
+                      : change.difference < 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-foreground";
+
+                  return (
+                    <div
+                      key={change.fuelType}
+                      className="rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <h4 className="text-base sm:text-lg font-bold text-foreground">{change.fuelType}</h4>
+                        <span className={`text-xs sm:text-sm font-bold ${diffClass} whitespace-nowrap`}>
+                          {change.isNew ? "🆕 New price" : `${change.difference > 0 ? "📈" : "📉"} ${change.difference > 0 ? "+" : ""}${formatPeso(change.difference)}`}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-900 p-3 sm:p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current</p>
+                          <p className="mt-2 text-sm sm:text-base font-bold text-foreground">
+                            {change.previousPrice == null ? "—" : formatPeso(change.previousPrice)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 p-3 sm:p-4">
+                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Updated To</p>
+                          <p className="mt-2 text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                            {formatPeso(change.newPrice)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-5 py-4 sm:px-7 sm:py-5 grid grid-cols-2 gap-3 sm:gap-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="rounded-2xl border-2 border-gray-300 dark:border-neutral-600 bg-gray-100 dark:bg-neutral-800 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-bold text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={error ? onRetry : onConfirm}
+            disabled={isSubmitting && !error}
+            className="rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-bold text-white shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+          >
+            {isSubmitting && !error ? (
+              <>
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                <span>Processing...</span>
+              </>
+            ) : error ? (
+              "Try Again"
+            ) : (
+              "Confirm Update"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function UpdatePrice() {
   const navigate = useNavigate();
@@ -20,8 +190,9 @@ export function UpdatePrice() {
   const [prices, setPrices] = useState({});
   const [isNearStation] = useState(true); 
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState([]);
+  const [submissionError, setSubmissionError] = useState(null);
 
   const queryClient = useQueryClient();
   const { data: rawStation, isLoading } = useStation(id);
@@ -73,6 +244,42 @@ export function UpdatePrice() {
 
   const hasAnyPrice = Object.keys(prices).length > 0;
 
+  const buildValidatedChanges = () => {
+    const epsilon = 0.0001;
+    const invalidFuelTypes = [];
+    const changes = [];
+
+    const entries = Object.entries(prices).filter(([, value]) => String(value).trim() !== "");
+
+    for (const [fuelId, rawValue] of entries) {
+      const fuelMeta = fuelTypesList.find((fuel) => fuel.id === fuelId);
+      if (!fuelMeta) continue;
+
+      const numericValue = Number(rawValue);
+
+      if (!Number.isFinite(numericValue) || numericValue <= 0) {
+        invalidFuelTypes.push(fuelMeta.label);
+        continue;
+      }
+
+      const previousPrice = fuelMeta.currentPrice == null ? null : Number(fuelMeta.currentPrice);
+      const isChanged = previousPrice == null || Math.abs(numericValue - previousPrice) > epsilon;
+
+      if (!isChanged) continue;
+
+      changes.push({
+        fuelId,
+        fuelType: fuelMeta.label,
+        previousPrice,
+        newPrice: numericValue,
+        difference: previousPrice == null ? numericValue : numericValue - previousPrice,
+        isNew: previousPrice == null,
+      });
+    }
+
+    return { changes, invalidFuelTypes };
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -90,45 +297,79 @@ export function UpdatePrice() {
       return;
     }
 
-    // Show confirmation modal instead of immediate save
+    const { changes, invalidFuelTypes } = buildValidatedChanges();
+
+    if (invalidFuelTypes.length > 0) {
+      toast.error(`Enter valid numeric prices for: ${invalidFuelTypes.join(", ")}`);
+      return;
+    }
+
+    if (changes.length === 0) {
+      toast.error("No actual price changes detected. Update at least one fuel price before submitting.");
+      return;
+    }
+
+    setPendingChanges(changes);
+    setSubmissionError(null);
     setShowConfirmation(true);
   };
 
   const handleConfirmSave = async () => {
-    setShowConfirmation(false);
     setIsSubmitting(true);
+    setSubmissionError(null);
     
     try {
-      const priceEntries = Object.entries(prices);
-      const batchData = priceEntries.map(([fuelId, value]) => {
-        const fuelType = fuelTypesList.find(f => f.id === fuelId)?.label;
-        return {
+      const batchData = pendingChanges.map((change) => ({
           station_id: id,
-          fuel_type: fuelType,
-          price: parseFloat(value),
+          fuel_type: change.fuelType,
+          price: change.newPrice,
           observed_at: new Date().toISOString()
-        };
-      }).filter(entry => entry.fuel_type);
+        }));
 
       if (batchData.length === 0) {
         setIsSubmitting(false);
+        setSubmissionError("No valid changes found to submit.");
         return;
       }
 
       await reportPricesBatchMutation.mutateAsync(batchData);
+
+      try {
+        appendStationPriceHistory({
+          stationId: id,
+          stationName: station?.name,
+          entries: pendingChanges.map((change) => ({
+            fuelType: change.fuelType,
+            price: change.newPrice,
+            observedAt: new Date().toISOString(),
+          })),
+        });
+      } catch (historyError) {
+        console.warn("Could not save local price history", historyError);
+      }
       
       // Invalidate notifications to show the update notification immediately
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       
+      // Close modal and show success screen
+      setShowConfirmation(false);
       setShowSuccess(true);
+      setPendingChanges([]);
+      
       setTimeout(() => {
         navigate(`/app/station/${id}`);
       }, 2500);
     } catch (error) {
-      toast.error(error.message || "Failed to update prices. Please try again.");
+      const errorMsg = error.message || "Failed to update prices. Please check your connection and try again.";
+      setSubmissionError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    handleConfirmSave();
   };
 
   if (isLoading) {
@@ -355,15 +596,15 @@ export function UpdatePrice() {
           </div>
         </div>
       </div>
-      <ConfirmationModal
+      <PriceUpdateConfirmationModal
         isOpen={showConfirmation}
-        onClose={() => setShowConfirmation(false)}
+        stationName={station?.name}
+        changes={pendingChanges}
+        isSubmitting={isSubmitting}
+        error={submissionError}
+        onCancel={() => setShowConfirmation(false)}
         onConfirm={handleConfirmSave}
-        title="Confirm Price Update"
-        message="You are about to update the public fuel prices for this station. Your update will be visible to all users and used as a reference for the community. Please ensure accuracy."
-        confirmText="Update Prices"
-        cancelText="Cancel"
-        type="info"
+        onRetry={handleRetry}
       />
     </>
   );
