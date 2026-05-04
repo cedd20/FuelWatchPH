@@ -9,11 +9,14 @@ import { BrandLogoPin } from "@/shared/components/BrandLogoPin";
 import { MapPriceLegend } from "@/shared/components/MapPriceLegend";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { MapContainer, TileLayer, Marker, CircleMarker } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } from "react-leaflet";
 import { renderToString } from "react-dom/server";
 import { useStations } from "@/hooks/useStations";
 import { getCitiesSortedByProximity } from "@/shared/utils/philippineCities";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import { api } from "@/lib/apiClient";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const MAP_STATE_KEY = "fuelwatch_map_state";
 
@@ -97,7 +100,11 @@ function buildActiveFilterLabels(filters) {
 export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
+  const queryClient = useQueryClient();
+  const [selectedFuelType, setSelectedFuelType] = useState("All");
+  const [isSyncingOSM, setIsSyncingOSM] = useState(false);
+  const [showSyncButton, setShowSyncButton] = useState(false);
+  const [mapMoveCenter, setMapMoveCenter] = useState(null);
   const [showList, setShowList] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -106,6 +113,8 @@ export function Map() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [userLocation, setUserLocation] = useState(null);
   const mapRef = useRef(null);
+  const lastSyncPos = useRef(null);
+  const syncTimeoutRef = useRef(null);
 
   // Fetch real stations from backend
   const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
@@ -134,7 +143,7 @@ export function Map() {
     const storedState = loadStoredMapState();
     const q = searchParams.get("search");
 
-    if (storedState?.selectedFuelType && fuelTypes.includes(storedState.selectedFuelType)) {
+    if (storedState?.selectedFuelType && FUEL_TYPES.includes(storedState.selectedFuelType)) {
       setSelectedFuelType(storedState.selectedFuelType);
     }
     if (typeof storedState?.showList === "boolean") {
@@ -170,8 +179,9 @@ export function Map() {
     if (appliedFilters?.location === "city" && appliedFilters.selectedCity) {
       return `Showing all stations in ${appliedFilters.selectedCity}`;
     }
-    const radius = appliedFilters?.radius || "3";
-    return `Showing stations within ${radius}km of you`;
+    const radiusVal = appliedFilters?.radius || "20";
+    if (radiusVal === "all") return "Showing all available stations";
+    return `Showing stations within ${radiusVal}km of you`;
   };
 
   const handleApplyFilters = (filters) => {
@@ -214,7 +224,7 @@ export function Map() {
           setUserLocation(newLoc);
           
           if (mapRef.current) {
-            mapRef.current.flyTo(newLoc, 15, { animate: true });
+            mapRef.current.flyTo(newLoc, 13, { animate: true });
           }
         },
         (error) => {
@@ -235,9 +245,63 @@ export function Map() {
     handlePreciseLocation(true);
   }, []);
 
+  // Map Events component to catch moveend
+  function MapEvents() {
+    const map = useMap();
+    
+    useMapEvents({
+      moveend: () => {
+        const center = map.getCenter();
+        const pos = [center.lat, center.lng];
+        setMapMoveCenter(pos);
+        
+        // Check if moved far enough from last sync (> 1.5km)
+        const dist = lastSyncPos.current 
+          ? calculateDistance(lastSyncPos.current[0], lastSyncPos.current[1], pos[0], pos[1])
+          : 999;
+
+        if (dist > 1.5) {
+          // Show search button but also trigger automatic throttled sync
+          setShowSyncButton(true);
+          
+          if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = setTimeout(() => {
+            handleOSMSync(true); // silent sync
+          }, 2000);
+        }
+      },
+    });
+    return null;
+  }
+
+  const handleOSMSync = async (silent = false) => {
+    const target = mapMoveCenter;
+    if (!target) return;
+    
+    setIsSyncingOSM(true);
+    try {
+      await api.post(`/stations/sync?lat=${target[0]}&lng=${target[1]}`, {});
+      if (!silent) toast.success("Nearby stations updated!");
+      
+      lastSyncPos.current = target;
+      // Refetch stations from our DB
+      queryClient.invalidateQueries({ queryKey: ["stations"] });
+      setShowSyncButton(false);
+    } catch (error) {
+      console.error("OSM sync failed:", error);
+      if (!silent) toast.error("Failed to sync with OpenStreetMap.");
+    } finally {
+      setIsSyncingOSM(false);
+    }
+  };
+
   // Calculate average price for the selected fuel type
   const getStationPrice = (station) => {
-    const fuelPrice = station.prices.find((p) => p.type === selectedFuelType);
+    if (selectedFuelType === "All") {
+      const prices = station.prices?.map(p => p.price) || [];
+      return prices.length > 0 ? Math.min(...prices) : 0;
+    }
+    const fuelPrice = station.prices?.find((p) => p.type === selectedFuelType);
     return fuelPrice?.price || 0;
   };
 
@@ -274,9 +338,12 @@ export function Map() {
       if (!cityMatch) return false;
     } else {
       // Nearby mode (default)
-      const radiusLimit = parseFloat(appliedFilters?.radius || "3");
-      // Only apply radius if userLocation is known, otherwise show all
-      if (userLocation && station.distance > radiusLimit) return false;
+      const radiusVal = appliedFilters?.radius || "20";
+      if (radiusVal !== "all") {
+        const radiusLimit = parseFloat(radiusVal);
+        // Only apply radius if userLocation is known, otherwise show all
+        if (userLocation && station.distance > radiusLimit) return false;
+      }
     }
 
     if (!appliedFilters) return true;
@@ -350,6 +417,26 @@ export function Map() {
       {/* Map View */}
       <div className="flex-1 relative bg-muted overflow-hidden z-10">
 
+        {/* Sync Button — shown when map moved */}
+        {showSyncButton && !isLoadingStations && (
+          <div className="absolute top-24 lg:top-8 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={handleOSMSync}
+              disabled={isSyncingOSM}
+              className="bg-white dark:bg-neutral-900 backdrop-blur-xl border-2 border-emerald-500/50 rounded-full px-5 py-2.5 shadow-2xl shadow-emerald-500/20 flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-all group scale-105"
+            >
+              {isSyncingOSM ? (
+                <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
+              ) : (
+                <Search className="w-4 h-4 text-emerald-500 group-hover:scale-125 transition-transform" />
+              )}
+              <span className="text-sm font-bold text-foreground">
+                {isSyncingOSM ? "Syncing stations..." : "Search this area"}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Loading overlay — shown while GPS + OSM fetch is in progress */}
         {isLoadingStations && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
@@ -388,6 +475,7 @@ export function Map() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <MapEvents />
             {filteredStations.map((station) => {
               const price = getStationPrice(station);
               const isSelected = selectedStation === station.id;

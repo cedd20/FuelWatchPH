@@ -76,7 +76,7 @@ export function RecommendedStationCard({
           {lowestPrice && fuelType && (
             <div className="bg-white/25 backdrop-blur-lg px-3 py-1.5 rounded-full border border-white/20 shadow-lg">
               <div className="text-xs font-bold">
-                {fuelType} ₱{lowestPrice.toFixed(2)}
+                {fuelType === "All" ? "Starting at" : fuelType} ₱{lowestPrice.toFixed(2)}
               </div>
             </div>
           )}

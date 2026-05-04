@@ -10,10 +10,14 @@ import { Logo } from "@/shared/components/Logo";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
+import { useAuth } from "@/app/providers/AuthContext";
+import { useUnreadCount } from "@/hooks/useUsers";
 
 export function Home() {
   const navigate = useNavigate();
-  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
+  const { isAuthenticated } = useAuth();
+  const unreadCount = useUnreadCount(isAuthenticated);
+  const [selectedFuelType, setSelectedFuelType] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(true);
@@ -46,6 +50,10 @@ export function Home() {
 
   // Helper to get price
   const getStationPrice = (station, fuelType) => {
+    if (fuelType === "All") {
+      const prices = Object.values(station.latest_prices || {}).map(p => p.price);
+      return prices.length > 0 ? Math.min(...prices) : undefined;
+    }
     return station.latest_prices?.[fuelType]?.price;
   };
 
@@ -64,9 +72,21 @@ export function Home() {
 
   // Calculate KPIs
   const kpis = useMemo(() => {
-    const prices = allStations
-      .map(s => getStationPrice(s, selectedFuelType))
-      .filter(p => p !== undefined);
+    let prices = [];
+    
+    if (selectedFuelType === "All") {
+      // For "All", average every single price report from every station
+      allStations.forEach(s => {
+        Object.values(s.latest_prices || {}).forEach(p => {
+          if (p.price) prices.push(p.price);
+        });
+      });
+    } else {
+      // For specific fuel types, use the helper
+      prices = allStations
+        .map(s => getStationPrice(s, selectedFuelType))
+        .filter(p => p !== undefined);
+    }
     
     const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
     const uniqueCities = getAvailableCities(allStations);
@@ -78,23 +98,33 @@ export function Home() {
     };
   }, [allStations, selectedFuelType]);
 
-  // Recommended Stations (Cheapest within 5km)
+  // Recommended Stations (Cheapest within 20km)
   const recommendedStations = useMemo(() => {
-    if (!userLocation) return allStations.slice(0, 4).map(s => ({
-      ...s,
-      lowestPrice: getStationPrice(s, selectedFuelType),
-      fuelType: selectedFuelType,
-      distance: 0
-    })).sort((a, b) => a.lowestPrice - b.lowestPrice);
-
-    return allStations
+    const stationsWithPrices = allStations
       .map(s => ({
         ...s,
         distance: userLocation ? getDistance(userLocation.lat, userLocation.lng, s.lat, s.lng) : 0,
         lowestPrice: getStationPrice(s, selectedFuelType),
         fuelType: selectedFuelType
       }))
-      .filter(s => s.lowestPrice !== undefined)
+      .filter(s => s.lowestPrice !== undefined);
+
+    if (!userLocation) {
+      return stationsWithPrices
+        .sort((a, b) => a.lowestPrice - b.lowestPrice)
+        .slice(0, 4);
+    }
+
+    const nearby = stationsWithPrices.filter(s => s.distance <= 20);
+    
+    if (nearby.length > 0) {
+      return nearby
+        .sort((a, b) => a.lowestPrice - b.lowestPrice)
+        .slice(0, 4);
+    }
+
+    // Fallback: If no stations nearby, show cheapest nationwide
+    return stationsWithPrices
       .sort((a, b) => a.lowestPrice - b.lowestPrice)
       .slice(0, 4);
   }, [allStations, userLocation, selectedFuelType]);
@@ -146,7 +176,11 @@ export function Home() {
             className="w-11 h-11 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-full flex items-center justify-center relative shadow-xl shadow-black/10 hover:bg-white dark:hover:bg-neutral-700 transition-all hover:scale-110 border border-white/40 dark:border-neutral-700/50"
           >
             <Bell className="w-5 h-5 text-gray-700 dark:text-white" />
-            <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/60 ring-2 ring-white" />
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg ring-2 ring-white dark:ring-neutral-800">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </div>
+            )}
           </button>
         </div>
       </div>
@@ -178,7 +212,11 @@ export function Home() {
             className="hidden lg:flex absolute top-6 right-6 z-20 w-11 h-11 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-full items-center justify-center shadow-xl shadow-black/20 hover:bg-white dark:hover:bg-neutral-700 transition-all hover:scale-110 border border-white/40 dark:border-neutral-700/50"
           >
             <Bell className="w-5 h-5 text-gray-700 dark:text-white" />
-            <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/60 ring-2 ring-white dark:ring-neutral-800" />
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg ring-2 ring-white dark:ring-neutral-800">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </div>
+            )}
           </button>
 
           <div className="relative z-10 px-6 lg:px-12 py-8 lg:py-12 flex flex-col items-center text-center space-y-5 lg:space-y-6">
@@ -343,7 +381,7 @@ export function Home() {
                 ))
               ) : (
                 <div className="col-span-full py-10 text-center text-muted-foreground">
-                  No stations found near you.
+                  No fuel prices reported yet.
                 </div>
               )}
             </div>

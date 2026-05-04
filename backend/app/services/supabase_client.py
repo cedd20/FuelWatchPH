@@ -8,12 +8,20 @@ if not load_dotenv():
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     raise RuntimeError("SUPABASE_URL and SUPABASE_ANON_KEY must be set in environment")
 
-# Anon client for read operations
+# Anon client for read operations (subject to RLS)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+# Service role client for trusted server-side writes (bypasses RLS).
+# Falls back to anon key if SUPABASE_SERVICE_ROLE_KEY is not set.
+supabase_admin: Client = create_client(
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY,
+)
 
 def get_authenticated_client(jwt_token: str) -> Client:
     """

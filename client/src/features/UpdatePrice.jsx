@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, useLocation } from "react-router";
 import { ArrowLeft, CheckCircle, MapPin, AlertTriangle, TrendingDown, TrendingUp, Info } from "lucide-react";
 import { Button } from "@/shared/components/Button";
@@ -22,6 +23,7 @@ export function UpdatePrice() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const queryClient = useQueryClient();
   const { data: rawStation, isLoading } = useStation(id);
   const reportPricesBatchMutation = useReportPricesBatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,6 +116,9 @@ export function UpdatePrice() {
       }
 
       await reportPricesBatchMutation.mutateAsync(batchData);
+      
+      // Invalidate notifications to show the update notification immediately
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
       
       setShowSuccess(true);
       setTimeout(() => {

@@ -70,6 +70,11 @@ export function useConfirmPrice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id) => api.post(`/prices/${id}/confirm`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["prices"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["prices"] });
+      qc.invalidateQueries({ queryKey: ["my-contributions"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+      qc.invalidateQueries({ queryKey: ["stations"] });
+    },
   });
 }

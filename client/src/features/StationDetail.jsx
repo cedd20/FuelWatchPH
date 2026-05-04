@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -18,7 +19,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useStation, useDeleteStation } from "@/hooks/useStations";
-import { usePrices, useDeletePrice, useConfirmPrice } from "@/hooks/usePrices";
+import { usePrices, useDeletePrice, useConfirmPrice, useMyContributions } from "@/hooks/usePrices";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
 import { useAuth } from "@/app/providers/AuthContext";
@@ -27,21 +28,37 @@ import { toggleSaveStation, isStationSaved } from "@/shared/utils/favorites";
 import { toast } from "sonner";
 
 export function StationDetail() {
+  const qc = useQueryClient();
   const navigate = useNavigate();
   const { id } = useParams();
   const [isSaved, setIsSaved] = useState(() => isStationSaved(id));
 
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshProfile } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [priceDeleteTarget, setPriceDeleteTarget] = useState(null);
 
   const { data: rawStation, isLoading, error } = useStation(id);
   const { data: rawPrices = [] } = usePrices({ station_id: id });
+  const { data: myContributions = [] } = useMyContributions();
 
   const deleteStationMutation = useDeleteStation(id);
   const deletePriceMutation = useDeletePrice();
   const confirmPriceMutation = useConfirmPrice();
+
+  // Clear stale session confirmations when user changes (e.g., different account logs in)
+  useEffect(() => {
+    // Key prefix for this user — if user changes, old keys won't match
+    const currentUserPrefix = `confirmed_price_${user?.id}_`;
+    const keysToRemove = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith('confirmed_price_') && !k.startsWith(currentUserPrefix)) {
+        keysToRemove.push(k);
+      }
+    }
+    keysToRemove.forEach(k => sessionStorage.removeItem(k));
+  }, [user?.id]);
 
   const station = useMemo(() => {
     if (!rawStation) return null;
@@ -131,20 +148,68 @@ export function StationDetail() {
   const handleConfirmPrice = async (fuel) => {
     if (!fuel.id) return;
     
-    const confirmedKey = `confirmed_price_${fuel.id}`;
+    // Scope the key to this specific user to prevent cross-account contamination
+    const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
     
-    if (sessionStorage.getItem(confirmedKey)) {
-      toast.error("You've already confirmed this recently.");
+    const isAlreadyConfirmed = !!sessionStorage.getItem(confirmedKey) || 
+      myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
+      
+    if (isAlreadyConfirmed) {
+      toast.info("You've already confirmed this price.");
       return;
     }
 
     confirmPriceMutation.mutate(fuel.id, {
       onSuccess: () => {
+        // Scope the session key to the current user ID
+        const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
         sessionStorage.setItem(confirmedKey, "true");
         toast.success("Price confirmed. Thank you!");
+        
+        // Optimistically update the station data in the query cache
+        qc.setQueryData(["stations", id], (oldStation) => {
+          if (!oldStation) return oldStation;
+          const newStation = JSON.parse(JSON.stringify(oldStation));
+          if (newStation.latest_prices) {
+            for (const key in newStation.latest_prices) {
+              if (newStation.latest_prices[key].id === fuel.id) {
+                newStation.latest_prices[key].confirmation_count = (newStation.latest_prices[key].confirmation_count || 0) + 1;
+              }
+            }
+          }
+          newStation.contributors = (newStation.contributors || 1) + 1;
+          newStation.accuracy = Math.min(100, (newStation.accuracy || 85) + 5);
+          return newStation;
+        });
+
+        // Also update the full list cache if it exists
+        qc.setQueryData(["stations", {}], (oldStations) => {
+          if (!oldStations || !Array.isArray(oldStations)) return oldStations;
+          return oldStations.map(s => {
+            if (s.id === id) {
+              const newStation = JSON.parse(JSON.stringify(s));
+              if (newStation.latest_prices) {
+                for (const key in newStation.latest_prices) {
+                  if (newStation.latest_prices[key].id === fuel.id) {
+                    newStation.latest_prices[key].confirmation_count = (newStation.latest_prices[key].confirmation_count || 0) + 1;
+                  }
+                }
+              }
+              newStation.contributors = (newStation.contributors || 1) + 1;
+              newStation.accuracy = Math.min(100, (newStation.accuracy || 85) + 5);
+              return newStation;
+            }
+            return s;
+          });
+        });
+
+        // Refresh profile stats to show new confirmation
+        refreshProfile();
       },
       onError: (err) => {
         if (err.status === 429) {
+          const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
+          sessionStorage.setItem(confirmedKey, "true");
           toast.error("You've already confirmed this recently.");
         } else {
           toast.error("Something went wrong. Please check your connection.");
@@ -374,13 +439,32 @@ export function StationDetail() {
                         ₱{fuel.price.toFixed(2)}
                       </div>
                       <div className="text-sm text-muted-foreground/70 font-semibold mb-3">per liter</div>
-                      <button
-                        onClick={() => handleConfirmPrice(fuel)}
-                        className="flex items-center justify-end gap-1.5 w-full text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 font-medium text-sm transition-colors group"
-                      >
-                        <CheckCircle2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        <span>Confirm ({fuel.confirmations || 0})</span>
-                      </button>
+                      {(() => {
+                        const isConfirmed = !!sessionStorage.getItem(`confirmed_price_${user?.id}_${fuel.id}`) || 
+                                            myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
+                        return (
+                          <button
+                            onClick={() => handleConfirmPrice(fuel)}
+                            disabled={confirmPriceMutation.isPending || isConfirmed}
+                            className={`flex items-center justify-end gap-1.5 w-full font-medium text-sm transition-all group ${
+                              isConfirmed
+                                ? "text-emerald-500 cursor-default opacity-80"
+                                : "text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 active:scale-95"
+                            }`}
+                          >
+                            {confirmPriceMutation.isPending && confirmPriceMutation.variables === fuel.id ? (
+                              <div className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                            ) : isConfirmed ? (
+                              <CheckCircle2 className="w-4 h-4 fill-emerald-500 text-white" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            )}
+                            <span>
+                              Confirm ({fuel.confirmations || 0})
+                            </span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
@@ -486,13 +570,32 @@ export function StationDetail() {
                   <div className="text-3xl font-bold text-foreground tracking-tighter mb-1">
                     ₱{fuel.price.toFixed(2)}
                   </div>
-                  <button
-                    onClick={() => handleConfirmPrice(fuel)}
-                    className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 font-medium text-sm transition-colors"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Confirm ({fuel.confirmations || 0})</span>
-                  </button>
+                  {(() => {
+                    const isConfirmed = !!sessionStorage.getItem(`confirmed_price_${user?.id}_${fuel.id}`) || 
+                                        myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
+                    return (
+                      <button
+                        onClick={() => handleConfirmPrice(fuel)}
+                        disabled={confirmPriceMutation.isPending || isConfirmed}
+                        className={`flex items-center gap-1.5 font-medium text-sm transition-all ${
+                          isConfirmed
+                            ? "text-emerald-500 opacity-80"
+                            : "text-emerald-600 dark:text-emerald-500 active:scale-95"
+                        }`}
+                      >
+                        {confirmPriceMutation.isPending && confirmPriceMutation.variables === fuel.id ? (
+                          <div className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+                        ) : isConfirmed ? (
+                          <CheckCircle2 className="w-4 h-4 fill-emerald-500 text-white" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )}
+                        <span>
+                          Confirm ({fuel.confirmations || 0})
+                        </span>
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

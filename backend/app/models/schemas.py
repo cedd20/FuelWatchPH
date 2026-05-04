@@ -47,6 +47,8 @@ class StationOut(StationBase):
     is_active: bool = True
     created_by: Optional[str] = None
     latest_prices: dict[str, dict[str, object]] = Field(default_factory=dict)
+    contributors: Optional[int] = None
+    accuracy: Optional[int] = None
     distance_km: Optional[float] = None
 
 
@@ -86,7 +88,11 @@ class UserProfileOut(UserProfileBase):
     id: str
     reputation: int = 0
     role: str = "user"
-    created_at: datetime
+    created_at: Optional[datetime] = None
+    points: Optional[int] = None
+    contributionCount: Optional[int] = None
+    verified_count: Optional[int] = None
+    accuracy: Optional[int] = None
 
 
 class NotificationOut(BaseModel):
