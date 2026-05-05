@@ -1,6 +1,11 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import {
+  DEFAULT_MAP_FILTERS,
+  normalizeFuelTypeSelection,
+  normalizeMapFilters,
+} from "@/shared/utils/mapFilters";
 
 const brands = [
   "Shell",
@@ -17,36 +22,31 @@ const brands = [
 ];
 
 const fuelTypes = FUEL_TYPES;
-const DEFAULT_FILTERS = {
-  location: "nearby",
-  selectedCity: "",
-  radius: "20",
-  fuelTypes: [],
-  brands: [],
-  priceSort: "lowest",
-  verifiedOnly: false,
-  recentlyUpdated: "7",
-  openNow: false,
-  is24_7: false,
-};
 
 export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [], initialFilters = null }) {
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState(DEFAULT_MAP_FILTERS);
 
   useEffect(() => {
     if (!isOpen) return;
-    setFilters({
-      ...DEFAULT_FILTERS,
-      ...(initialFilters || {}),
-    });
+    setFilters(normalizeMapFilters(initialFilters || DEFAULT_MAP_FILTERS));
   }, [initialFilters, isOpen]);
 
   const toggleFuelType = (fuel) => {
+    if (fuel === "All") {
+      setFilters((prev) => ({
+        ...prev,
+        fuelTypes: [],
+      }));
+      return;
+    }
+
     setFilters((prev) => ({
       ...prev,
-      fuelTypes: prev.fuelTypes.includes(fuel)
-        ? prev.fuelTypes.filter((f) => f !== fuel)
-        : [...prev.fuelTypes, fuel],
+      fuelTypes: normalizeFuelTypeSelection(
+        prev.fuelTypes.includes(fuel)
+          ? prev.fuelTypes.filter((f) => f !== fuel)
+          : [...prev.fuelTypes, fuel]
+      ),
     }));
   };
 
@@ -60,11 +60,14 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
   };
 
   const handleReset = () => {
-    setFilters(DEFAULT_FILTERS);
+    const resetFilters = normalizeMapFilters(DEFAULT_MAP_FILTERS);
+    setFilters(resetFilters);
+    onApply(resetFilters);
+    onClose();
   };
 
   const handleApply = () => {
-    onApply(filters);
+    onApply(normalizeMapFilters(filters));
     onClose();
   };
 
@@ -150,6 +153,16 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
           <div>
             <h3 className="font-semibold text-foreground mb-3">Fuel Type</h3>
             <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => toggleFuelType("All")}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  filters.fuelTypes.length === 0
+                    ? "bg-primary text-white"
+                    : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
+                }`}
+              >
+                All
+              </button>
               {fuelTypes.map((fuel) => (
                 <button
                   key={fuel}

@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { MapPin, Navigation, Filter, List, Search, Loader2, Plus } from "lucide-react";
+import { Navigation, Filter, List, Search, Loader2, Plus, Heart, Minus } from "lucide-react";
 import { StationCard } from "@/shared/components/StationCard";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { MapFilterSheet } from "@/shared/components/MapFilterSheet";
 import { FilterChip } from "@/shared/components/FilterChip";
 import { BrandLogoPin } from "@/shared/components/BrandLogoPin";
 import { MapPriceLegend } from "@/shared/components/MapPriceLegend";
+import { EmptyState } from "@/shared/components/EmptyState";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } from "react-leaflet";
@@ -14,13 +15,22 @@ import { renderToString } from "react-dom/server";
 import { useStations } from "@/hooks/useStations";
 import { getCitiesSortedByProximity } from "@/shared/utils/philippineCities";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import {
+  DEFAULT_MAP_FILTERS,
+  getFuelSelectionSummary,
+  isDefaultMapFilters,
+  normalizeMapFilters,
+} from "@/shared/utils/mapFilters";
 import { api } from "@/lib/apiClient";
 import { useQueryClient } from "@tanstack/react-query";
 import { isValidPrice } from "@/shared/utils/priceUtils";
-import { StationCardSkeleton, Skeleton } from "@/shared/components/Skeleton";
+import { StationCardSkeleton } from "@/shared/components/Skeleton";
+import { getSavedStationIds } from "@/shared/utils/favorites";
 import { toast } from "sonner";
 
 const MAP_STATE_KEY = "fuelwatch_map_state";
+const MAP_RECENT_SEARCHES_KEY = "fuelwatch_map_recent_searches";
+const MAP_FILTERS_KEY = "fuelwatch_map_filters";
 
 // Fix for Leaflet default marker icons in Vite/Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -76,6 +86,52 @@ function saveStoredMapState(state) {
   }
 }
 
+function loadStoredMapFilters() {
+  try {
+    const raw = localStorage.getItem(MAP_FILTERS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredMapFilters(filters) {
+  try {
+    localStorage.setItem(MAP_FILTERS_KEY, JSON.stringify(filters));
+  } catch (error) {
+    console.error("Failed to save map filters:", error);
+  }
+}
+
+function clearStoredMapFilters() {
+  try {
+    localStorage.removeItem(MAP_FILTERS_KEY);
+  } catch (error) {
+    console.error("Failed to clear map filters:", error);
+  }
+}
+
+function loadRecentSearches() {
+  try {
+    const raw = localStorage.getItem(MAP_RECENT_SEARCHES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearches(searches) {
+  try {
+    localStorage.setItem(MAP_RECENT_SEARCHES_KEY, JSON.stringify(searches));
+  } catch (error) {
+    console.error("Failed to save recent searches:", error);
+  }
+}
+
+function formatCountLabel(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function buildActiveFilterLabels(filters) {
   if (!filters) return [];
 
@@ -83,11 +139,8 @@ function buildActiveFilterLabels(filters) {
   if (filters.location === "city" && filters.selectedCity) {
     labels.push(`City: ${filters.selectedCity}`);
   }
-  if (filters.fuelTypes?.length > 0) {
-    labels.push(`${filters.fuelTypes.length} fuels`);
-  }
   if (filters.brands?.length > 0) {
-    labels.push(`${filters.brands.length} brands`);
+    labels.push(formatCountLabel(filters.brands.length, "brand"));
   }
   if (filters.verifiedOnly) {
     labels.push("Verified");
@@ -124,27 +177,36 @@ export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedFuelType, setSelectedFuelType] = useState("All");
   const [isSyncingOSM, setIsSyncingOSM] = useState(false);
   const [showSyncButton, setShowSyncButton] = useState(false);
   const [mapMoveCenter, setMapMoveCenter] = useState(null);
   const [showList, setShowList] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [activeFilters, setActiveFilters] = useState([]); // Used purely for UI rendering of filter chips
-  const [appliedFilters, setAppliedFilters] = useState(null); // Used for actual data filtering
+  const [appliedFilters, setAppliedFilters] = useState(DEFAULT_MAP_FILTERS);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
+  const [recentSearches, setRecentSearches] = useState(() => loadRecentSearches());
+  const [showRecentSearches, setShowRecentSearches] = useState(false);
+  const [desktopToolPanel, setDesktopToolPanel] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [visibleBounds, setVisibleBounds] = useState(null);
   const [isUpdatingMap, setIsUpdatingMap] = useState(false);
   const mapRef = useRef(null);
   const lastSyncPos = useRef(null);
   const syncTimeoutRef = useRef(null);
+  const desktopSearchRef = useRef(null);
+  const desktopSidebarRef = useRef(null);
+  const normalizedFilters = normalizeMapFilters(appliedFilters);
+  const fuelSelection = getFuelSelectionSummary(normalizedFilters.fuelTypes);
+  const activeFuelTypes = normalizedFilters.fuelTypes;
+  const selectedFuelType = fuelSelection.selectedFuelType;
+  const activeFilters = buildActiveFilterLabels(normalizedFilters);
+  const isDesktopSidebarExpanded = desktopToolPanel === "list" || desktopToolPanel === "saved";
 
   // Fetch real stations from backend (No GPS limits, fetch all to allow seamless map panning)
   const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
-    city: appliedFilters?.location === "city" ? appliedFilters.selectedCity : undefined,
-    fuel_type: selectedFuelType !== "All" ? selectedFuelType : undefined,
+    city: normalizedFilters.location === "city" ? normalizedFilters.selectedCity : undefined,
+    fuel_type: activeFuelTypes.length === 1 ? activeFuelTypes[0] : undefined,
   });
 
   // Process stations for UI components
@@ -160,20 +222,42 @@ export function Map() {
     verified: s.is_active // Simple mapping for now
   }));
 
+  const savedStations = useMemo(() => {
+    const savedIds = getSavedStationIds();
+    return stations.filter((station) => savedIds.includes(station.id));
+  }, [stations]);
+
+  const filteredSavedStations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return savedStations;
+
+    return savedStations.filter((station) =>
+      station.name.toLowerCase().includes(query) ||
+      station.address?.toLowerCase().includes(query)
+    );
+  }, [savedStations, searchQuery]);
+
   // Restore persisted map state and sync search query from URL.
   useEffect(() => {
+    const storedFilters = loadStoredMapFilters();
     const storedState = loadStoredMapState();
     const q = searchParams.get("search");
 
-    if (storedState?.selectedFuelType && FUEL_TYPES.includes(storedState.selectedFuelType)) {
-      setSelectedFuelType(storedState.selectedFuelType);
+    if (storedFilters) {
+      setAppliedFilters(normalizeMapFilters(storedFilters));
     }
     if (typeof storedState?.showList === "boolean") {
       setShowList(storedState.showList);
     }
-    if (storedState?.appliedFilters) {
-      setAppliedFilters(storedState.appliedFilters);
-      setActiveFilters(buildActiveFilterLabels(storedState.appliedFilters));
+    if (!storedFilters && storedState?.appliedFilters) {
+      setAppliedFilters(normalizeMapFilters(storedState.appliedFilters));
+    } else if (!storedFilters && storedState?.selectedFuelType && FUEL_TYPES.includes(storedState.selectedFuelType)) {
+      setAppliedFilters((prev) =>
+        normalizeMapFilters({
+          ...prev,
+          fuelTypes: [storedState.selectedFuelType],
+        })
+      );
     }
 
     if (q !== null) {
@@ -185,32 +269,59 @@ export function Map() {
   }, [searchParams]);
 
   useEffect(() => {
-    setActiveFilters(buildActiveFilterLabels(appliedFilters));
-  }, [appliedFilters]);
-
-  useEffect(() => {
     saveStoredMapState({
       selectedFuelType,
       searchQuery,
       showList,
-      appliedFilters,
+      appliedFilters: normalizedFilters,
     });
-  }, [appliedFilters, searchQuery, selectedFuelType, showList]);
+  }, [normalizedFilters, searchQuery, selectedFuelType, showList]);
+
+  useEffect(() => {
+    if (isDefaultMapFilters(normalizedFilters)) {
+      clearStoredMapFilters();
+      return;
+    }
+
+    saveStoredMapFilters(normalizedFilters);
+  }, [normalizedFilters]);
+
+  useEffect(() => {
+    saveRecentSearches(recentSearches);
+  }, [recentSearches]);
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (desktopSearchRef.current && !desktopSearchRef.current.contains(event.target)) {
+        setShowRecentSearches(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    if (!showList && desktopToolPanel === "list") {
+      setDesktopToolPanel(null);
+    }
+  }, [desktopToolPanel, showList]);
 
   const getFilterDescription = () => {
-    if (appliedFilters?.location === "city" && appliedFilters.selectedCity) {
-      return `Showing all stations in ${appliedFilters.selectedCity}`;
+    if (normalizedFilters.location === "city" && normalizedFilters.selectedCity) {
+      return `Showing all stations in ${normalizedFilters.selectedCity}`;
     }
-    const radiusVal = appliedFilters?.radius || "20";
+    const radiusVal = normalizedFilters.radius || "20";
     if (radiusVal === "all") return "Showing all available stations";
     return `Showing stations within ${radiusVal}km of you`;
   };
 
   const handleApplyFilters = (filters) => {
-    setAppliedFilters(filters);
+    const nextFilters = normalizeMapFilters(filters);
+    setAppliedFilters(nextFilters);
 
-    if (filters.location === "city" && filters.selectedCity) {
-      const coords = CITY_COORDS[filters.selectedCity];
+    if (nextFilters.location === "city" && nextFilters.selectedCity) {
+      const coords = CITY_COORDS[nextFilters.selectedCity];
       if (coords && mapRef.current) {
         mapRef.current.flyTo(coords, 14, { animate: true });
       }
@@ -219,7 +330,6 @@ export function Map() {
 
   const removeFilter = (filterLabel) => {
     setAppliedFilters((prev) => {
-      if (!prev) return null;
       const updated = { ...prev };
       if (filterLabel.startsWith("City:")) {
         updated.location = "nearby";
@@ -233,9 +343,126 @@ export function Map() {
       } else if (filterLabel === "Open now") {
         updated.openNow = false;
       }
-      return updated;
+      return normalizeMapFilters(updated);
     });
   };
+
+  const handleFuelChipSelect = (fuelType) => {
+    setAppliedFilters((prev) =>
+      normalizeMapFilters({
+        ...prev,
+        fuelTypes: fuelType === "All" ? [] : [fuelType],
+      })
+    );
+  };
+
+  const commitRecentSearch = (rawQuery) => {
+    const trimmedQuery = rawQuery.trim();
+    if (!trimmedQuery) return;
+
+    setRecentSearches((prev) => {
+      const nextSearches = [
+        trimmedQuery,
+        ...prev.filter((entry) => entry.toLowerCase() !== trimmedQuery.toLowerCase()),
+      ];
+      return nextSearches.slice(0, 6);
+    });
+  };
+
+  const handleSearchSubmit = () => {
+    commitRecentSearch(searchQuery);
+    setShowRecentSearches(false);
+    setShowList(true);
+    setDesktopToolPanel("list");
+    setSelectedStation(null);
+  };
+
+  const handleRecentSearchSelect = (query) => {
+    setSearchQuery(query);
+    commitRecentSearch(query);
+    setShowRecentSearches(false);
+    setShowList(true);
+    setDesktopToolPanel("list");
+    setSelectedStation(null);
+  };
+
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    setShowRecentSearches(false);
+  };
+
+  const toggleDesktopListPanel = () => {
+    const nextIsOpen = !showList;
+    setShowList(nextIsOpen);
+    setDesktopToolPanel(nextIsOpen ? "list" : null);
+    if (nextIsOpen) {
+      setSelectedStation(null);
+    }
+  };
+
+  const toggleDesktopSavedPanel = () => {
+    setShowList(false);
+    setSelectedStation(null);
+    setDesktopToolPanel((prev) => (prev === "saved" ? null : "saved"));
+  };
+
+  const zoomMapIn = () => {
+    if (mapRef.current?.zoomIn) {
+      mapRef.current.zoomIn();
+    }
+  };
+
+  const zoomMapOut = () => {
+    if (mapRef.current?.zoomOut) {
+      mapRef.current.zoomOut();
+    }
+  };
+
+  const renderDesktopSearchBar = (widthClassName) => (
+    <div ref={desktopSearchRef} className={`relative ${widthClassName}`}>
+      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onFocus={() => setShowRecentSearches(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleSearchSubmit();
+          }
+        }}
+        placeholder={desktopToolPanel === "saved" ? "Search saved stations" : "Search stations, cities, or roads"}
+        className="w-full pl-12 pr-5 py-3.5 bg-white/96 dark:bg-neutral-950/92 rounded-2xl border border-gray-200/80 dark:border-neutral-700/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-[0_14px_30px_rgba(15,23,42,0.2)] transition-all placeholder:text-gray-500 text-foreground font-medium"
+      />
+
+      {showRecentSearches && recentSearches.length > 0 && (
+        <div className="absolute top-[calc(100%+0.75rem)] left-0 w-full rounded-[24px] bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl border border-white/70 dark:border-neutral-700/70 shadow-[0_24px_60px_rgba(15,23,42,0.22)] p-3 z-20">
+          <div className="flex items-center justify-between px-2 pb-2">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+              Recent searches
+            </span>
+            <button
+              onClick={clearRecentSearches}
+              className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:opacity-80 transition-opacity"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="space-y-1">
+            {recentSearches.map((recentSearch) => (
+              <button
+                key={recentSearch}
+                onClick={() => handleRecentSearchSelect(recentSearch)}
+                className="w-full text-left px-3 py-2.5 rounded-2xl text-sm font-medium text-foreground hover:bg-emerald-50 dark:hover:bg-neutral-800 transition-colors"
+              >
+                {recentSearch}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   const handlePreciseLocation = (isSilent = false) => {
     if ("geolocation" in navigator) {
@@ -312,15 +539,12 @@ export function Map() {
 
   // Calculate price for the selected fuel type
   const getStationPrice = (station) => {
-    if (selectedFuelType === "All") {
-      const prices = station.prices
-        ?.map(p => Number(p.price))
-        .filter(p => isValidPrice(p)) || [];
-      return prices.length > 0 ? Math.min(...prices) : null;
-    }
-    const fuelPrice = station.prices?.find((p) => p.type === selectedFuelType);
-    const price = Number(fuelPrice?.price);
-    return isValidPrice(price) ? price : null;
+    const prices = station.prices
+      ?.filter((priceEntry) => activeFuelTypes.length === 0 || activeFuelTypes.includes(priceEntry.type))
+      .map((priceEntry) => Number(priceEntry.price))
+      .filter((price) => isValidPrice(price)) || [];
+
+    return prices.length > 0 ? Math.min(...prices) : null;
   };
 
   // --------------------------------------------------------
@@ -349,49 +573,42 @@ export function Map() {
       }
     }
     
-    // 2. Selected Fuel Type (Main Header Tabs)
-    if (selectedFuelType !== "All" && station.prices.length > 0) {
-      const hasFuel = station.prices.some(p => p.type === selectedFuelType && isValidPrice(p.price));
+    // 2. Fuel Type Selection
+    if (activeFuelTypes.length > 0 && station.prices.length > 0) {
+      const hasFuel = station.prices.some(
+        (p) => activeFuelTypes.includes(p.type) && isValidPrice(p.price)
+      );
       if (!hasFuel) return false;
     }
 
     // 3. Viewport Boundary Check (Performance optimization to prevent crashing map with too many markers)
     // Only apply if there's no active City filter or Search query (we want them to find stuff off-screen if explicitly searched)
-    if (!searchQuery && appliedFilters?.location !== "city" && visibleBounds) {
+    if (!searchQuery && normalizedFilters.location !== "city" && visibleBounds) {
       const inBounds = visibleBounds.contains([station.lat, station.lng]);
       if (!inBounds) return false;
     }
 
     // 4. Radius vs City Logic (Priority: City > Nearby)
-    if (appliedFilters) {
-      const locationMode = appliedFilters.location || "nearby";
-      if (locationMode === "city" && appliedFilters.selectedCity) {
-        const cityMatch = station.city === appliedFilters.selectedCity || 
-                          station.address?.toLowerCase().includes(appliedFilters.selectedCity.toLowerCase());
-        if (!cityMatch) return false;
-      } else if (locationMode === "nearby") {
-        // Only apply radius if explicitly defined in the active filters
-        const radiusVal = appliedFilters.radius || "all";
-        if (radiusVal !== "all") {
-          const radiusLimit = parseFloat(radiusVal);
-          // If the user manually browses away from GPS, ignore the GPS radius restriction
-          if (userLocation && !isBrowsingManually && station.distance > radiusLimit) return false;
-        }
+    const locationMode = normalizedFilters.location || "nearby";
+    if (locationMode === "city" && normalizedFilters.selectedCity) {
+      const cityMatch = station.city === normalizedFilters.selectedCity || 
+                        station.address?.toLowerCase().includes(normalizedFilters.selectedCity.toLowerCase());
+      if (!cityMatch) return false;
+    } else if (locationMode === "nearby") {
+      const radiusVal = normalizedFilters.radius || "all";
+      if (radiusVal !== "all") {
+        const radiusLimit = parseFloat(radiusVal);
+        if (userLocation && !isBrowsingManually && station.distance > radiusLimit) return false;
       }
+    }
 
-      // 5. Sheet Filters (Brands / Verified / Fuel)
-      if (appliedFilters.brands?.length > 0) {
-        if (!appliedFilters.brands.includes(station.brand)) return false;
-      }
-      
-      if (appliedFilters.verifiedOnly) {
-        if (!station.verified) return false;
-      }
-      
-      if (appliedFilters.fuelTypes?.length > 0) {
-        const hasAnySelectedFuel = station.prices.some(p => appliedFilters.fuelTypes.includes(p.type));
-        if (!hasAnySelectedFuel) return false;
-      }
+    // 5. Sheet Filters (Brands / Verified)
+    if (normalizedFilters.brands?.length > 0) {
+      if (!normalizedFilters.brands.includes(station.brand)) return false;
+    }
+    
+    if (normalizedFilters.verifiedOnly) {
+      if (!station.verified) return false;
     }
 
     return true;
@@ -406,49 +623,7 @@ export function Map() {
     : 0;
 
   return (
-    <div className="h-screen flex flex-col lg:flex-row">
-      {/* Desktop Side Panel - Station List */}
-      {showList && (
-        <div className="hidden lg:flex lg:flex-col lg:w-[min(420px,38vw)] bg-white dark:bg-neutral-900 border-r-2 border-gray-200 dark:border-neutral-700 shadow-xl z-20">
-          <div className="p-6 border-b-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xl font-bold text-foreground tracking-tight">
-                Nearby Stations
-              </h3>
-              <button
-                onClick={() => setShowList(false)}
-                className="w-10 h-10 bg-muted hover:bg-muted/80 rounded-full flex items-center justify-center transition-all"
-              >
-                <List className="w-5 h-5 text-foreground" strokeWidth={2.5} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              <div className="text-sm text-muted-foreground font-medium">
-                {filteredStations.length} stations found
-              </div>
-              <div className="text-xs text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg w-fit">
-                {getFilterDescription()}
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {filteredStations.map((station) => (
-              <div
-                key={station.id}
-                onClick={() => {
-                  setSelectedStation(station.id);
-                }}
-                className={`cursor-pointer transition-all ${
-                  selectedStation === station.id ? "ring-2 ring-emerald-500 rounded-2xl" : ""
-                }`}
-              >
-                <StationCard {...station} />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+    <div className="h-full min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
       {/* Map View */}
       <div className="flex-1 relative bg-muted overflow-hidden z-10">
 
@@ -567,79 +742,261 @@ export function Map() {
           </MapContainer>
         </div>
 
-        {/* Top Controls */}
-        <div className="absolute top-0 left-0 right-0 p-4 lg:p-0 space-y-3 lg:space-y-0 bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:bg-none z-20">
-          {/* Desktop Glass Panel with Gradient Overlay */}
-          <div className="lg:relative lg:bg-white/[0.85] dark:lg:bg-neutral-900/[0.85] lg:backdrop-blur-2xl lg:border-b lg:border-white/30 dark:lg:border-neutral-700/30 lg:p-6 lg:shadow-xl">
-            {/* Subtle downward gradient overlay */}
-            <div className="hidden lg:block absolute left-0 right-0 top-full h-24 bg-gradient-to-b from-white/25 via-white/8 to-transparent dark:from-neutral-900/25 dark:via-neutral-900/8 pointer-events-none"></div>
-            <div className="lg:max-w-6xl lg:mx-auto">
-              {/* Search Bar and Controls */}
-              <div className="flex items-center gap-3 lg:gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search stations or locations"
-                    className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-2xl shadow-black/20 lg:shadow-lg transition-all placeholder:text-gray-500 text-foreground font-medium"
-                  />
-                </div>
+        <div className="hidden lg:block absolute top-0 left-0 right-0 h-40 z-10 pointer-events-none bg-gradient-to-b from-black/28 via-black/10 to-transparent" />
 
-                {/* Desktop Filter and List Buttons */}
-                <div className="hidden lg:flex items-center gap-3">
-                  <button
-                    onClick={() => setShowFilters(true)}
-                    className="px-6 py-3.5 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-lg border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-all flex items-center gap-2 relative"
-                  >
-                    <Filter className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
-                    <span className="font-bold text-foreground text-sm">Filter</span>
-                    {activeFilters.length > 0 && (
-                      <div className="w-6 h-6 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
-                        <span className="text-xs text-white font-bold">{activeFilters.length}</span>
-                      </div>
+        {/* Mobile Top Controls */}
+        <div className="absolute top-0 left-0 right-0 p-4 space-y-3 bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearchSubmit();
+                  }
+                }}
+                placeholder="Search stations or locations"
+                className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-2xl shadow-black/20 transition-all placeholder:text-gray-500 text-foreground font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+            {fuelTypes.map((type) => (
+              <FuelTypeChip
+                key={type}
+                label={type}
+                active={
+                  fuelSelection.mode === "all"
+                    ? type === "All"
+                    : fuelSelection.mode === "single" && selectedFuelType === type
+                }
+                onClick={() => handleFuelChipSelect(type)}
+              />
+            ))}
+            {fuelSelection.mode === "multiple" && (
+              <button
+                onClick={() => setShowFilters(true)}
+                className="px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border-2 border-amber-300 shadow-lg hover:bg-amber-100 transition-all"
+              >
+                {fuelSelection.indicatorLabel}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Top Controls */}
+        <div
+          className="hidden lg:flex absolute top-6 right-6 z-30 items-start gap-3 pointer-events-none transition-[left] duration-300 ease-out"
+          style={{
+            left: isDesktopSidebarExpanded
+              ? "calc(1.5rem + 92px + 0.75rem + min(455px, 34vw) + 1rem)"
+              : "8.5rem",
+          }}
+        >
+          <div className="min-w-0 flex-1 pointer-events-auto">
+            <div className="px-1 py-1">
+              <div className="flex items-center gap-3">
+                {!isDesktopSidebarExpanded && renderDesktopSearchBar("w-[min(420px,34vw)] flex-shrink-0")}
+
+                <button
+                  onClick={() => setShowFilters(true)}
+                  className="h-12 w-12 rounded-2xl bg-white/94 dark:bg-neutral-950/92 border border-white/75 dark:border-neutral-700/80 shadow-[0_14px_30px_rgba(15,23,42,0.2)] flex items-center justify-center relative hover:border-emerald-300 transition-colors"
+                  title="Open filters"
+                >
+                  <Filter className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
+                  {activeFilters.length > 0 && (
+                    <div className="absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
+                      <span className="text-[11px] text-white font-bold">{activeFilters.length}</span>
+                    </div>
+                  )}
+                </button>
+
+                <div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center gap-2.5 min-w-max pr-1">
+                    {fuelTypes.map((type) => (
+                      <FuelTypeChip
+                        key={type}
+                        label={type}
+                        active={
+                          fuelSelection.mode === "all"
+                            ? type === "All"
+                            : fuelSelection.mode === "single" && selectedFuelType === type
+                        }
+                        onClick={() => handleFuelChipSelect(type)}
+                      />
+                    ))}
+                    {fuelSelection.mode === "multiple" && (
+                      <button
+                        onClick={() => setShowFilters(true)}
+                        className="px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border-2 border-amber-300 shadow-lg hover:bg-amber-100 transition-all"
+                      >
+                        {fuelSelection.indicatorLabel}
+                      </button>
                     )}
-                  </button>
-                  <button
-                    onClick={() => setShowList(!showList)}
-                    className={`px-6 py-3.5 backdrop-blur-xl rounded-full shadow-lg border-2 hover:scale-105 transition-all flex items-center gap-2 ${
-                      showList
-                        ? "bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 border-emerald-400/40 text-white"
-                        : "bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-700 text-foreground"
-                    }`}
-                  >
-                    <List className="w-5 h-5" strokeWidth={2.5} />
-                    <span className="font-bold text-sm">List</span>
-                  </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Active Filters */}
               {activeFilters.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide mt-3">
+                <div className="mt-3 flex flex-wrap items-center gap-2.5">
                   {activeFilters.map((filter, index) => (
                     <FilterChip key={index} label={filter} onRemove={() => removeFilter(filter)} />
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
 
-              {/* Fuel Type Filters */}
-              <div className="flex gap-2.5 overflow-x-auto lg:overflow-x-visible scrollbar-hide pb-1 mt-3 lg:flex-wrap">
-                {fuelTypes.map((type) => (
-                  <FuelTypeChip
-                    key={type}
-                    label={type}
-                    active={selectedFuelType === type}
-                    onClick={() => setSelectedFuelType(type)}
-                  />
-                ))}
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block absolute top-6 left-6 z-30 pointer-events-none">
+          <div
+            ref={desktopSidebarRef}
+            className="pointer-events-auto flex items-start gap-3"
+          >
+            <div className="w-[92px] shrink-0 px-4 py-5 flex flex-col items-center gap-3 rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
+              <button
+                onClick={toggleDesktopListPanel}
+                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${
+                  desktopToolPanel === "list"
+                    ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/30"
+                    : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-800"
+                }`}
+                title="Nearby stations"
+              >
+                <List className="w-5 h-5" strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={toggleDesktopSavedPanel}
+                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${
+                  desktopToolPanel === "saved"
+                    ? "bg-rose-500 text-white border-rose-300 shadow-lg shadow-rose-500/25"
+                    : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-neutral-800"
+                }`}
+                title="Saved stations"
+              >
+                <Heart className="w-5 h-5" strokeWidth={2.5} />
+              </button>
+              <button
+                onClick={() => navigate("/app/add-station")}
+                className="h-[52px] w-[52px] rounded-[22px] border border-emerald-400/40 bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/35 transition-all duration-200 flex items-center justify-center hover:scale-105"
+                title="Add station"
+              >
+                <Plus className="w-5 h-5" strokeWidth={2.8} />
+              </button>
+            </div>
+
+            <div
+              className={`min-w-0 overflow-hidden rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_32px_80px_rgba(15,23,42,0.24)] transition-[width,opacity,transform] duration-300 ease-out ${
+                isDesktopSidebarExpanded
+                  ? "w-[min(455px,34vw)] h-[min(720px,calc(100vh-8rem))] opacity-100 translate-x-0"
+                  : "w-0 opacity-0 -translate-x-2 pointer-events-none border-transparent shadow-none"
+              }`}
+            >
+              <div className="h-full flex flex-col px-5 py-5">
+                {renderDesktopSearchBar("w-full")}
+                <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-[28px] bg-white/60 dark:bg-neutral-950/34 border border-white/50 dark:border-neutral-700/55 shadow-inner">
+                  <div
+                    className={`h-full transition-all duration-300 ease-out ${
+                      isDesktopSidebarExpanded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                    }`}
+                  >
+                    {desktopToolPanel === "list" ? (
+                      <div className="h-full flex flex-col">
+                        <div className="px-5 pt-4 pb-3 border-b border-white/55 dark:border-neutral-700/60">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-xl font-bold text-foreground tracking-tight">Nearby Stations</div>
+                              <div className="mt-1 text-sm font-medium text-muted-foreground">
+                                {filteredStations.length} stations found
+                              </div>
+                            </div>
+                            <div className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+                              {getFilterDescription()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.45)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-emerald-500/35 hover:[&::-webkit-scrollbar-thumb]:bg-emerald-500/55">
+                          {isLoadingStations ? (
+                            Array.from({ length: 4 }).map((_, index) => (
+                              <StationCardSkeleton key={index} />
+                            ))
+                          ) : filteredStations.length > 0 ? (
+                            filteredStations.map((station) => (
+                              <div
+                                key={station.id}
+                                className={`cursor-pointer rounded-3xl transition-all ${
+                                  selectedStation === station.id ? "ring-2 ring-emerald-500" : ""
+                                }`}
+                              >
+                                <StationCard
+                                  {...station}
+                                  onClick={() => setSelectedStation(station.id)}
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="h-full flex items-center justify-center p-6">
+                              <EmptyState
+                                icon={List}
+                                title="No stations in view"
+                                description="Try adjusting your search, map position, or filters to see more stations."
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col">
+                        <div className="px-5 pt-4 pb-3 border-b border-white/55 dark:border-neutral-700/60">
+                          <div className="text-xl font-bold text-foreground tracking-tight">Saved Stations</div>
+                          <div className="mt-1 text-sm font-medium text-muted-foreground">
+                            {filteredSavedStations.length} saved stations ready for quick access
+                          </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.45)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-emerald-500/35 hover:[&::-webkit-scrollbar-thumb]:bg-emerald-500/55">
+                          {filteredSavedStations.length > 0 ? (
+                            filteredSavedStations.map((station) => (
+                              <div
+                                key={station.id}
+                                className={`cursor-pointer rounded-3xl transition-all ${
+                                  selectedStation === station.id ? "ring-2 ring-rose-400" : ""
+                                }`}
+                              >
+                                <StationCard
+                                  {...station}
+                                  onClick={() => setSelectedStation(station.id)}
+                                />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="h-full flex items-center justify-center p-6">
+                              <EmptyState
+                                icon={Heart}
+                                title={savedStations.length === 0 ? "No saved stations yet" : "No saved stations match"}
+                                description={
+                                  savedStations.length === 0
+                                    ? "Save stations to keep your go-to locations within easy reach."
+                                    : `No saved stations match "${searchQuery}".`
+                                }
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="absolute right-4 lg:right-6 top-36 lg:top-44 z-20">
+        <div className="absolute right-4 top-36 lg:hidden z-20">
           <button 
             onClick={() => handlePreciseLocation(false)}
             className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-110 transition-transform mb-3"
@@ -678,12 +1035,43 @@ export function Map() {
         </div>
 
         {/* Price Legend */}
-        <div className="absolute left-4 bottom-24 lg:bottom-10 z-20 pointer-events-none">
+        <div className="absolute left-4 bottom-24 lg:left-6 lg:bottom-12 z-20 pointer-events-none">
           <MapPriceLegend />
         </div>
 
+        {/* Desktop Map Actions */}
+        <div
+          className={`hidden lg:flex absolute right-6 z-20 flex-col items-center gap-3 ${
+            selectedStation && !showList && !isDesktopSidebarExpanded ? "bottom-[24rem]" : "bottom-8"
+          }`}
+        >
+          <button
+            onClick={() => handlePreciseLocation(false)}
+            className="w-14 h-14 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/15 flex items-center justify-center border border-gray-200/80 dark:border-neutral-700/80 hover:scale-105 transition-transform"
+            title="Go to my location"
+          >
+            <Navigation className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+          </button>
+          <div className="flex flex-col overflow-hidden rounded-2xl bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl border border-gray-200/80 dark:border-neutral-700/80 shadow-2xl shadow-black/15">
+            <button
+              onClick={zoomMapIn}
+              className="w-14 h-14 flex items-center justify-center text-foreground hover:bg-muted transition-colors border-b border-gray-200/70 dark:border-neutral-700/70"
+              title="Zoom in"
+            >
+              <Plus className="w-6 h-6" strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={zoomMapOut}
+              className="w-14 h-14 flex items-center justify-center text-foreground hover:bg-muted transition-colors"
+              title="Zoom out"
+            >
+              <Minus className="w-6 h-6" strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+
         {/* Desktop Selected Station Panel */}
-        {selectedStation && !showList && (
+        {selectedStation && !showList && !isDesktopSidebarExpanded && (
           <div className="hidden lg:block absolute bottom-6 right-6 w-[min(420px,38vw)] bg-white/98 dark:bg-neutral-900/98 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border-2 border-gray-200 dark:border-neutral-700 z-30">
             <button
               onClick={() => setSelectedStation(null)}
@@ -746,7 +1134,7 @@ export function Map() {
               </button>
             </div>
             <div className="space-y-3 overflow-y-auto pb-28 pt-2">
-              {isLoading ? (
+              {isLoadingStations ? (
                 Array(4).fill(0).map((_, i) => (
                   <StationCardSkeleton key={i} />
                 ))
