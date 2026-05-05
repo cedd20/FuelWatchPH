@@ -10,9 +10,12 @@ import { useReportPricesBatch } from "@/hooks/usePrices";
 import { toast } from "sonner";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { appendStationPriceHistory } from "@/shared/utils/stationPriceHistory";
+import { formatPrice, isValidPrice } from "@/shared/utils/priceUtils";
+import { useAuth } from "@/app/providers/AuthContext";
+import { KarmaService } from "@/lib/karmaService";
 
 function formatPeso(value) {
-  return `₱${Number(value).toFixed(2)}`;
+  return formatPrice(value);
 }
 
 function PriceUpdateConfirmationModal({
@@ -94,7 +97,7 @@ function PriceUpdateConfirmationModal({
               <div className="rounded-2xl border border-amber-200/70 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-950/20 p-4 sm:p-5 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mt-0.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                 <p className="text-sm sm:text-base text-amber-900 dark:text-amber-200 font-medium leading-relaxed">
-                  These fuel price updates will be visible to other users. Please ensure accuracy.
+                  These fuel price updates will be visible to other users. Please ensure reliability.
                 </p>
               </div>
 
@@ -131,7 +134,7 @@ function PriceUpdateConfirmationModal({
                         <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-900 p-3 sm:p-4">
                           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current</p>
                           <p className="mt-2 text-sm sm:text-base font-bold text-foreground">
-                            {change.previousPrice == null ? "—" : formatPeso(change.previousPrice)}
+                            {formatPrice(change.previousPrice)}
                           </p>
                         </div>
                         <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 p-3 sm:p-4">
@@ -185,6 +188,8 @@ export function UpdatePrice() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { user, isAuthenticated } = useAuth();
+  const isKarmaBlocked = user?.karma < 0;
   const selectedFuelType = location.state?.fuelType;
   
   const [prices, setPrices] = useState({});
@@ -210,6 +215,12 @@ export function UpdatePrice() {
     };
   }, [rawStation]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+    }
+  }, [isAuthenticated]);
+
   const fuelTypesList = useMemo(() => {
     if (isLoading || !rawStation) return [];
     
@@ -225,10 +236,7 @@ export function UpdatePrice() {
     }));
   }, [rawStation, isLoading]);
 
-  const { showAuthPrompt: isAuthPromptOpen, closeAuthPrompt, requireAuth, returnTo } = useAuthGuard({
-    defaultReturnTo: `/app/station/${id}`,
-    message: "Sign in to report or update fuel prices.",
-  });
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   const handlePriceChange = (fuelId, value) => {
     setPrices(prev => {
@@ -283,7 +291,8 @@ export function UpdatePrice() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!requireAuth(`/app/station/${id}`)) {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
       return;
     }
 
@@ -347,6 +356,13 @@ export function UpdatePrice() {
       } catch (historyError) {
         console.warn("Could not save local price history", historyError);
       }
+
+      // Add to KarmaService
+      KarmaService.addContribution('Updated Fuel Price', {
+        stationName: station?.name,
+        fuelType: pendingChanges.map(c => c.fuelType).join(', '),
+        price: pendingChanges[0]?.newPrice // Just for logging context
+      });
       
       // Invalidate notifications to show the update notification immediately
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
@@ -402,9 +418,12 @@ export function UpdatePrice() {
   return (
     <>
       <AuthPrompt
-        isOpen={isAuthPromptOpen}
-        onClose={closeAuthPrompt}
-        message={{ text: "Sign in to report or update fuel prices.", returnTo }}
+        isOpen={showAuthPrompt}
+        onClose={() => {
+          setShowAuthPrompt(false);
+          navigate(`/app/station/${id}`);
+        }}
+        message="Sign in to report or update fuel prices."
       />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-10">
         {/* Header */}
@@ -438,6 +457,24 @@ export function UpdatePrice() {
         {/* Content Container */}
         <div className="max-w-6xl mx-auto px-4 lg:px-8 -mt-10 lg:-mt-16 relative z-20">
           <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl shadow-black/10 border-2 border-gray-100 dark:border-neutral-800 p-6 lg:p-8 backdrop-blur-2xl">
+            {isKarmaBlocked ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mb-6 border-4 border-rose-200 dark:border-rose-800">
+                  <AlertTriangle className="w-10 h-10 text-rose-600 dark:text-rose-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-foreground mb-4">Action Blocked</h3>
+                <p className="text-lg text-muted-foreground max-w-md font-medium leading-relaxed">
+                  Your Karma is currently negative. You cannot update fuel prices until your Karma improves.
+                </p>
+                <Button 
+                  className="mt-8"
+                  onClick={() => navigate(`/app/station/${id}`)}
+                >
+                  Return to Station
+                </Button>
+              </div>
+            ) : (
+              <>
             {/* Location Status */}
             <div className="mb-8">
               {isNearStation ? (
@@ -484,60 +521,93 @@ export function UpdatePrice() {
                   {fuelTypesList.map((fuel) => {
                     const currentEnteredPrice = prices[fuel.id];
                     const isEdited = currentEnteredPrice !== undefined && currentEnteredPrice !== "";
+                    const hasCurrent = fuel.currentPrice != null;
                     
                     return (
                       <div
                         key={fuel.id}
-                        className={`w-full p-4 lg:p-5 rounded-2xl border-2 transition-all shadow-lg flex flex-col ${
+                        className={`w-full p-5 lg:p-6 rounded-3xl border-2 transition-all shadow-xl flex flex-col gap-5 ${
                           isEdited
-                            ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-emerald-500/10"
-                            : fuel.isNew
-                              ? "border-dashed border-gray-300 dark:border-neutral-700 bg-gray-50/30 dark:bg-neutral-900/30 opacity-80"
-                              : "border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50"
+                            ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20 ring-2 ring-emerald-500/10"
+                            : hasCurrent
+                              ? "border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900/50"
+                              : "border-dashed border-gray-200 dark:border-neutral-700 bg-gray-50/50 dark:bg-neutral-900/30"
                         }`}
                       >
+                        {/* Status Badge */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                            hasCurrent 
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" 
+                              : "bg-gray-200 text-gray-600 dark:bg-neutral-700 dark:text-neutral-400"
+                          }`}>
+                            <div className={`w-1.5 h-1.5 rounded-full ${hasCurrent ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
+                            {hasCurrent ? "Current Price Recorded" : "No Price Recorded Yet"}
+                          </div>
+                          
+                          {isEdited && (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                              <CheckCircle className="w-3 h-3" />
+                              Editing
+                            </span>
+                          )}
+                        </div>
+
                         <div className="flex flex-col flex-1 gap-4">
                           {/* Fuel Info */}
                           <div>
-                            <div className="flex items-center justify-between gap-2 mb-0.5">
-                              <div className="font-bold text-foreground text-lg">
-                                {fuel.label}
+                            <h4 className="font-black text-foreground text-xl lg:text-2xl tracking-tight mb-1">
+                              {fuel.label}
+                            </h4>
+                            
+                            <div className={`mt-3 p-3.5 rounded-2xl border ${
+                              hasCurrent 
+                                ? "bg-emerald-500/5 border-emerald-500/20" 
+                                : "bg-gray-100/50 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-700"
+                            }`}>
+                              <div className="text-[10px] uppercase tracking-widest font-black text-muted-foreground mb-1">
+                                {hasCurrent ? "Recorded Price" : "Entry Status"}
                               </div>
-                              {fuel.isNew && (
-                                <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-200 dark:bg-neutral-700 text-gray-600 dark:text-gray-400 rounded-md">
-                                  Not Setup
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-muted-foreground font-semibold">
-                              {fuel.currentPrice 
-                                ? `Current Record: ₱${fuel.currentPrice.toFixed(2)}`
-                                : "No price recorded yet"}
+                              <div className={`text-lg lg:text-xl font-bold tracking-tight ${hasCurrent ? "text-foreground" : "text-muted-foreground/60"}`}>
+                                {hasCurrent ? (
+                                  <span className="flex items-baseline gap-1">
+                                    <span className="text-sm">₱</span>
+                                    {formatPrice(fuel.currentPrice).replace('₱', '')}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm italic">Pending First Entry</span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {/* Input Field */}
-                          <div className="relative w-full mt-auto">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground pointer-events-none">
-                              ₱
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={currentEnteredPrice || ""}
-                              onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
-                              placeholder="0.00"
-                              className="w-full pl-10 pr-4 py-3 text-xl font-bold bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 shadow-sm text-foreground transition-all"
-                            />
+                          {/* Input Field Area */}
+                          <div className="space-y-2 mt-auto">
+                            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground/80 pl-1">
+                              New Price
+                            </label>
+                            <div className="relative w-full">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground pointer-events-none">
+                                ₱
+                              </span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={currentEnteredPrice || ""}
+                                onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
+                                placeholder={hasCurrent ? "Enter updated price..." : "Enter first-time price..."}
+                                className="w-full pl-10 pr-4 py-4 text-xl font-bold bg-white dark:bg-neutral-950 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 shadow-sm text-foreground transition-all placeholder:text-muted-foreground/30 placeholder:font-medium placeholder:text-sm"
+                              />
+                            </div>
                           </div>
                         </div>
 
                         {/* Price Difference Indicator */}
-                        {isEdited && fuel.currentPrice && (
-                          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-neutral-700 flex items-center justify-between">
-                            <span className="text-sm font-bold text-muted-foreground">Diff:</span>
+                        {isEdited && hasCurrent && (
+                          <div className="mt-2 pt-4 border-t border-gray-100 dark:border-neutral-800 flex items-center justify-between">
+                            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Price Change:</span>
                             <div
-                              className={`flex items-center gap-1 font-bold text-base ${
+                              className={`flex items-center gap-1 font-black text-base ${
                                 parseFloat(currentEnteredPrice) < fuel.currentPrice
                                   ? "text-emerald-600 dark:text-emerald-400"
                                   : parseFloat(currentEnteredPrice) > fuel.currentPrice 
@@ -546,11 +616,11 @@ export function UpdatePrice() {
                               }`}
                             >
                               {parseFloat(currentEnteredPrice) < fuel.currentPrice ? (
-                                <TrendingDown className="w-4 h-4" strokeWidth={2.5} />
+                                <TrendingDown className="w-4 h-4" strokeWidth={3} />
                               ) : parseFloat(currentEnteredPrice) > fuel.currentPrice ? (
-                                <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
+                                <TrendingUp className="w-4 h-4" strokeWidth={3} />
                               ) : null}
-                              <span>₱{Math.abs(parseFloat(currentEnteredPrice) - fuel.currentPrice).toFixed(2)}</span>
+                              <span>{formatPrice(Math.abs(parseFloat(currentEnteredPrice) - fuel.currentPrice))}</span>
                             </div>
                           </div>
                         )}
@@ -576,7 +646,7 @@ export function UpdatePrice() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-emerald-500 mt-0.5">•</span>
-                    Double-check all entered prices for accuracy
+                    Double-check all entered prices for reliability
                   </li>
                 </ul>
               </div>
@@ -593,6 +663,8 @@ export function UpdatePrice() {
                 </Button>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       </div>

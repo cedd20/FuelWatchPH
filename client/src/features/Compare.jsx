@@ -6,6 +6,8 @@ import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
 import { StationLogo } from "@/shared/components/StationLogo";
+import { isValidPrice, formatPrice } from "@/shared/utils/priceUtils";
+import { CardSkeleton, Skeleton } from "@/shared/components/Skeleton";
 
 const fuelTypes = FUEL_TYPES;
 
@@ -30,13 +32,14 @@ export function Compare() {
 
   const getStationPrice = (station, fuelType) => {
     const priceEntry = station.latest_prices?.[fuelType];
-    return priceEntry?.price;
+    const price = priceEntry?.price;
+    return isValidPrice(price) ? Number(price) : null;
   };
 
   const getSortedStations = () => {
     return allStations
-      .filter((station) => station.city === selectedCity && getStationPrice(station, selectedFuelType) !== undefined)
-      .sort((a, b) => getStationPrice(a, selectedFuelType) - getStationPrice(b, selectedFuelType));
+      .filter((station) => station.city === selectedCity && getStationPrice(station, selectedFuelType) !== null)
+      .sort((a, b) => (getStationPrice(a, selectedFuelType) || 0) - (getStationPrice(b, selectedFuelType) || 0));
   };
 
   const sortedStations = getSortedStations();
@@ -45,7 +48,12 @@ export function Compare() {
   const { lowestPrice, highestPrice, averagePrice } = useMemo(() => {
     if (!hasStations) return { lowestPrice: 0, highestPrice: 0, averagePrice: 0 };
     
-    const prices = sortedStations.map(s => getStationPrice(s, selectedFuelType));
+    const prices = sortedStations
+      .map(s => getStationPrice(s, selectedFuelType))
+      .filter(p => p !== null);
+      
+    if (prices.length === 0) return { lowestPrice: 0, highestPrice: 0, averagePrice: 0 };
+
     const lowest = Math.min(...prices);
     const highest = Math.max(...prices);
     const average = prices.reduce((a, b) => a + b, 0) / prices.length;
@@ -120,9 +128,38 @@ export function Compare() {
       <div className="px-4 lg:px-8 py-6 lg:py-10">
         <div className="max-w-6xl mx-auto">
           {isLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center">
-              <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
-              <p className="text-muted-foreground font-medium">Comparing prices...</p>
+            <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+              <div className="lg:col-span-2 space-y-6 lg:space-y-8">
+                {/* Best Price Banner Skeleton */}
+                <div className="h-48 lg:h-56 bg-emerald-100 dark:bg-emerald-950/30 animate-pulse rounded-3xl" />
+                
+                {/* List Skeleton */}
+                <div className="space-y-4">
+                  <Skeleton className="h-8 w-48 mb-6" />
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-800 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="w-12 h-12 rounded-xl" />
+                        <div className="space-y-2">
+                          <Skeleton className="h-6 w-40" />
+                          <Skeleton className="h-4 w-64" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-10 w-24 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sidebar Skeleton */}
+              <div className="lg:col-span-1 mt-6 lg:mt-0">
+                <div className="bg-white dark:bg-neutral-900 rounded-3xl p-6 border-2 border-gray-100 dark:border-neutral-800 shadow-xl space-y-6">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                  <Skeleton className="h-24 w-full rounded-2xl" />
+                </div>
+              </div>
             </div>
           ) : !hasStations ? (
             // Empty State
@@ -159,7 +196,7 @@ export function Compare() {
                     <div className="flex items-end justify-between">
                       <div className="flex-1">
                         <div className="text-5xl lg:text-6xl font-bold mb-3 lg:mb-4 drop-shadow-2xl tracking-tighter">
-                          ₱{lowestPrice.toFixed(2)}
+                          {formatPrice(lowestPrice)}
                         </div>
                         <div className="text-base lg:text-lg font-bold opacity-95 mb-1.5">{sortedStations[0].name}</div>
                         <div className="text-sm lg:text-base opacity-90 flex items-center gap-1.5 font-medium">
@@ -245,7 +282,7 @@ export function Compare() {
                                   isLowest ? "text-teal-600 dark:text-teal-500" : "text-foreground"
                                 }`}
                               >
-                                ₱{price.toFixed(2)}
+                                {formatPrice(price)}
                               </div>
                               <div className="text-xs lg:text-sm text-muted-foreground/70 font-semibold">per liter</div>
                             </div>

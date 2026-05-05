@@ -13,6 +13,8 @@ import { getAvailableCities } from "@/shared/utils/cityUtils";
 import { PHILIPPINE_CITIES } from "@/shared/utils/philippineCities";
 import { useAuth } from "@/app/providers/AuthContext";
 import { useUnreadCount } from "@/hooks/useUsers";
+import { isValidPrice, formatPriceWithUnit } from "@/shared/utils/priceUtils";
+import { StationCardSkeleton, Skeleton } from "@/shared/components/Skeleton";
 
 const FALLBACK_LOCATION = PHILIPPINE_CITIES.find((city) => city.city === "Manila") || {
   lat: 14.5995,
@@ -58,8 +60,7 @@ export function Home() {
 
   // Helper to get price
   const getValidPrice = (value) => {
-    const price = Number(value);
-    return Number.isFinite(price) && price >= 0 ? price : null;
+    return isValidPrice(value) ? Number(value) : null;
   };
 
   const getStationPrice = (station, fuelType) => {
@@ -107,21 +108,21 @@ export function Home() {
       // For "All", average every single price report from every station
       allStations.forEach(s => {
         Object.values(s.latest_prices || {}).forEach(p => {
-          if (p.price) prices.push(p.price);
+          if (isValidPrice(p.price)) prices.push(Number(p.price));
         });
       });
     } else {
       // For specific fuel types, use the helper
       prices = allStations
         .map(s => getStationPrice(s, selectedFuelType))
-        .filter(p => p !== undefined);
+        .filter(p => p !== undefined && p !== null);
     }
     
-    const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+    const avg = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
     const uniqueCities = getAvailableCities(allStations);
 
     return {
-      avg: `₱${avg.toFixed(2)}/L`,
+      avg: formatPriceWithUnit(avg),
       stations: allStations.length.toLocaleString(),
       areas: uniqueCities.length.toLocaleString()
     };
@@ -140,7 +141,7 @@ export function Home() {
         lowestPrice: getStationPrice(s, selectedFuelType),
         fuelType: selectedFuelType
       }))
-      .filter(s => s.lowestPrice !== undefined);
+      .filter(s => s.lowestPrice !== undefined && s.lowestPrice !== null);
 
     return stationsWithPrices
       .sort((a, b) => {
@@ -186,7 +187,7 @@ export function Home() {
       return {
         name: cityName,
         stationCount: cityStations.length,
-        avgPrice: avg === null ? "No Data" : `₱${avg.toFixed(2)}/L`,
+        avgPrice: formatPriceWithUnit(avg),
         distance: distance ?? Number.POSITIVE_INFINITY,
       };
     })
@@ -378,16 +379,26 @@ export function Home() {
               </button>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:overflow-x-visible lg:grid lg:grid-cols-4 lg:gap-4">
-              {cities.map((city) => (
-                <CityCard
-                  key={city.name}
-                  name={city.name}
-                  stationCount={city.stationCount}
-                  avgPrice={city.avgPrice}
-                  fuelType={selectedFuelType}
-                  onClick={() => navigate("/app/map")}
-                />
-              ))}
+              {isLoading ? (
+                Array(4).fill(0).map((_, i) => (
+                  <div key={i} className="min-w-[160px] lg:min-w-0 h-32 bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-neutral-800 p-4 space-y-3">
+                    <Skeleton className="w-10 h-10 rounded-xl" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                ))
+              ) : (
+                cities.map((city) => (
+                  <CityCard
+                    key={city.name}
+                    name={city.name}
+                    stationCount={city.stationCount}
+                    avgPrice={city.avgPrice}
+                    fuelType={selectedFuelType}
+                    onClick={() => navigate("/app/map")}
+                  />
+                ))
+              )}
             </div>
           </div>
 
@@ -405,7 +416,7 @@ export function Home() {
             <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 lg:overflow-x-visible lg:grid lg:grid-cols-4 lg:gap-4 lg:mx-0 lg:px-0">
               {isLocating || isLoading ? (
                 Array(4).fill(0).map((_, i) => (
-                  <div key={i} className="min-w-[280px] lg:min-w-0 h-48 bg-gray-100 dark:bg-neutral-800 animate-pulse rounded-3xl" />
+                  <StationCardSkeleton key={i} className="min-w-[280px] lg:min-w-0" />
                 ))
               ) : recommendedStations.length > 0 ? (
                 recommendedStations.map((station) => (

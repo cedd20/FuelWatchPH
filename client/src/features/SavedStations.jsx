@@ -7,6 +7,7 @@ import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
 import { useStations } from "@/hooks/useStations";
 import { getSavedStationIds } from "@/shared/utils/favorites";
+import { PageHeaderSkeleton, StationCardSkeleton } from "@/shared/components/Skeleton";
 
 export function SavedStations() {
   const navigate = useNavigate();
@@ -36,9 +37,14 @@ export function SavedStations() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
-        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-        <p className="text-muted-foreground font-medium animate-pulse">Loading your favorites...</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 pb-12">
+        <PageHeaderSkeleton />
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 space-y-6 -mt-10 relative z-20">
+          <div className="bg-white dark:bg-neutral-800 h-16 rounded-2xl w-full max-w-2xl mb-8 animate-pulse shadow-xl" />
+          {Array.from({ length: 3 }).map((_, i) => (
+            <StationCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { useMemo } from "react";
-import { ArrowLeft, Award, Crown, MapPin, ShieldCheck, Star, Trophy, TrendingUp, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, Award, Crown, MapPin, ShieldCheck, Star, Trophy, TrendingUp, Users } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
+import { Skeleton } from "@/shared/components/Skeleton";
 
 import { useLeaderboard, useSummaryStats } from "@/hooks/useUsers";
 import { useMyContributions } from "@/hooks/usePrices";
@@ -40,10 +41,10 @@ export function Leaderboard() {
     const submissions = rawContributions.filter(c => !String(c.id).startsWith('conf-')).length;
     const confirmations = rawContributions.filter(c => String(c.id).startsWith('conf-')).length;
     
-    const points = (submissions * 10) + (confirmations * 5) + ((user?.total_stations || 0) * 20);
-    const accuracy = total > 0 ? Math.round((verified / total) * 100) : 0;
+    const karma = user?.karma || 0;
+    const trustScore = user?.trustScore || 0;
     
-    return { total, verified, points, accuracy };
+    return { total, verified, karma, trustScore };
   }, [rawContributions, user]);
 
   const leaderboard = rawLeaderboard.map((entry, index) => ({
@@ -52,27 +53,27 @@ export function Leaderboard() {
     id: entry.id,
     city: "Philippines",
     updates: entry.total_updates,
-    accuracy: entry.accuracy || 0,
-    points: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
+    trustScore: entry.accuracy || 0,
+    karma: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
     badge: (entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0)) > 1000 ? "Fuel Guardian" : "Trusted Contributor",
     color: RANK_COLORS[index % RANK_COLORS.length],
-  })).sort((a, b) => (b.points || 0) - (a.points || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
+  })).sort((a, b) => (b.karma || 0) - (a.karma || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
 
   const me = leaderboard.find((entry) => entry.id === user?.id) || {
     rank: leaderboard.length + 1, // Fallback if not in top 10
     name: user?.username || user?.name || "You",
     updates: myStats.total,
-    accuracy: myStats.accuracy,
-    points: myStats.points,
-    badge: myStats.points > 1000 ? "Fuel Guardian" : "Trusted Contributor"
+    trustScore: myStats.trustScore,
+    karma: myStats.karma,
+    badge: myStats.karma > 1000 ? "Fuel Guardian" : "Trusted Contributor"
   };
 
   // If I am in the leaderboard list, override its static values with my real-time ones
   const myIndex = leaderboard.findIndex(e => e.id === user?.id);
   if (myIndex !== -1) {
     me.updates = myStats.total;
-    me.accuracy = myStats.accuracy;
-    me.points = myStats.points;
+    me.trustScore = myStats.trustScore;
+    me.karma = myStats.karma;
   }
 
   return (
@@ -123,7 +124,7 @@ export function Leaderboard() {
             <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-4 lg:p-5 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
               <div className="flex items-center gap-2 mb-2">
                 <Star className="w-5 h-5 text-emerald-600" />
-                <span className="text-xs lg:text-sm font-bold text-muted-foreground uppercase tracking-widest">Points Earned</span>
+                <span className="text-xs lg:text-sm font-bold text-muted-foreground uppercase tracking-widest">Karma Earned</span>
               </div>
               <div className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
                 {stats?.total_updates ? `${((stats.total_updates * 10) / 1000).toFixed(1)}k` : "0k"}
@@ -139,7 +140,7 @@ export function Leaderboard() {
             <div className="px-5 lg:px-6 pt-6 pb-4 border-b border-gray-200 dark:border-neutral-700 flex items-center justify-between">
               <div>
                 <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Community Rankings</h2>
-                <p className="text-sm text-muted-foreground font-medium">Ranked by points, accuracy, and verified updates</p>
+                <p className="text-sm text-muted-foreground font-medium">Ranked by karma, trust score, and verified updates</p>
               </div>
               <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
                 <Trophy className="w-4 h-4" />
@@ -149,16 +150,28 @@ export function Leaderboard() {
 
             <div className="p-4 lg:p-6 space-y-3">
               {isLoading ? (
-                <div className="py-12 flex justify-center">
-                  <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+                <div className="space-y-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-5 p-5 rounded-3xl border-2 border-gray-100 dark:border-neutral-800 shadow-sm">
+                      <Skeleton className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl flex-shrink-0" />
+                      <div className="flex-1 space-y-2.5">
+                        <Skeleton className="h-6 w-1/3 rounded-lg" />
+                        <Skeleton className="h-4 w-1/2 rounded-md" />
+                      </div>
+                      <div className="text-right space-y-2">
+                        <Skeleton className="h-8 w-16 ml-auto rounded-lg" />
+                        <Skeleton className="h-3 w-12 ml-auto rounded-md" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : leaderboard.map((entry) => (
                 <div
                   key={entry.rank}
-                  className={`rounded-2xl border-2 p-4 lg:p-5 transition-all ${
-                    entry.rank === 4
-                      ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-400/40 shadow-lg shadow-emerald-500/10"
-                      : "bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-700 hover:border-emerald-400/40"
+                  className={`rounded-3xl border-2 p-4 lg:p-6 transition-all ${
+                    entry.id === user?.id
+                      ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/10"
+                      : "bg-white dark:bg-neutral-900 border-gray-100 dark:border-neutral-800 hover:border-emerald-400/30 hover:shadow-lg"
                   }`}
                 >
                   <div className="flex items-center gap-4 lg:gap-5">
@@ -177,13 +190,13 @@ export function Leaderboard() {
                           {entry.city}
                         </span>
                         <span>{entry.updates} updates</span>
-                        <span>{entry.accuracy}% accuracy</span>
+                        <span>{entry.trustScore}% trust score</span>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <div className="text-2xl lg:text-3xl font-bold text-foreground tracking-tighter">{entry.points}</div>
-                      <div className="text-xs lg:text-sm text-muted-foreground font-semibold uppercase tracking-widest">points</div>
+                      <div className="text-2xl lg:text-3xl font-bold text-foreground tracking-tighter">{entry.karma}</div>
+                      <div className="text-xs lg:text-sm text-muted-foreground font-semibold uppercase tracking-widest">karma</div>
                     </div>
                   </div>
                 </div>
@@ -191,8 +204,8 @@ export function Leaderboard() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10">
+          <div className="lg:sticky lg:top-24 space-y-6">
+            <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-100 dark:border-neutral-800 p-6 shadow-2xl shadow-black/10">
               <h2 className="text-xl font-bold text-foreground mb-4 tracking-tight">Your Rank</h2>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500 flex items-center justify-center shadow-xl shadow-emerald-500/20 text-white">
@@ -209,12 +222,12 @@ export function Leaderboard() {
                   <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Updates</div>
                 </div>
                 <div className="rounded-2xl bg-gray-50 dark:bg-neutral-800 p-3 text-center">
-                  <div className="text-xl font-bold text-foreground">{me?.accuracy}%</div>
-                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Accuracy</div>
+                  <div className="text-xl font-bold text-foreground">{me?.trustScore}%</div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Trust Score</div>
                 </div>
                 <div className="rounded-2xl bg-gray-50 dark:bg-neutral-800 p-3 text-center">
-                  <div className="text-xl font-bold text-foreground">{me?.points}</div>
-                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Points</div>
+                  <div className="text-xl font-bold text-foreground">{me?.karma}</div>
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground font-bold">Karma</div>
                 </div>
               </div>
             </div>
@@ -222,8 +235,8 @@ export function Leaderboard() {
             <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10">
               <h2 className="text-xl font-bold text-foreground mb-4 tracking-tight">How it works</h2>
               <div className="space-y-4 text-sm text-muted-foreground font-medium leading-relaxed">
-                <p>Earn points by submitting price updates, confirming nearby station data, and keeping entries accurate.</p>
-                <p>Higher accuracy keeps your rank moving up faster than raw volume alone.</p>
+                <p>Earn karma by submitting price updates, confirming nearby station data, and keeping entries reliable.</p>
+                <p>Higher trust score keeps your rank moving up faster than raw volume alone.</p>
                 <p>Leaderboard snapshots refresh as new verified updates are processed.</p>
               </div>
             </div>

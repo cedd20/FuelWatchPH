@@ -1,6 +1,7 @@
-import { MapPin, Clock, ShieldCheck, ChevronRight } from "lucide-react";
+import { MapPin, Clock, ShieldCheck, ChevronRight, Navigation } from "lucide-react";
 import { useNavigate } from "react-router";
 import { StationLogo } from "./StationLogo";
+import { formatPrice } from "@/shared/utils/priceUtils";
 
 export function StationCard({
   id,
@@ -10,6 +11,8 @@ export function StationCard({
   prices = [],
   lastUpdated,
   verified = false,
+  lat,
+  lng,
   onClick,
 }) {
   const navigate = useNavigate();
@@ -45,9 +48,27 @@ export function StationCard({
             <span>Updated {lastUpdated}</span>
           </div>
         </div>
-        <div className="text-right flex-shrink-0 ml-4">
-          <div className="text-sm lg:text-base text-muted-foreground/80 mb-2 font-bold">{distance} km</div>
-          <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6 text-muted-foreground ml-auto" strokeWidth={2.5} />
+        <div className="flex flex-col items-end flex-shrink-0 ml-3 lg:ml-4 gap-2">
+          <div className="text-xs lg:text-sm text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50">
+            {distance} km
+          </div>
+          <div className="mt-auto flex items-center gap-1.5">
+            {lat && lng && (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+                }}
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 shadow-sm hover:scale-105"
+                title="Directions"
+              >
+                <Navigation className="w-3.5 h-3.5" strokeWidth={2.5} />
+              </button>
+            )}
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors border border-gray-200 dark:border-neutral-700 shadow-sm hover:scale-105">
+              <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -58,7 +79,7 @@ export function StationCard({
               {fuel.type}
             </div>
             <div className="font-bold text-foreground text-sm lg:text-base tracking-tight">
-              ₱{fuel.price.toFixed(2)}
+              {formatPrice(fuel.price)}
             </div>
           </div>
         ))}

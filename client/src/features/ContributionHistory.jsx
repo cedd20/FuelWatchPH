@@ -6,6 +6,8 @@ import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
 import { useMyContributions } from "@/hooks/usePrices";
+import { PageHeaderSkeleton, ContributionItemSkeleton, Skeleton } from "@/shared/components/Skeleton";
+import { KarmaService } from "@/lib/karmaService";
 
 const MOCK_CONTRIBUTIONS = [
   {
@@ -53,16 +55,31 @@ export function ContributionHistory() {
     }
   }, [isAuthenticated, loading]);
 
-  const contributions = rawContributions.map(c => ({
-    id: c.id,
-    type: c.type || "Submitted",
-    stationName: c.stationName || "Unknown Station",
-    fuelType: c.fuel_type,
-    price: c.price != null ? parseFloat(c.price) : null,
-    date: new Date(c.observed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
-    status: c.status || "pending",
-    confirmation_count: c.confirmation_count || 0
-  }));
+  const localContributions = KarmaService.getContributions();
+  
+  // Combine server and local contributions for testing
+  const contributions = [
+    ...localContributions.map(c => ({
+      id: c.id,
+      type: c.type,
+      stationName: c.stationName,
+      fuelType: c.fuelType,
+      price: c.price,
+      date: new Date(c.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+      status: c.status,
+      karmaImpact: c.karmaImpact
+    })),
+    ...rawContributions.map(c => ({
+      id: c.id,
+      type: c.type || "Updated Fuel Price",
+      stationName: c.stationName || "Unknown Station",
+      fuelType: c.fuel_type,
+      price: c.price != null ? parseFloat(c.price) : null,
+      date: new Date(c.observed_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }),
+      status: c.status || "pending",
+      karmaImpact: 10 // Mock for server ones
+    }))
+  ];
 
   const filteredContributions = contributions.filter((contribution) => {
     if (statusFilter === "all") return true;
@@ -72,21 +89,34 @@ export function ContributionHistory() {
     return contribution.status === statusFilter;
   });
 
-  const verifiedCount = contributions.filter((c) => c.status === "confirmed" || c.status === "approved").length;
+  const verifiedCount = contributions.filter((c) => c.status === "confirmed" || c.status === "approved" || c.status === "verified").length;
   const pendingCount = contributions.filter((c) => c.status === "pending").length;
-  const accuracyRate = contributions.length > 0 ? Math.round((verifiedCount / contributions.length) * 100) : 0;
-  
-  // Dynamic points calculation for the UI
-  // 10 pts for reports, 5 pts for confirmations
-  const pointsEarned = (contributions.filter(c => c.type === "Submitted").length * 10) + 
-                       (contributions.filter(c => c.type === "Confirmed").length * 5) +
-                       (contributions.filter(c => c.type === "Created Station").length * 20);
+  const trustScore = user?.trustScore || 0;
+  const totalKarma = user?.karma || 0;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex flex-col items-center justify-center p-8">
-        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-        <p className="text-muted-foreground font-medium animate-pulse">Loading your contributions...</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 pb-12">
+        <PageHeaderSkeleton />
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 space-y-8 -mt-10 relative z-20">
+          {/* Stats Dashboard Skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-neutral-900 rounded-3xl p-6 border-2 border-gray-100 dark:border-neutral-800 shadow-xl space-y-2">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-24" />
+              </div>
+            ))}
+          </div>
+
+          {/* List Skeleton */}
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48 mb-6" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <ContributionItemSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -105,92 +135,171 @@ export function ContributionHistory() {
       {/* Mobile Layout */}
       <div className="lg:hidden min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
         {/* Header */}
-        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-12 px-4 relative overflow-hidden">
           {/* Enhanced radial glow background */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
 
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-6">
-              <button
-                onClick={() => navigate(-1)}
-                className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
-              >
-                <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-              </button>
-              <h1 className="text-3xl font-bold text-white drop-shadow-2xl tracking-tight">My Contributions</h1>
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg border border-white/30 active:scale-90 transition-transform"
+                >
+                  <ArrowLeft className="w-5 h-5 text-white" strokeWidth={3} />
+                </button>
+                <h1 className="text-2xl font-black text-white drop-shadow-2xl tracking-tight">Contributions</h1>
+              </div>
+              <div className="bg-white/20 backdrop-blur-md rounded-full px-4 py-1.5 border border-white/30 shadow-lg">
+                <span className="text-white text-xs font-black uppercase tracking-widest">{contributions.length} Total</span>
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-4 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">{user?.contributionCount || 0}</div>
-                <div className="text-sm text-muted-foreground font-semibold">Total Updates</div>
+            {/* Stats Dashboard */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white/10 backdrop-blur-xl rounded-[2rem] p-5 border border-white/20 shadow-2xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Karma</span>
+                </div>
+                <div className="text-3xl font-black text-white tracking-tighter">{totalKarma}</div>
               </div>
-              <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-4 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-3xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-1 tracking-tight">{user?.accuracy || 0}%</div>
-                <div className="text-sm text-muted-foreground font-semibold">Accuracy Rate</div>
+              <div className="bg-white/10 backdrop-blur-xl rounded-[2rem] p-5 border border-white/20 shadow-2xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]" />
+                  <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em]">Trust</span>
+                </div>
+                <div className="text-3xl font-black text-white tracking-tighter">{trustScore}%</div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Mobile Filter Bar */}
+        <div className="px-4 -mt-6 relative z-30">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl p-2 shadow-xl shadow-black/10 flex items-center gap-2 overflow-x-auto no-scrollbar border border-gray-100 dark:border-neutral-800">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                statusFilter === "all"
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                  : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setStatusFilter("verified")}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                statusFilter === "verified"
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                  : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              Verified
+            </button>
+            <button
+              onClick={() => setStatusFilter("pending")}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                statusFilter === "pending"
+                  ? "bg-amber-500 text-white shadow-lg shadow-amber-500/30"
+                  : "text-muted-foreground hover:bg-gray-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              Pending
+            </button>
+          </div>
+        </div>
+
         {/* Contribution List */}
         <div className="px-4 py-6">
-          {contributions.length > 0 ? (
-            <div className="space-y-3">
-              {contributions.map((contribution) => (
+          {filteredContributions.length > 0 ? (
+            <div className="space-y-4">
+              {filteredContributions.map((contribution) => (
                 <div
                   key={contribution.id}
-                  className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-2xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10"
+                  className={`bg-white dark:bg-neutral-900 rounded-3xl border-2 shadow-xl shadow-black/5 overflow-hidden transition-all active:scale-[0.98] ${
+                    contribution.karmaImpact > 0 
+                      ? "border-emerald-100 dark:border-emerald-900/30" 
+                      : "border-rose-100 dark:border-rose-900/30"
+                  }`}
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-foreground text-base">
-                          {contribution.stationName}
-                        </h3>
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border-2 ${
-                          contribution.type === "Confirmed" 
-                            ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
-                            : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
-                        }`}>
-                          {contribution.type}
-                        </span>
+                  {/* Card Impact Header Ribbon (Optional, but let's go with a side accent instead) */}
+                  <div className="flex flex-col">
+                    {/* Main Content Area */}
+                    <div className="p-5">
+                      <div className="flex items-start gap-4 mb-4">
+                        <StationLogo name={contribution.stationName} size="md" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-foreground text-base truncate leading-tight mb-1">
+                            {contribution.stationName}
+                          </h3>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground/80 font-semibold">
+                            <Clock className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            <span>{contribution.date}</span>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                            contribution.karmaImpact > 0 
+                              ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                              : "bg-rose-500 text-white shadow-lg shadow-rose-500/30"
+                          }`}>
+                            {contribution.karmaImpact > 0 ? `+${contribution.karmaImpact}` : contribution.karmaImpact} Karma
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground/80 font-medium">
-                        {contribution.fuelType}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-foreground tracking-tighter">
-                        {contribution.price !== null ? `₱${contribution.price.toFixed(2)}` : "N/A"}
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1.5 text-muted-foreground/80">
-                      <Clock className="w-4 h-4" strokeWidth={2.5} />
-                      <span className="font-semibold">{contribution.date}</span>
+                      <div className="grid grid-cols-[1fr_auto] items-end gap-4 bg-gray-50/50 dark:bg-neutral-800/50 rounded-2xl p-4 border border-gray-100 dark:border-neutral-700/50">
+                        <div>
+                          <div className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest mb-1">
+                            {contribution.type}
+                          </div>
+                          <div className="text-sm font-bold text-foreground/90 truncate max-w-[150px]">
+                            {contribution.fuelType || "System Update"}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-black text-foreground tracking-tighter">
+                            {contribution.price !== null ? `₱${contribution.price.toFixed(2)}` : "N/A"}
+                          </div>
+                          <div className="text-[10px] font-black text-muted-foreground/60 uppercase">per liter</div>
+                        </div>
+                      </div>
                     </div>
-                    {contribution.status === "approved" ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-full shadow-lg shadow-emerald-500/30">
-                        <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
-                        <span className="font-bold text-xs">Approved</span>
+
+                    {/* Footer Status Bar */}
+                    <div className={`px-5 py-3 flex items-center justify-between border-t border-dashed ${
+                      contribution.karmaImpact > 0 
+                        ? "bg-emerald-50/30 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900/30" 
+                        : "bg-rose-50/30 dark:bg-rose-950/10 border-rose-100 dark:border-rose-900/30"
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${
+                           contribution.status === "pending" ? "bg-yellow-500" : "bg-emerald-500"
+                        }`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</span>
                       </div>
-                    ) : contribution.status === "confirmed" ? (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600 text-white rounded-full shadow-lg shadow-emerald-400/30">
-                        <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
-                        <span className="font-bold text-xs">Confirmed</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white rounded-full shadow-lg shadow-yellow-500/30">
-                        <Clock className="w-4 h-4" strokeWidth={2.5} />
-                        <span className="font-bold text-xs">Pending</span>
-                      </div>
-                    )}
+                      
+                      {contribution.status === "approved" ? (
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
+                          <span className="font-black text-[10px] uppercase tracking-wider">Approved</span>
+                        </div>
+                      ) : contribution.status === "confirmed" ? (
+                        <div className="flex items-center gap-1.5 text-emerald-500 dark:text-emerald-400">
+                          <CheckCircle className="w-4 h-4" strokeWidth={2.5} />
+                          <span className="font-black text-[10px] uppercase tracking-wider">Confirmed</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500">
+                          <Clock className="w-4 h-4" strokeWidth={2.5} />
+                          <span className="font-black text-[10px] uppercase tracking-wider">Pending</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -233,19 +342,19 @@ export function ContributionHistory() {
             <div className="grid grid-cols-4 gap-5">
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
                 <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{contributions.length}</div>
-                <div className="text-base text-muted-foreground font-semibold">Total Updates</div>
+                <div className="text-base text-muted-foreground font-semibold">Total Contributions</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{accuracyRate}%</div>
-                <div className="text-base text-muted-foreground font-semibold">Accuracy Rate</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{trustScore}%</div>
+                <div className="text-base text-muted-foreground font-semibold">Trust Score</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
-                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{Math.max(pointsEarned, user?.points || 0)}</div>
-                <div className="text-base text-muted-foreground font-semibold">Points Earned</div>
+                <div className="text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{totalKarma}</div>
+                <div className="text-base text-muted-foreground font-semibold">Community Karma</div>
               </div>
               <div className="bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-2xl p-6 shadow-2xl shadow-black/20 border-2 border-gray-200 dark:border-neutral-700">
                 <div className="text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{verifiedCount}</div>
-                <div className="text-base text-muted-foreground font-semibold">Verified</div>
+                <div className="text-base text-muted-foreground font-semibold">Verified Actions</div>
               </div>
             </div>
           </div>
@@ -309,10 +418,13 @@ export function ContributionHistory() {
                                   {contribution.stationName}
                                 </h4>
                                 <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border-2 ${
-                                  contribution.type === "Confirmed" 
-                                    ? "bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
-                                    : "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                                  contribution.karmaImpact > 0 
+                                    ? "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800"
+                                    : "bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800"
                                 }`}>
+                                  {contribution.karmaImpact > 0 ? `+${contribution.karmaImpact}` : contribution.karmaImpact} Karma
+                                </span>
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md border-2 bg-gray-50 text-gray-600 border-gray-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700">
                                   {contribution.type}
                                 </span>
                               </div>
@@ -412,7 +524,7 @@ export function ContributionHistory() {
                       <span className="font-bold text-sm text-foreground">Trusted Contributor</span>
                     </div>
                     <p className="text-xs text-muted-foreground/80">
-                      {accuracyRate}% accuracy rate • Keep up the great work!
+                      {trustScore}% trust score • Keep up the great work!
                     </p>
                   </div>
                 </div>

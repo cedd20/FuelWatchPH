@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useBlocker } from "react-router";
 import {
   ArrowLeft,
   MapPin,
@@ -18,13 +18,16 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useStation, useDeleteStation } from "@/hooks/useStations";
-import { usePrices, useDeletePrice, useConfirmPrice, useMyContributions } from "@/hooks/usePrices";
+import { usePrices, useDeletePrice, useConfirmPrice } from "@/hooks/usePrices";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { ConfirmationModal } from "@/shared/components/ConfirmationModal";
 import { StationPriceHistoryCard } from "@/shared/components/StationPriceHistoryCard";
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
 import { toggleSaveStation, isStationSaved } from "@/shared/utils/favorites";
+import { KarmaService } from "@/lib/karmaService";
+import { formatPrice } from "@/shared/utils/priceUtils";
+import { PageHeaderSkeleton, CardSkeleton, ChartSkeleton } from "@/shared/components/Skeleton";
 import { toast } from "sonner";
 
 export function StationDetail() {
@@ -34,17 +37,41 @@ export function StationDetail() {
   const [isSaved, setIsSaved] = useState(() => isStationSaved(id));
 
   const { user, isAuthenticated, refreshProfile } = useAuth();
+  const isKarmaBlocked = user?.karma < 0;
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [priceDeleteTarget, setPriceDeleteTarget] = useState(null);
 
   const { data: rawStation, isLoading, error } = useStation(id);
   const { data: rawPrices = [] } = usePrices({ station_id: id });
-  const { data: myContributions = [] } = useMyContributions();
+
 
   const deleteStationMutation = useDeleteStation(id);
   const deletePriceMutation = useDeletePrice();
-  const confirmPriceMutation = useConfirmPrice();
+  
+  const [hasConfirmedStation, setHasConfirmedStation] = useState(() => {
+    const stored = localStorage.getItem(`station_confirmed_${id}`);
+    if (!stored) return false;
+    try {
+      const data = JSON.parse(stored);
+      // If user is authenticated but they only confirmed anonymously, let them confirm again to get Karma
+      if (isAuthenticated && data.isAnonymous) return false;
+      return true;
+    } catch {
+      return !!stored;
+    }
+  });
+  
+  const [showBackModalStep, setShowBackModalStep] = useState(0);
+  const [hasViewedMeaningfully, setHasViewedMeaningfully] = useState(false);
+
+  useEffect(() => {
+    // Mark as meaningfully viewed after 5 seconds
+    const timer = setTimeout(() => {
+      setHasViewedMeaningfully(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Clear stale session confirmations when user changes (e.g., different account logs in)
   useEffect(() => {
@@ -64,19 +91,41 @@ export function StationDetail() {
     if (!rawStation) return null;
     return {
       ...rawStation,
-      prices: Object.entries(rawStation.latest_prices || {}).map(([type, details]) => ({
-        type,
-        price: details.price,
-        confirmations: details.confirmation_count,
-        observed_at: details.observed_at,
-        id: details.id
-      })),
+      prices: Object.entries(rawStation.latest_prices || {}).map(([type, details]) => {
+        // Calculate trend and change from historical prices
+        let trend = undefined;
+        let change = undefined;
+        
+        if (rawPrices && rawPrices.length > 0) {
+          const fuelPrices = rawPrices
+            .filter(p => p.fuel_type === type)
+            .sort((a, b) => new Date(b.observed_at) - new Date(a.observed_at));
+            
+          // If we have at least 2 records, we can calculate the difference
+          if (fuelPrices.length > 1) {
+             const latest = Number(fuelPrices[0].price);
+             const previous = Number(fuelPrices[1].price);
+             change = latest - previous;
+             trend = change > 0 ? "up" : change < 0 ? "down" : "flat";
+          }
+        }
+
+        return {
+          type,
+          price: details.price,
+          confirmations: details.confirmation_count,
+          observed_at: details.observed_at,
+          id: details.id,
+          trend: trend,
+          change: change
+        };
+      }),
       lastUpdated: rawStation.latest_prices && Object.keys(rawStation.latest_prices).length > 0 
         ? new Date(Math.max(...Object.values(rawStation.latest_prices).map(p => new Date(p.observed_at)))).toLocaleDateString()
         : 'No reports',
       distance: rawStation.distance_km || 0
     };
-  }, [rawStation]);
+  }, [rawStation, rawPrices]);
 
   const userRole = (user?.role || user?.app_metadata?.role || user?.user_metadata?.role || "").toLowerCase();
   const canEditStation = isAuthenticated;
@@ -119,6 +168,11 @@ export function StationDetail() {
       return;
     }
 
+    if (isKarmaBlocked) {
+      toast.error("Your Karma is currently negative. You cannot update fuel prices.");
+      return;
+    }
+
     navigate(`/app/update-price/${id}`, { state: { fuelType: fuel.type } });
   };
 
@@ -136,87 +190,116 @@ export function StationDetail() {
     });
   };
 
-  const handleConfirmPrice = async (fuel) => {
-    if (!fuel.id) return;
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation, historyAction }) =>
+      hasViewedMeaningfully && 
+      !hasConfirmedStation && 
+      station?.prices?.length > 0 &&
+      showBackModalStep === 0 &&
+      currentLocation.pathname !== nextLocation.pathname &&
+      historyAction === "POP"
+  );
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      setShowBackModalStep(1);
+    }
+  }, [blocker.state]);
+
+  const handleSkipConfirmation = () => {
+    setShowBackModalStep(0);
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    } else {
+      navigate(-1);
+    }
+  };
+
+  const handleFinalConfirm = () => {
+    const confirmationData = {
+      stationId: id,
+      isAnonymous: !isAuthenticated,
+      confirmedAt: new Date().toISOString(),
+    };
     
-    // Scope the key to this specific user to prevent cross-account contamination
-    const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
-    
-    const isAlreadyConfirmed = !!sessionStorage.getItem(confirmedKey) || 
-      myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
+    if (!isAuthenticated) {
+      localStorage.setItem(`station_confirmed_${id}`, JSON.stringify(confirmationData));
+      setHasConfirmedStation(true);
       
-    if (isAlreadyConfirmed) {
-      toast.info("You've already confirmed this price.");
-      return;
+      toast.success("Price confirmed anonymously. Sign in to earn Karma!");
+    } else {
+      localStorage.setItem(`station_confirmed_${id}`, JSON.stringify(confirmationData));
+      setHasConfirmedStation(true);
+      // Add to KarmaService
+      KarmaService.addContribution('Confirmed Price', {
+        stationName: station?.name
+      });
+      toast.success("Price confirmed! Karma points added.");
     }
 
-    confirmPriceMutation.mutate(fuel.id, {
-      onSuccess: () => {
-        // Scope the session key to the current user ID
-        const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
-        sessionStorage.setItem(confirmedKey, "true");
-        toast.success("Price confirmed. Thank you!");
-        
-        // Optimistically update the station data in the query cache
-        qc.setQueryData(["stations", id], (oldStation) => {
-          if (!oldStation) return oldStation;
-          const newStation = JSON.parse(JSON.stringify(oldStation));
-          if (newStation.latest_prices) {
-            for (const key in newStation.latest_prices) {
-              if (newStation.latest_prices[key].id === fuel.id) {
-                newStation.latest_prices[key].confirmation_count = (newStation.latest_prices[key].confirmation_count || 0) + 1;
-              }
-            }
-          }
-          newStation.contributors = (newStation.contributors || 1) + 1;
-          newStation.accuracy = Math.min(100, (newStation.accuracy || 85) + 5);
-          return newStation;
-        });
-
-        // Also update the full list cache if it exists
-        qc.setQueryData(["stations", {}], (oldStations) => {
-          if (!oldStations || !Array.isArray(oldStations)) return oldStations;
-          return oldStations.map(s => {
-            if (s.id === id) {
-              const newStation = JSON.parse(JSON.stringify(s));
-              if (newStation.latest_prices) {
-                for (const key in newStation.latest_prices) {
-                  if (newStation.latest_prices[key].id === fuel.id) {
-                    newStation.latest_prices[key].confirmation_count = (newStation.latest_prices[key].confirmation_count || 0) + 1;
-                  }
-                }
-              }
-              newStation.contributors = (newStation.contributors || 1) + 1;
-              newStation.accuracy = Math.min(100, (newStation.accuracy || 85) + 5);
-              return newStation;
-            }
-            return s;
-          });
-        });
-
-        // Refresh profile stats to show new confirmation
-        refreshProfile();
-      },
-      onError: (err) => {
-        if (err.status === 429) {
-          const confirmedKey = `confirmed_price_${user?.id}_${fuel.id}`;
-          sessionStorage.setItem(confirmedKey, "true");
-          toast.error("You've already confirmed this recently.");
-        } else {
-          toast.error("Something went wrong. Please check your connection.");
-        }
-      }
+    // Optimistically update the station data in the query cache
+    qc.setQueryData(["stations", id], (oldStation) => {
+      if (!oldStation) return oldStation;
+      const newStation = JSON.parse(JSON.stringify(oldStation));
+      newStation.contributors = (newStation.contributors || 1) + 1;
+      newStation.trustScore = Math.min(100, (newStation.trustScore || 85) + 5);
+      return newStation;
     });
+
+    // Also update the full list cache if it exists
+    qc.setQueryData(["stations", {}], (oldStations) => {
+      if (!oldStations || !Array.isArray(oldStations)) return oldStations;
+      return oldStations.map(s => {
+        if (s.id === id) {
+          const newStation = JSON.parse(JSON.stringify(s));
+          newStation.contributors = (newStation.contributors || 1) + 1;
+          newStation.trustScore = Math.min(100, (newStation.trustScore || 85) + 5);
+          return newStation;
+        }
+        return s;
+      });
+    });
+
+    refreshProfile();
+    setShowBackModalStep(0);
+    setTimeout(() => {
+      if (blocker.state === "blocked") {
+        blocker.proceed();
+      } else {
+        navigate(-1);
+      }
+    }, 300); // small delay to let toast appear and modal close
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex flex-col items-center justify-center">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-          <MapPin className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-emerald-500" />
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 pb-12">
+        <PageHeaderSkeleton />
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 space-y-8 -mt-10 relative z-20">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              {/* Prices Skeleton */}
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+            <div className="lg:col-span-1 space-y-6">
+              {/* Trust Score & Actions Skeleton */}
+              <div className="bg-white dark:bg-neutral-900 rounded-3xl p-6 border-2 border-gray-100 dark:border-neutral-800 shadow-xl space-y-6">
+                <div className="flex items-center gap-3">
+                  <CardSkeleton className="w-12 h-12 rounded-xl" />
+                  <CardSkeleton className="h-6 w-32" />
+                </div>
+                <CardSkeleton className="h-14 w-full rounded-2xl" />
+                <CardSkeleton className="h-14 w-full rounded-2xl" />
+              </div>
+            </div>
+          </div>
+          {/* Chart History Skeleton */}
+          <ChartSkeleton />
         </div>
-        <p className="mt-4 text-muted-foreground font-medium animate-pulse">Loading station details...</p>
       </div>
     );
   }
@@ -274,6 +357,34 @@ export function StationDetail() {
         cancelText="Cancel"
         type="warning"
       />
+      <ConfirmationModal
+        isOpen={showBackModalStep === 1}
+        onClose={handleSkipConfirmation}
+        onConfirm={() => setShowBackModalStep(2)}
+        title="Confirm Station Prices?"
+        message={
+          isAuthenticated 
+            ? "Do you want to confirm if the prices are correct in this station? This helps improve data reliability and increases your Karma points."
+            : "Do you want to confirm if the prices are correct? You can confirm as a guest, but Karma rewards are only available when signed in."
+        }
+        confirmText="Proceed"
+        cancelText="Skip"
+        type="info"
+      />
+      <ConfirmationModal
+        isOpen={showBackModalStep === 2}
+        onClose={() => setShowBackModalStep(1)}
+        onConfirm={handleFinalConfirm}
+        title="Are you sure?"
+        message={
+          isAuthenticated
+            ? "Are you sure you want to confirm these station prices as reliable? Karma points will be added to your profile."
+            : "Are you sure? You are confirming as an anonymous guest. Your contribution helps the community, but you won't earn Karma points."
+        }
+        confirmText="Yes, Confirm Prices"
+        cancelText="Cancel"
+        type="info"
+      />
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20 lg:pb-8">
       {/* Compact Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-4 pb-3 sm:pt-5 sm:pb-4 lg:pt-6 lg:pb-5 px-4 sm:px-5 lg:px-8 relative overflow-hidden">
@@ -323,7 +434,7 @@ export function StationDetail() {
             </div>
           </div>
 
-          {/* Metadata + Accuracy Row */}
+          {/* Metadata + Trust Score Row */}
           <div className="flex items-center justify-between gap-2 sm:gap-3 text-xs sm:text-sm text-white/90 font-medium drop-shadow-sm">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <div className="flex items-center gap-1">
@@ -337,11 +448,11 @@ export function StationDetail() {
               </div>
             </div>
             
-            {/* Accuracy Badge */}
+            {/* Trust Score Badge */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 bg-white/15 backdrop-blur-md rounded-full border border-white/20 flex-shrink-0">
               <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" strokeWidth={2.5} />
               <span className="font-bold text-white text-xs sm:text-sm whitespace-nowrap">
-                {station.prices?.length > 0 ? (station.accuracy || 100) : 0}%
+                {station.prices?.length > 0 ? (station.trustScore || station.accuracy || 100) : 0}%
               </span>
             </div>
           </div>
@@ -398,53 +509,35 @@ export function StationDetail() {
                           </div>
                         ) : null}
                       </div>
-                      <div className="flex items-center gap-2">
-                        {fuel.trend === "up" ? (
-                          <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                      <div className="flex items-center gap-2 mt-1">
+                        {typeof fuel.change === 'number' && fuel.change !== 0 ? (
+                          fuel.trend === "up" ? (
+                            <>
+                              <TrendingUp className="w-5 h-5 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                              <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                                ₱{Math.abs(fuel.change).toFixed(2)} higher
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
+                                ₱{Math.abs(fuel.change).toFixed(2)} lower
+                              </span>
+                            </>
+                          )
+                        ) : typeof fuel.change === 'number' && fuel.change === 0 ? (
+                          <span className="text-sm font-bold text-muted-foreground">No change</span>
                         ) : (
-                          <TrendingDown className="w-5 h-5 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                          <span className="text-sm font-bold text-muted-foreground">No previous data</span>
                         )}
-                        <span
-                          className={`text-sm font-bold ${
-                            fuel.trend === "up" ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-500"
-                          }`}
-                        >
-                          ₱{Math.abs(fuel.change || 0).toFixed(2)}{" "}
-                          {fuel.trend === "up" ? "higher" : "lower"}
-                        </span>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-4xl font-bold text-foreground tracking-tighter mb-1">
-                        ₱{fuel.price.toFixed(2)}
+                        {formatPrice(fuel.price)}
                       </div>
                       <div className="text-sm text-muted-foreground/70 font-semibold mb-3">per liter</div>
-                      {(() => {
-                        const isConfirmed = !!sessionStorage.getItem(`confirmed_price_${user?.id}_${fuel.id}`) || 
-                                            myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
-                        return (
-                          <button
-                            onClick={() => handleConfirmPrice(fuel)}
-                            disabled={confirmPriceMutation.isPending || isConfirmed}
-                            className={`flex items-center justify-end gap-1.5 w-full font-medium text-sm transition-all group ${
-                              isConfirmed
-                                ? "text-emerald-500 cursor-default opacity-80"
-                                : "text-emerald-600 dark:text-emerald-500 hover:text-emerald-700 active:scale-95"
-                            }`}
-                          >
-                            {confirmPriceMutation.isPending && confirmPriceMutation.variables === fuel.id ? (
-                              <div className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                            ) : isConfirmed ? (
-                              <CheckCircle2 className="w-4 h-4 fill-emerald-500 text-white" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            )}
-                            <span>
-                              Confirm ({fuel.confirmations || 0})
-                            </span>
-                          </button>
-                        );
-                      })()}
                     </div>
                   </div>
                 ))}
@@ -465,7 +558,7 @@ export function StationDetail() {
                     </div>
                   </div>
                   <div className="font-bold text-foreground text-2xl mb-2 tracking-tight">
-                    {station.prices?.length > 0 ? (station.accuracy || 100) : 0}% Accuracy
+                    {station.prices?.length > 0 ? (station.trustScore || station.accuracy || 100) : 0}% Trust Score
                   </div>
                   <div className="text-sm text-muted-foreground/80 font-medium">
                     {station.prices?.length > 0 
@@ -477,10 +570,22 @@ export function StationDetail() {
 
               <div className="space-y-3">
                 <button
-                  onClick={() => navigate(`/app/update-price/${id}`)}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-2xl font-bold text-base shadow-2xl shadow-emerald-500/50 transition-all border-2 border-emerald-400/30"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      setShowAuthPrompt(true);
+                    } else if (isKarmaBlocked) {
+                      toast.error("Your Karma is currently negative. You cannot update fuel prices.");
+                    } else {
+                      navigate(`/app/update-price/${id}`);
+                    }
+                  }}
+                  className={`w-full px-6 py-4 rounded-2xl font-bold text-base shadow-2xl transition-all border-2 ${
+                    isKarmaBlocked 
+                      ? "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border-gray-200 dark:border-neutral-700 cursor-not-allowed"
+                      : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-emerald-500/50 border-emerald-400/30"
+                  }`}
                 >
-                  Update Fuel Price
+                  {isKarmaBlocked ? "Action Blocked (Negative Karma)" : "Update Fuel Price"}
                 </button>
                 {/* Report Price removed — use Update Fuel Price flow instead */}
                 <button
@@ -496,7 +601,7 @@ export function StationDetail() {
         </div>
       </div>
 
-      {/* Mobile Accuracy Summary */}
+      {/* Mobile Trust Score Summary */}
       <div className="lg:hidden px-4 sm:px-5 py-3 sm:py-4 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border-b border-emerald-200 dark:border-emerald-800/40">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -505,7 +610,7 @@ export function StationDetail() {
             </div>
             <div>
               <div className="font-bold text-foreground text-sm">
-                {station.prices?.length > 0 ? (station.accuracy || 100) : 0}% Accuracy
+                {station.prices?.length > 0 ? (station.trustScore || station.accuracy || 100) : 0}% Trust Score
               </div>
               <div className="text-xs text-muted-foreground font-medium">
                 {station.prices?.length > 0 
@@ -547,47 +652,35 @@ export function StationDetail() {
                           </div>
                         ) : null}
                       </div>
-                    <div className="flex items-center gap-2">
-                      {fuel.trend === "up" ? (
-                        <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                    <div className="flex items-center gap-2 mt-1">
+                      {typeof fuel.change === 'number' && fuel.change !== 0 ? (
+                        fuel.trend === "up" ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-400" strokeWidth={2.5} />
+                            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                              ₱{Math.abs(fuel.change).toFixed(2)} higher
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-500">
+                              ₱{Math.abs(fuel.change).toFixed(2)} lower
+                            </span>
+                          </>
+                        )
+                      ) : typeof fuel.change === 'number' && fuel.change === 0 ? (
+                        <span className="text-sm font-bold text-muted-foreground">No change</span>
                       ) : (
-                        <TrendingDown className="w-4 h-4 text-emerald-600 dark:text-emerald-500" strokeWidth={2.5} />
+                        <span className="text-sm font-bold text-muted-foreground">No previous data</span>
                       )}
-                      <span className={`text-sm font-bold ${fuel.trend === "up" ? "text-rose-600" : "text-emerald-600"}`}>
-                        ₱{Math.abs(fuel.change || 0).toFixed(2)} {fuel.trend === "up" ? "higher" : "lower"}
-                      </span>
                     </div>
                 </div>
                 <div className="text-right flex flex-col items-end">
                   <div className="text-3xl font-bold text-foreground tracking-tighter mb-1">
-                    ₱{fuel.price.toFixed(2)}
+                    {formatPrice(fuel.price)}
                   </div>
-                  {(() => {
-                    const isConfirmed = !!sessionStorage.getItem(`confirmed_price_${user?.id}_${fuel.id}`) || 
-                                        myContributions.some(c => c.type === "Confirmed" && c.price_report_id === fuel.id);
-                    return (
-                      <button
-                        onClick={() => handleConfirmPrice(fuel)}
-                        disabled={confirmPriceMutation.isPending || isConfirmed}
-                        className={`flex items-center gap-1.5 font-medium text-sm transition-all ${
-                          isConfirmed
-                            ? "text-emerald-500 opacity-80"
-                            : "text-emerald-600 dark:text-emerald-500 active:scale-95"
-                        }`}
-                      >
-                        {confirmPriceMutation.isPending && confirmPriceMutation.variables === fuel.id ? (
-                          <div className="w-4 h-4 border-2 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-                        ) : isConfirmed ? (
-                          <CheckCircle2 className="w-4 h-4 fill-emerald-500 text-white" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4" />
-                        )}
-                        <span>
-                          Confirm ({fuel.confirmations || 0})
-                        </span>
-                      </button>
-                    );
-                  })()}
+                  <div className="text-xs text-muted-foreground/70 font-semibold mb-1">per liter</div>
                 </div>
               </div>
             </div>
@@ -596,10 +689,22 @@ export function StationDetail() {
 
         <div className="mt-6 space-y-3">
           <button
-            onClick={() => navigate(`/app/update-price/${id}`)}
-            className="w-full px-6 py-4 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white rounded-2xl font-bold text-base shadow-2xl shadow-emerald-500/50 transition-all border-2 border-emerald-400/30"
+            onClick={() => {
+              if (!isAuthenticated) {
+                setShowAuthPrompt(true);
+              } else if (isKarmaBlocked) {
+                toast.error("Your Karma is currently negative. You cannot update fuel prices.");
+              } else {
+                navigate(`/app/update-price/${id}`);
+              }
+            }}
+            className={`w-full px-6 py-4 rounded-2xl font-bold text-base shadow-2xl transition-all border-2 ${
+              isKarmaBlocked 
+                ? "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border-gray-200 dark:border-neutral-700 cursor-not-allowed"
+                : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-emerald-500/50 border-emerald-400/30"
+            }`}
           >
-            Update Fuel Price
+            {isKarmaBlocked ? "Blocked (Negative Karma)" : "Update Fuel Price"}
           </button>
           {/* Report Price removed — use Update Fuel Price flow instead */}
           <button

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isValidUrl } from "../../lib/supabase";
+import { KarmaService } from "../../lib/karmaService";
 
 const AuthContext = createContext();
 
@@ -17,9 +18,9 @@ export function AuthProvider({ children }) {
             email: 'user@fuelwatch.ph',
             name: 'FuelWatch Explorer',
             initials: 'FE',
-            contributionCount: 142,
-            accuracy: 98,
-            points: 2500,
+            contributionCount: (142 + KarmaService.getContributions().length),
+            trustScore: KarmaService.getTrustScore(),
+            karma: KarmaService.getKarma(),
             rank: 'Gold Contributor'
           });
           setLoading(false);
@@ -47,7 +48,8 @@ export function AuthProvider({ children }) {
               setUser(prev => ({
                 ...prev,
                 ...profile,
-                points: profile?.reputation || 0,
+                karma: (profile?.reputation || profile?.points || 0) + KarmaService.getContributions().reduce((acc, c) => acc + c.karmaImpact, 0),
+                trustScore: KarmaService.getTrustScore(), // Use the combined calculation
                 avatar_url: profile?.avatar_url || prev?.avatar_url,
                 bio: profile?.bio || "",
                 initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
@@ -88,8 +90,26 @@ export function AuthProvider({ children }) {
       }
       setLoading(false);
     });
+    
+    // Listen for local Karma updates
+    const handleStorageChange = () => {
+      setUser(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          karma: KarmaService.getKarma(),
+          trustScore: KarmaService.getTrustScore(),
+          contributionCount: (prev.total_updates || 0) + KarmaService.getContributions().length
+        };
+      });
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const refreshProfile = async () => {
@@ -113,7 +133,8 @@ export function AuthProvider({ children }) {
         return {
           ...prev,
           ...profile,
-          points: profile?.points || profile?.reputation || 0,
+          karma: profile?.points || profile?.reputation || 0,
+          trustScore: profile?.accuracy || 0,
           avatar_url: profile?.avatar_url || prev?.avatar_url,
           bio: profile?.bio || "",
           initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),

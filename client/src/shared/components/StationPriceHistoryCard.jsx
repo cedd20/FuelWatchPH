@@ -18,9 +18,10 @@ import {
   STATION_PRICE_HISTORY_EVENT,
   getStationPriceHistoryFuelTypes,
 } from "@/shared/utils/stationPriceHistory";
+import { formatPrice } from "@/shared/utils/priceUtils";
 
 function formatPeso(value) {
-  return `₱${Number(value).toFixed(2)}/L`;
+  return `${formatPrice(value)}/L`;
 }
 
 function PriceHistoryTooltip({ active, payload, label }) {

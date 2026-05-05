@@ -1,4 +1,6 @@
 import { getBrandLogo, getAcronym } from "../utils/brandMapping";
+import { formatPrice, isValidPrice } from "../utils/priceUtils";
+import { Info } from "lucide-react";
 
 export function BrandLogoPin({
   brandName,
@@ -14,6 +16,7 @@ export function BrandLogoPin({
 
   // Determine border color based on price level
   const getBorderColor = () => {
+    if (!isValidPrice(price)) return "border-gray-400 dark:border-neutral-600";
     if (price <= avgPrice * 0.98) return "border-emerald-500"; // Low
     if (price >= avgPrice * 1.02) return "border-rose-500"; // High
     return "border-yellow-500"; // Average
@@ -45,9 +48,20 @@ export function BrandLogoPin({
         )}
       </button>
       {showPrice && (
-        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md ${isSelected ? "bg-emerald-500 text-white" : "bg-white dark:bg-neutral-800 text-foreground border border-gray-200 dark:border-neutral-700"}`}>
-          ₱{price.toFixed(2)}
-        </div>
+        isValidPrice(price) ? (
+          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-md ${isSelected ? "bg-emerald-500 text-white" : "bg-white dark:bg-neutral-800 text-foreground border border-gray-200 dark:border-neutral-700"}`}>
+            {formatPrice(price)}
+          </div>
+        ) : (
+          <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold shadow-sm flex items-center gap-1 border transition-all ${
+            isSelected 
+              ? "bg-gray-100 dark:bg-neutral-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-neutral-600 shadow-md scale-110" 
+              : "bg-gray-50/90 dark:bg-neutral-900/90 text-gray-500 dark:text-neutral-400 border-gray-200 dark:border-neutral-800"
+          }`}>
+            <Info className="w-2.5 h-2.5 opacity-70" />
+            <span>No Data</span>
+          </div>
+        )
       )}
     </div>
   );

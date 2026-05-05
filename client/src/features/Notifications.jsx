@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { useNotifications } from "@/hooks/useUsers";
 import { useAuth } from "@/app/providers/AuthContext";
+import { PageHeaderSkeleton, Skeleton } from "@/shared/components/Skeleton";
 import { api as apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -79,9 +80,20 @@ export function Notifications() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8 text-center">
-        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-        <p className="text-muted-foreground font-medium animate-pulse">Checking for updates...</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 pb-12">
+        <PageHeaderSkeleton />
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 space-y-6 -mt-10 relative z-20">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-white dark:bg-neutral-900 p-6 lg:p-8 rounded-3xl border-2 border-gray-100 dark:border-neutral-800 shadow-xl flex gap-5 lg:gap-7">
+              <Skeleton className="w-12 h-12 lg:w-16 lg:h-16 rounded-2xl flex-shrink-0" />
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-6 w-1/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

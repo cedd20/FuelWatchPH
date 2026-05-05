@@ -16,6 +16,8 @@ import { getCitiesSortedByProximity } from "@/shared/utils/philippineCities";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { api } from "@/lib/apiClient";
 import { useQueryClient } from "@tanstack/react-query";
+import { isValidPrice } from "@/shared/utils/priceUtils";
+import { StationCardSkeleton, Skeleton } from "@/shared/components/Skeleton";
 import { toast } from "sonner";
 
 const MAP_STATE_KEY = "fuelwatch_map_state";
@@ -97,6 +99,27 @@ function buildActiveFilterLabels(filters) {
   return labels;
 }
 
+// Map Events component extracted outside to prevent infinite unmount/remount loops
+function MapEvents({ onMoveStart, onMoveEnd, onBoundsChange }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    // Set initial bounds once map is ready
+    if (onBoundsChange) onBoundsChange(map.getBounds());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map]);
+  
+  useMapEvents({
+    movestart: () => {
+      if (onMoveStart) onMoveStart();
+    },
+    moveend: () => {
+      if (onMoveEnd) onMoveEnd(map.getCenter(), map.getBounds());
+    },
+  });
+  return null;
+}
+
 export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -112,17 +135,16 @@ export function Map() {
   const [appliedFilters, setAppliedFilters] = useState(null); // Used for actual data filtering
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [userLocation, setUserLocation] = useState(null);
+  const [visibleBounds, setVisibleBounds] = useState(null);
+  const [isUpdatingMap, setIsUpdatingMap] = useState(false);
   const mapRef = useRef(null);
   const lastSyncPos = useRef(null);
   const syncTimeoutRef = useRef(null);
 
-  // Fetch real stations from backend
+  // Fetch real stations from backend (No GPS limits, fetch all to allow seamless map panning)
   const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
     city: appliedFilters?.location === "city" ? appliedFilters.selectedCity : undefined,
     fuel_type: selectedFuelType !== "All" ? selectedFuelType : undefined,
-    lat: userLocation?.[0],
-    lng: userLocation?.[1],
-    radius_km: appliedFilters?.location === "nearby" ? appliedFilters.radius : undefined,
   });
 
   // Process stations for UI components
@@ -245,34 +267,27 @@ export function Map() {
     handlePreciseLocation(true);
   }, []);
 
-  // Map Events component to catch moveend
-  function MapEvents() {
-    const map = useMap();
+  const handleMoveEnd = (center, bounds) => {
+    const pos = [center.lat, center.lng];
+    setMapMoveCenter(pos);
+    setVisibleBounds(bounds);
+    setIsUpdatingMap(false);
     
-    useMapEvents({
-      moveend: () => {
-        const center = map.getCenter();
-        const pos = [center.lat, center.lng];
-        setMapMoveCenter(pos);
-        
-        // Check if moved far enough from last sync (> 1.5km)
-        const dist = lastSyncPos.current 
-          ? calculateDistance(lastSyncPos.current[0], lastSyncPos.current[1], pos[0], pos[1])
-          : 999;
+    // Check if moved far enough from last sync (> 1.5km)
+    const dist = lastSyncPos.current 
+      ? calculateDistance(lastSyncPos.current[0], lastSyncPos.current[1], pos[0], pos[1])
+      : 999;
 
-        if (dist > 1.5) {
-          // Show search button but also trigger automatic throttled sync
-          setShowSyncButton(true);
-          
-          if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
-          syncTimeoutRef.current = setTimeout(() => {
-            handleOSMSync(true); // silent sync
-          }, 2000);
-        }
-      },
-    });
-    return null;
-  }
+    if (dist > 1.5) {
+      // Show search button but also trigger automatic throttled sync
+      setShowSyncButton(true);
+      
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = setTimeout(() => {
+        handleOSMSync(true); // silent sync
+      }, 2000);
+    }
+  };
 
   const handleOSMSync = async (silent = false) => {
     const target = mapMoveCenter;
@@ -295,19 +310,30 @@ export function Map() {
     }
   };
 
-  // Calculate average price for the selected fuel type
+  // Calculate price for the selected fuel type
   const getStationPrice = (station) => {
     if (selectedFuelType === "All") {
-      const prices = station.prices?.map(p => p.price) || [];
-      return prices.length > 0 ? Math.min(...prices) : 0;
+      const prices = station.prices
+        ?.map(p => Number(p.price))
+        .filter(p => isValidPrice(p)) || [];
+      return prices.length > 0 ? Math.min(...prices) : null;
     }
     const fuelPrice = station.prices?.find((p) => p.type === selectedFuelType);
-    return fuelPrice?.price || 0;
+    const price = Number(fuelPrice?.price);
+    return isValidPrice(price) ? price : null;
   };
 
   // --------------------------------------------------------
   // FILTERING LOGIC
   // --------------------------------------------------------
+  
+  // Determine if the user is actively panning away from their GPS location
+  const distFromMapCenterToGPS = userLocation && mapMoveCenter 
+    ? calculateDistance(userLocation[0], userLocation[1], mapMoveCenter[0], mapMoveCenter[1]) 
+    : 0;
+  // If the map center is more than 1km away from GPS, consider it manual browsing
+  const isBrowsingManually = distFromMapCenterToGPS > 1;
+
   const filteredStations = stations.map(station => {
     // Add dynamic distance calculation if userLocation is available
     const distance = userLocation 
@@ -324,50 +350,59 @@ export function Map() {
     }
     
     // 2. Selected Fuel Type (Main Header Tabs)
-    // Always show stations with no prices — only filter stations that HAVE prices but lack the selected type
     if (selectedFuelType !== "All" && station.prices.length > 0) {
-      const hasFuel = station.prices.some(p => p.type === selectedFuelType);
+      const hasFuel = station.prices.some(p => p.type === selectedFuelType && isValidPrice(p.price));
       if (!hasFuel) return false;
     }
 
-    // 3. Radius vs City Logic (Priority: City > Nearby)
-    const locationMode = appliedFilters?.location || "nearby";
-    if (locationMode === "city" && appliedFilters?.selectedCity) {
-      const cityMatch = station.city === appliedFilters.selectedCity || 
-                        station.address?.toLowerCase().includes(appliedFilters.selectedCity.toLowerCase());
-      if (!cityMatch) return false;
-    } else {
-      // Nearby mode (default)
-      const radiusVal = appliedFilters?.radius || "20";
-      if (radiusVal !== "all") {
-        const radiusLimit = parseFloat(radiusVal);
-        // Only apply radius if userLocation is known, otherwise show all
-        if (userLocation && station.distance > radiusLimit) return false;
+    // 3. Viewport Boundary Check (Performance optimization to prevent crashing map with too many markers)
+    // Only apply if there's no active City filter or Search query (we want them to find stuff off-screen if explicitly searched)
+    if (!searchQuery && appliedFilters?.location !== "city" && visibleBounds) {
+      const inBounds = visibleBounds.contains([station.lat, station.lng]);
+      if (!inBounds) return false;
+    }
+
+    // 4. Radius vs City Logic (Priority: City > Nearby)
+    if (appliedFilters) {
+      const locationMode = appliedFilters.location || "nearby";
+      if (locationMode === "city" && appliedFilters.selectedCity) {
+        const cityMatch = station.city === appliedFilters.selectedCity || 
+                          station.address?.toLowerCase().includes(appliedFilters.selectedCity.toLowerCase());
+        if (!cityMatch) return false;
+      } else if (locationMode === "nearby") {
+        // Only apply radius if explicitly defined in the active filters
+        const radiusVal = appliedFilters.radius || "all";
+        if (radiusVal !== "all") {
+          const radiusLimit = parseFloat(radiusVal);
+          // If the user manually browses away from GPS, ignore the GPS radius restriction
+          if (userLocation && !isBrowsingManually && station.distance > radiusLimit) return false;
+        }
+      }
+
+      // 5. Sheet Filters (Brands / Verified / Fuel)
+      if (appliedFilters.brands?.length > 0) {
+        if (!appliedFilters.brands.includes(station.brand)) return false;
+      }
+      
+      if (appliedFilters.verifiedOnly) {
+        if (!station.verified) return false;
+      }
+      
+      if (appliedFilters.fuelTypes?.length > 0) {
+        const hasAnySelectedFuel = station.prices.some(p => appliedFilters.fuelTypes.includes(p.type));
+        if (!hasAnySelectedFuel) return false;
       }
     }
 
-    if (!appliedFilters) return true;
-
-    // 4. Sheet Filters (Brands / Verified / Fuel)
-    if (appliedFilters.brands?.length > 0) {
-      if (!appliedFilters.brands.includes(station.brand)) return false;
-    }
-    
-    if (appliedFilters.verifiedOnly) {
-      if (!station.verified) return false;
-    }
-    
-    // fuelTypes from filter sheet (must have AT LEAST ONE of the selected fuels)
-    if (appliedFilters.fuelTypes?.length > 0) {
-      const hasAnySelectedFuel = station.prices.some(p => appliedFilters.fuelTypes.includes(p.type));
-      if (!hasAnySelectedFuel) return false;
-    }
-
     return true;
-  });
+  }).sort((a, b) => a.distance - b.distance);
 
-  const avgPrice = filteredStations.length > 0 
-    ? filteredStations.reduce((sum, station) => sum + getStationPrice(station), 0) / filteredStations.length 
+  const stationsWithPrices = filteredStations
+    .map(s => getStationPrice(s))
+    .filter(p => p !== null);
+
+  const avgPrice = stationsWithPrices.length > 0 
+    ? stationsWithPrices.reduce((sum, price) => sum + price, 0) / stationsWithPrices.length 
     : 0;
 
   return (
@@ -437,6 +472,14 @@ export function Map() {
           </div>
         )}
 
+        {/* Subtle Map Update Indicator */}
+        <div className={`absolute top-[4.5rem] lg:top-8 left-1/2 -translate-x-1/2 z-20 transition-all duration-300 pointer-events-none ${isUpdatingMap ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+          <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center gap-2">
+            <Loader2 className="w-3.5 h-3.5 text-emerald-500 animate-spin" />
+            <span className="text-xs font-bold text-foreground">Updating visible stations...</span>
+          </div>
+        </div>
+
         {/* Loading overlay — shown while GPS + OSM fetch is in progress */}
         {isLoadingStations && (
           <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
@@ -475,7 +518,11 @@ export function Map() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapEvents />
+            <MapEvents 
+              onMoveStart={() => setIsUpdatingMap(true)}
+              onMoveEnd={handleMoveEnd}
+              onBoundsChange={setVisibleBounds}
+            />
             {filteredStations.map((station) => {
               const price = getStationPrice(station);
               const isSelected = selectedStation === station.id;
@@ -698,18 +745,24 @@ export function Map() {
                 <div className="w-16 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full" />
               </button>
             </div>
-            <div className="space-y-3 overflow-y-auto pb-4">
-              {filteredStations.map((station) => (
-                <StationCard
-                  key={station.id}
-                  {...station}
-                  prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
-                  onClick={() => {
-                    setSelectedStation(station.id);
-                    setShowList(false);
-                  }}
-                />
-              ))}
+            <div className="space-y-3 overflow-y-auto pb-28 pt-2">
+              {isLoading ? (
+                Array(4).fill(0).map((_, i) => (
+                  <StationCardSkeleton key={i} />
+                ))
+              ) : (
+                filteredStations.map((station) => (
+                  <StationCard
+                    key={station.id}
+                    {...station}
+                    prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                    onClick={() => {
+                      setSelectedStation(station.id);
+                      setShowList(false);
+                    }}
+                  />
+                ))
+              )}
             </div>
           </div>
         )}

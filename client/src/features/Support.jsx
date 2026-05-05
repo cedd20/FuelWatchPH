@@ -14,12 +14,12 @@ export function Support() {
       answer: "Find a station on the map, tap on it to view details, and click the 'Update Price' button. Enter the current prices for the fuel types available and submit. Your update will be verified by other users."
     },
     {
-      question: "What are points and how do I earn them?",
-      answer: "You earn points for every verified price update you contribute. Points help increase your 'Contributor Level' and unlock badges like 'Trusted Contributor'."
+      question: "What is Community Karma and how do I earn it?",
+      answer: "You earn Karma for every verified price update you contribute. Karma reflects your standing in the community and helps unlock badges like 'Trusted Contributor'."
     },
     {
       question: "Is the data accurate?",
-      answer: "Our data is crowdsourced and verified by the community. We use algorithms to detect outliers and reward users with high accuracy rates. Always check the 'Updated' timestamp on station details."
+      answer: "Our data is crowdsourced and verified by the community. We use algorithms to detect outliers and reward users with high trust scores. Always check the 'Updated' timestamp on station details."
     },
     {
       question: "How do I report a missing station?",

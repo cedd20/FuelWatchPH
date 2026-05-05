@@ -4,12 +4,15 @@ import { PriceMovementBadge } from "@/shared/components/PriceMovementBadge";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { getCitiesSortedByProximity, PHILIPPINE_CITIES } from "@/shared/utils/philippineCities";
 import { usePriceHistory } from "@/hooks/usePrices";
+import { formatPrice, isValidPrice } from "@/shared/utils/priceUtils";
+import { PageHeaderSkeleton, ChartSkeleton, Skeleton } from "@/shared/components/Skeleton";
 import * as Accordion from "@radix-ui/react-accordion";
 
 const GAS_HISTORY_STATE_KEY = "fuelwatch_gas_history_state";
 
 // Fuel type mapping
 const fuelTypeMap = {
+  "All": "all",
   "Diesel": "diesel",
   "Premium Diesel": "premiumDiesel",
   "Unleaded 91": "unleaded91",
@@ -56,7 +59,7 @@ function saveStoredHistoryState(state) {
 
 export function GasHistory() {
   const [timeRange, setTimeRange] = useState("1M");
-  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
+  const [selectedFuelType, setSelectedFuelType] = useState("All");
   const [locationMode, setLocationMode] = useState("Nationwide");
   const [selectedCity, setSelectedCity] = useState("");
   const [userLocation, setUserLocation] = useState(null);
@@ -77,7 +80,7 @@ export function GasHistory() {
   const { data: historyData = [], isLoading } = usePriceHistory({
     location: locationMode,
     city: locationMode === "By City" ? selectedCity : undefined,
-    fuel_type: selectedFuelType,
+    fuel_type: selectedFuelType === "All" ? undefined : selectedFuelType,
   });
 
   // ALL hooks must be declared unconditionally before any early returns (Rules of Hooks)
@@ -96,9 +99,36 @@ export function GasHistory() {
   // Early returns AFTER all hooks — this is now safe (Rules of Hooks compliant)
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 flex flex-col items-center justify-center p-8">
-        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
-        <p className="text-muted-foreground font-medium animate-pulse">Loading historical trends...</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900 pb-12">
+        <PageHeaderSkeleton />
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 space-y-8 -mt-10 relative z-20">
+          {/* KPI Card Skeleton */}
+          <div className="bg-white dark:bg-neutral-900 rounded-3xl p-8 border-2 border-gray-100 dark:border-neutral-800 shadow-xl space-y-4">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-12 h-12 rounded-xl" />
+              <Skeleton className="h-6 w-48" />
+            </div>
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-6 w-32 rounded-full" />
+          </div>
+
+          {/* Chart Skeleton */}
+          <ChartSkeleton />
+
+          {/* List Skeleton */}
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-48 mb-6" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-800 flex justify-between items-center">
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-10 w-24 rounded-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -214,16 +244,40 @@ export function GasHistory() {
 
                 <div className="relative z-10">
                   <div className="flex items-center gap-2.5 mb-4">
-                    <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: `${fuelTypeColors[selectedFuelType]}20` }}>
-                      <Fuel className="w-5 h-5 lg:w-6 lg:h-6" style={{ color: fuelTypeColors[selectedFuelType] }} strokeWidth={2.5} />
+                    <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: selectedFuelType === "All" ? "#10B98120" : `${fuelTypeColors[selectedFuelType]}20` }}>
+                      <Fuel className="w-5 h-5 lg:w-6 lg:h-6" style={{ color: selectedFuelType === "All" ? "#10B981" : fuelTypeColors[selectedFuelType] }} strokeWidth={2.5} />
                     </div>
-                    <div className="text-sm lg:text-base font-bold text-muted-foreground tracking-tight">{selectedFuelType} Average</div>
+                    <div className="text-sm lg:text-base font-bold text-muted-foreground tracking-tight">{selectedFuelType === "All" ? "Overall Community" : selectedFuelType} Average</div>
                   </div>
                   <div className="text-4xl lg:text-5xl font-bold text-foreground mb-3 tracking-tighter">
-                    ₱{latestHistoryPoint.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
+                    {selectedFuelType === "All" ? (
+                      <>
+                        {(() => {
+                          const values = Object.values(latestHistoryPoint.averages).filter(v => isValidPrice(v));
+                          if (values.length === 0) return "No Data";
+                          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                          return formatPrice(avg) + "/L";
+                        })()}
+                      </>
+                    ) : (
+                      <>{formatPrice(latestHistoryPoint.averages[fuelTypeMap[selectedFuelType]])}/L</>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <PriceMovementBadge change={getPriceChange(visibleHistoryData, 0, selectedFuelType)} />
+                    <PriceMovementBadge change={
+                      selectedFuelType === "All" 
+                        ? (() => {
+                            const currentValues = Object.values(visibleHistoryData[0].averages).filter(v => isValidPrice(v));
+                            const currentAvg = currentValues.length > 0 ? currentValues.reduce((a,b)=>a+b,0) / currentValues.length : 0;
+                            const prevWeek = visibleHistoryData[1];
+                            const prevValues = prevWeek ? Object.values(prevWeek.averages).filter(v => isValidPrice(v)) : [];
+                            const prevAvg = prevValues.length > 0 
+                              ? prevValues.reduce((a,b)=>a+b,0) / prevValues.length
+                              : currentAvg;
+                            return currentAvg - prevAvg;
+                          })()
+                        : getPriceChange(visibleHistoryData, 0, selectedFuelType)
+                    } />
                     <div className="text-sm lg:text-base text-muted-foreground/80 font-medium">This week</div>
                   </div>
                 </div>
@@ -262,11 +316,23 @@ export function GasHistory() {
                   <div className="relative h-72 lg:h-96 mb-3 lg:mb-4">
                     <svg className="w-full h-full" viewBox="0 0 380 280">
                       {(() => {
-                        const fuelKey = fuelTypeMap[selectedFuelType];
                         const chartPoints = [...visibleHistoryData].reverse();
-                        const prices = chartPoints.map(d => d.averages[fuelKey]);
-                        const minPrice = Math.min(...prices) * 0.98;
-                        const maxPrice = Math.max(...prices) * 1.02;
+                        const activeFuels = selectedFuelType === "All" 
+                          ? Object.keys(fuelTypeColors) 
+                          : [selectedFuelType];
+
+                        // Calculate global min/max for scaling
+                        let allPrices = [];
+                        activeFuels.forEach(fuel => {
+                          const fuelKey = fuelTypeMap[fuel];
+                          chartPoints.forEach(d => {
+                            const p = d.averages[fuelKey];
+                            if (isValidPrice(p)) allPrices.push(Number(p));
+                          });
+                        });
+
+                        const minPrice = allPrices.length > 0 ? Math.min(...allPrices) * 0.98 : 40;
+                        const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) * 1.02 : 100;
                         const range = maxPrice - minPrice || 1;
 
                         // Calculate Y-axis labels
@@ -306,48 +372,63 @@ export function GasHistory() {
                                   className="text-[10px] fill-current text-muted-foreground"
                                   textAnchor="end"
                                 >
-                                  ₱{label.toFixed(1)}
+                                  ₱{label.toFixed(0)}
                                 </text>
                               );
                             })}
 
-                            {/* Line */}
-                            <polyline
-                              points={chartPoints.map((d, i) => {
-                                const price = d.averages[fuelKey];
-                                const y = 250 - ((price - minPrice) / range) * 200;
-                                const x = 90 + (i * 90);
-                                return `${x},${y}`;
-                              }).join(" ")}
-                              fill="none"
-                              stroke={fuelTypeColors[selectedFuelType]}
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-
-                            {/* Data points */}
-                            {chartPoints.map((d, i) => {
-                              const price = d.averages[fuelKey];
-                              const y = 250 - ((price - minPrice) / range) * 200;
-                              const x = 90 + (i * 90);
+                            {/* Lines for each fuel type */}
+                            {activeFuels.map((fuel) => {
+                              const fuelKey = fuelTypeMap[fuel];
+                              const color = fuelTypeColors[fuel];
+                              
                               return (
-                                <circle
-                                  key={i}
-                                  cx={x}
-                                  cy={y}
-                                  r="4"
-                                  fill={fuelTypeColors[selectedFuelType]}
-                                  stroke="white"
-                                  strokeWidth="2"
-                                  className="cursor-pointer hover:r-6 transition-all"
-                                />
+                                <g key={fuel}>
+                                  {/* Line */}
+                                  <polyline
+                                    points={chartPoints.map((d, i) => {
+                                      const price = d.averages[fuelKey];
+                                      if (!isValidPrice(price)) return null;
+                                      const y = 250 - ((price - minPrice) / range) * 200;
+                                      const x = 90 + (i * 90);
+                                      return `${x},${y}`;
+                                    }).filter(p => p !== null).join(" ")}
+                                    fill="none"
+                                    stroke={color}
+                                    strokeWidth={selectedFuelType === "All" ? "2" : "4"}
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="transition-all duration-500"
+                                  />
+
+                                  {/* Data points */}
+                                  {chartPoints.map((d, i) => {
+                                    const price = d.averages[fuelKey];
+                                    if (!isValidPrice(price)) return null;
+                                    const y = 250 - ((price - minPrice) / range) * 200;
+                                    const x = 90 + (i * 90);
+                                    return (
+                                      <circle
+                                        key={i}
+                                        cx={x}
+                                        cy={y}
+                                        r={selectedFuelType === "All" ? "3" : "5"}
+                                        fill={color}
+                                        stroke="white"
+                                        strokeWidth="1.5"
+                                        className="cursor-pointer hover:r-6 transition-all"
+                                      >
+                                        <title>{fuel}: {formatPrice(price)} ({d.date})</title>
+                                      </circle>
+                                    );
+                                  })}
+                                </g>
                               );
                             })}
 
                             {/* X-axis labels */}
                             {chartPoints.map((d, i) => (
-                              <text key={i} x={90 + (i * 90)} y="268" className="text-[11px] fill-current text-muted-foreground" textAnchor="middle">
+                              <text key={i} x={90 + (i * 90)} y="268" className="text-[11px] font-bold fill-current text-muted-foreground" textAnchor="middle">
                                 {d.date}
                               </text>
                             ))}
@@ -358,11 +439,13 @@ export function GasHistory() {
                   </div>
 
                   {/* Legend */}
-                  <div className="flex items-center justify-center gap-2 pt-2">
-                    <div className="flex items-center gap-2 px-3 py-1.5 lg:px-4 lg:py-2 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md rounded-full border border-white/40 dark:border-neutral-700/40 shadow-md">
-                      <div className="w-3 h-3 lg:w-4 lg:h-4 rounded-full shadow-lg" style={{ backgroundColor: fuelTypeColors[selectedFuelType] }} />
-                      <span className="text-xs lg:text-sm font-semibold text-muted-foreground">{selectedFuelType}</span>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                    {(selectedFuelType === "All" ? Object.keys(fuelTypeColors) : [selectedFuelType]).map(fuel => (
+                      <div key={fuel} className="flex items-center gap-2 px-3 py-1.5 bg-white/60 dark:bg-neutral-800/60 backdrop-blur-md rounded-full border border-white/40 dark:border-neutral-700/40 shadow-sm">
+                        <div className="w-2.5 h-2.5 rounded-full shadow-lg" style={{ backgroundColor: fuelTypeColors[fuel] }} />
+                        <span className="text-[10px] lg:text-xs font-bold text-muted-foreground">{fuel}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -388,16 +471,54 @@ export function GasHistory() {
                               <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" strokeWidth={2.5} />
                             </div>
                             <div className="text-sm">
-                              <span className="text-muted-foreground font-medium">
-                                {selectedFuelType}: <span className="text-foreground font-bold">₱{weekData.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}/L</span>
-                              </span>
+                              {selectedFuelType === "All" ? (
+                                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                                  {Object.entries(weekData.averages).map(([key, value]) => {
+                                    const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key);
+                                    if (!fuelName || fuelName === "All" || !isValidPrice(value)) return null;
+                                    return (
+                                      <span key={key} className="text-[10px] lg:text-xs font-bold text-muted-foreground">
+                                        {fuelName.split(' ')[0]}: <span className="text-foreground">{formatPrice(value)}</span>
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground font-medium">
+                                  {selectedFuelType}: <span className="text-foreground font-bold">{formatPrice(weekData.averages[fuelTypeMap[selectedFuelType]])}/L</span>
+                                </span>
+                              )}
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <PriceMovementBadge change={getPriceChange(visibleHistoryData, index, selectedFuelType)} />
+                            <PriceMovementBadge change={
+                              selectedFuelType === "All"
+                                ? (() => {
+                                    const vals = Object.values(weekData.averages).filter(v => isValidPrice(v));
+                                    const currentAvg = vals.length > 0 ? vals.reduce((a,b)=>a+b,0) / vals.length : 0;
+                                    const prevWeek = visibleHistoryData[index + 1];
+                                    const prevVals = prevWeek ? Object.values(prevWeek.averages).filter(v => isValidPrice(v)) : [];
+                                    const prevAvg = prevVals.length > 0 
+                                      ? prevVals.reduce((a,b)=>a+b,0) / prevVals.length
+                                      : currentAvg;
+                                    return currentAvg - prevAvg;
+                                  })()
+                                : getPriceChange(visibleHistoryData, index, selectedFuelType)
+                            } />
                             <div className="text-xs text-muted-foreground/80 mt-1.5 font-semibold">
                               {(() => {
-                                const change = getPriceChange(visibleHistoryData, index, selectedFuelType);
+                                const change = selectedFuelType === "All"
+                                  ? (() => {
+                                      const vals = Object.values(weekData.averages).filter(v => isValidPrice(v));
+                                      const currentAvg = vals.length > 0 ? vals.reduce((a,b)=>a+b,0) / vals.length : 0;
+                                      const prevWeek = visibleHistoryData[index + 1];
+                                      const prevVals = prevWeek ? Object.values(prevWeek.averages).filter(v => isValidPrice(v)) : [];
+                                      const prevAvg = prevVals.length > 0 
+                                        ? prevVals.reduce((a,b)=>a+b,0) / prevVals.length
+                                        : currentAvg;
+                                      return currentAvg - prevAvg;
+                                    })()
+                                  : getPriceChange(visibleHistoryData, index, selectedFuelType);
                                 return change > 0 ? "Increased" : change < 0 ? "Decreased" : "Stable";
                               })()}
                             </div>
@@ -410,7 +531,12 @@ export function GasHistory() {
                           <div className="flex items-center justify-between mb-4 lg:mb-5">
                             <h4 className="text-base lg:text-lg font-bold text-foreground tracking-tight">Price by Brand</h4>
                             <div className="text-xs font-semibold text-muted-foreground px-3 py-1 bg-gray-100 dark:bg-neutral-800 rounded-full">
-                              Average: ₱{weekData.averages[fuelTypeMap[selectedFuelType]].toFixed(2)}
+                               Average: {(() => {
+                                 const vals = Object.values(weekData.averages).filter(v => isValidPrice(v));
+                                 if (vals.length === 0) return "No Data";
+                                 const a = vals.reduce((x, y) => x + y, 0) / vals.length;
+                                 return formatPrice(a);
+                               })()}
                             </div>
                           </div>
                           <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
@@ -427,42 +553,60 @@ export function GasHistory() {
                                     )}
                                   </div>
 
-                                  {/* Selected Fuel Type - Highlighted */}
+                                  {/* Fuel Prices - Highlighted/Summary */}
                                   <div className="mb-4">
-                                    <div className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-lg rounded-2xl p-4 border-2 shadow-lg" style={{ borderColor: `${fuelTypeColors[selectedFuelType]}40` }}>
-                                      <div className="flex items-center justify-between">
-                                        <div>
-                                          <div className="text-xs text-muted-foreground/80 mb-1 font-semibold">{selectedFuelType}</div>
-                                          <div className="text-xl font-bold tracking-tight" style={{ color: fuelTypeColors[selectedFuelType] }}>
-                                            ₱{brand.prices[fuelTypeMap[selectedFuelType]].toFixed(2)}/L
-                                          </div>
+                                    <div className="bg-white/60 dark:bg-neutral-800/60 backdrop-blur-lg rounded-2xl p-4 border-2 shadow-lg border-emerald-500/20">
+                                      {selectedFuelType === "All" ? (
+                                        <div className="grid grid-cols-2 gap-3">
+                                          {Object.entries(brand.prices).map(([key, value]) => {
+                                            const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key) || key;
+                                            return (
+                                              <div key={key}>
+                                                <div className="text-[10px] text-muted-foreground/80 mb-0.5 font-black uppercase tracking-widest">{fuelName.split(' ')[0]}</div>
+                                                <div className="text-sm font-bold text-foreground">
+                                                  {formatPrice(value)}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
                                         </div>
-                                        <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: fuelTypeColors[selectedFuelType] }} />
-                                      </div>
+                                      ) : (
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <div className="text-xs text-muted-foreground/80 mb-1 font-semibold">{selectedFuelType}</div>
+                                            <div className="text-xl font-bold tracking-tight" style={{ color: fuelTypeColors[selectedFuelType] }}>
+                                              {formatPrice(brand.prices[fuelTypeMap[selectedFuelType]])}/L
+                                            </div>
+                                          </div>
+                                          <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: fuelTypeColors[selectedFuelType] }} />
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
-                                  {/* Other Fuel Prices - Collapsed */}
-                                  <details className="mb-3">
-                                    <summary className="cursor-pointer text-xs lg:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
-                                      View all fuel types
-                                    </summary>
-                                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-x-4 gap-y-3 mt-4">
-                                      {Object.entries(brand.prices).map(([key, value]) => {
-                                        const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key) || key;
-                                        if (fuelName === selectedFuelType) return null;
+                                  {/* Other Fuel Prices - Collapsed (Only if not in All mode) */}
+                                  {selectedFuelType !== "All" && (
+                                    <details className="mb-3">
+                                      <summary className="cursor-pointer text-xs lg:text-sm font-bold text-muted-foreground hover:text-foreground transition-colors">
+                                        View all fuel types
+                                      </summary>
+                                      <div className="grid grid-cols-2 lg:grid-cols-1 gap-x-4 gap-y-3 mt-4">
+                                        {Object.entries(brand.prices).map(([key, value]) => {
+                                          const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key) || key;
+                                          if (fuelName === selectedFuelType) return null;
 
-                                        return (
-                                          <div key={key}>
-                                            <div className="text-xs text-muted-foreground/80 mb-1 font-semibold">{fuelName}</div>
-                                            <div className="text-sm font-bold text-foreground">
-                                              ₱{value.toFixed(2)}/L
+                                          return (
+                                            <div key={key}>
+                                              <div className="text-xs text-muted-foreground/80 mb-1 font-semibold">{fuelName}</div>
+                                              <div className="text-sm font-bold text-foreground">
+                                                {formatPrice(value)}/L
+                                              </div>
                                             </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </details>
+                                          );
+                                        })}
+                                      </div>
+                                    </details>
+                                  )}
 
                                   {/* Price Movement */}
                                   {brand.movement && (
@@ -512,7 +656,17 @@ export function GasHistory() {
 
                       <div>
                         <div className="text-sm text-muted-foreground mb-2 font-medium">Latest Movement</div>
-                        <PriceMovementBadge change={getPriceChange(visibleHistoryData, 0, selectedFuelType)} />
+                        <PriceMovementBadge change={
+                          selectedFuelType === "All" 
+                            ? (() => {
+                                const currentAvg = Object.values(latestHistoryPoint.averages).reduce((a,b)=>a+b,0) / Object.values(latestHistoryPoint.averages).length;
+                                const prevAvg = visibleHistoryData[1] 
+                                  ? Object.values(visibleHistoryData[1].averages).reduce((a,b)=>a+b,0) / Object.values(visibleHistoryData[1].averages).length
+                                  : currentAvg;
+                                return currentAvg - prevAvg;
+                              })()
+                            : getPriceChange(visibleHistoryData, 0, selectedFuelType)
+                        } />
                       </div>
 
                       <div className="pt-4 border-t border-gray-200 dark:border-neutral-700">
@@ -525,7 +679,7 @@ export function GasHistory() {
                             return (
                               <div key={key} className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground font-medium">{fuelName}</span>
-                                <span className="font-bold text-foreground">₱{value.toFixed(2)}</span>
+                                <span className="font-bold text-foreground">{formatPrice(value)}</span>
                               </div>
                             );
                           })}

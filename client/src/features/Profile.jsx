@@ -21,12 +21,13 @@ import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
 import { useNotifications } from "@/hooks/useUsers";
 import { useMyContributions } from "@/hooks/usePrices";
+import { ProfileSkeleton } from "@/shared/components/Skeleton";
 
 export function Profile() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout, refreshProfile } = useAuth();
+  const { user, isAuthenticated, loading, logout, refreshProfile } = useAuth();
   const { data: notifications = [] } = useNotifications({ enabled: isAuthenticated });
-  const { data: rawContributions = [] } = useMyContributions();
+  const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions();
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const stats = useMemo(() => {
@@ -42,19 +43,28 @@ export function Profile() {
     const confirmations = rawContributions.filter(c => String(c.id).startsWith('conf-')).length;
 
     // We don't have station count here easily, but we can use what's in user profile as a base or just stick to prices
-    // Let's use the same point logic as backend: 10 per report, 5 per confirmation
-    // Note: Station creations are +20 but they aren't in the contributions list yet
-    const points = (submissions * 10) + (confirmations * 5) + ((user?.total_stations || 0) * 20);
-    const accuracy = total > 0 ? Math.round((verified / total) * 100) : 0;
+    const karma = user?.karma || 0;
+    const trustScore = user?.trustScore || 0;
 
-    return { total, verified, points, accuracy };
-  }, [rawContributions, isAuthenticated, user?.total_stations]);
+    return { total, verified, karma, trustScore };
+  }, [rawContributions, isAuthenticated, user?.total_stations, user?.karma, user?.trustScore]);
 
   useEffect(() => {
     if (isAuthenticated) {
       refreshProfile();
     }
   }, [isAuthenticated]);
+
+  if (loading || (isAuthenticated && contributionsLoading)) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-900">
+        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-14 pb-10 px-4" />
+        <ProfileSkeleton />
+      </div>
+    );
+  }
+
+
 
   const guestMenuItems = [
     {
@@ -283,12 +293,12 @@ export function Profile() {
               <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Updates</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{stats.accuracy}%</div>
-              <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Accuracy</div>
+              <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 tracking-tight">{stats.trustScore}%</div>
+              <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Trust Score</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{stats.points}</div>
-              <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Points</div>
+              <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-yellow-500 to-orange-500 bg-clip-text text-transparent mb-2 tracking-tight">{stats.karma}</div>
+              <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Karma</div>
             </div>
           </div>
         </div>

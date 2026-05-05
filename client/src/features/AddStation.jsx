@@ -7,6 +7,7 @@ import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
 import { useCreateStation, useUpdateStation } from "@/hooks/useStations";
 import { useReportPrice, useReportPricesBatch } from "@/hooks/usePrices";
+import { KarmaService } from "@/lib/karmaService";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -303,6 +304,11 @@ export function AddStation() {
       } else {
         const newStation = await createStationMutation.mutateAsync(stationPayload);
         stationId = newStation.id;
+
+        // Track contribution in KarmaService
+        KarmaService.addContribution('Added Station', {
+          stationName: stationName
+        });
       }
 
       // Submit prices in batch

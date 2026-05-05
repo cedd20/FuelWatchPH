@@ -9,6 +9,7 @@ import { useStation } from "@/hooks/useStations";
 import { useReportPrice } from "@/hooks/usePrices";
 import { toast } from "sonner";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import { formatPrice, isValidPrice } from "@/shared/utils/priceUtils";
 
 function todayIsoDate() {
   return new Date().toISOString().slice(0, 10);
@@ -184,7 +185,7 @@ export function ReportPrice() {
                 <p className="mt-2 text-sm text-rose-600">{fieldErrors.price}</p>
               ) : currentStationPrice ? (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Current recorded price: ₱{Number(currentStationPrice.price).toFixed(2)}
+                  Current recorded price: {formatPrice(currentStationPrice.price)}
                 </p>
               ) : null}
             </div>
