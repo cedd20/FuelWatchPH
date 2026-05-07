@@ -8,6 +8,7 @@ import { useAuth } from "@/app/providers/AuthContext";
 import { useCreateStation, useUpdateStation } from "@/hooks/useStations";
 import { useReportPrice, useReportPricesBatch } from "@/hooks/usePrices";
 import { KarmaService } from "@/lib/karmaService";
+import { reverseGeocode } from "@/shared/utils/location";
 import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -55,31 +56,6 @@ function MapInteractions({ onPinSet, onMapMove }) {
     }
   });
   return null;
-}
-
-// ─── Reverse Geocode Helper ─────────────────────────────────────────────────
-async function reverseGeocode(lat, lng) {
-  // TODO: Replace with API call to backend geocoding service
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18`,
-    { headers: { "Accept-Language": "en" } }
-  );
-  const data = await res.json();
-  const a = data.address || {};
-  const city = a.city || a.town || a.municipality || a.city_district || "";
-  const parts = [
-    a.house_number,
-    a.road,
-    a.neighbourhood || a.suburb,
-    city,
-    a.state || a.province,
-    a.postcode,
-    a.country,
-  ].filter(Boolean);
-  return { 
-    address: parts.join(", ") || data.display_name || "Address not found",
-    city: city 
-  };
 }
 
 function getFuelPriceValue(station, fuelLabel) {

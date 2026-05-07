@@ -16,6 +16,8 @@ import {
   Navigation,
   SearchX,
   CheckCircle2,
+  X,
+  Flag,
 } from "lucide-react";
 import { useStation, useDeleteStation } from "@/hooks/useStations";
 import { usePrices, useDeletePrice, useConfirmPrice } from "@/hooks/usePrices";
@@ -30,6 +32,17 @@ import { formatPrice } from "@/shared/utils/priceUtils";
 import { PageHeaderSkeleton, CardSkeleton, ChartSkeleton } from "@/shared/components/Skeleton";
 import { toast } from "sonner";
 
+const STATION_ISSUE_STORAGE_KEY = "fuelwatch_station_issue_reports";
+const stationIssueTypes = [
+  "Incorrect station information",
+  "Wrong location pin",
+  "Station permanently closed",
+  "Station temporarily unavailable",
+  "Duplicate station",
+  "Incorrect brand/logo",
+  "Other",
+];
+
 export function StationDetail() {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -39,8 +52,12 @@ export function StationDetail() {
   const { user, isAuthenticated, refreshProfile } = useAuth();
   const isKarmaBlocked = user?.karma < 0;
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authPromptMessage, setAuthPromptMessage] = useState("Sign in to save stations and contribute price updates.");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [priceDeleteTarget, setPriceDeleteTarget] = useState(null);
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [issueType, setIssueType] = useState("");
+  const [issueDetails, setIssueDetails] = useState("");
 
   const { data: rawStation, isLoading, error } = useStation(id);
   const { data: rawPrices = [] } = usePrices({ station_id: id });
@@ -133,6 +150,7 @@ export function StationDetail() {
 
   const handleToggleSave = () => {
     if (!isAuthenticated) {
+      setAuthPromptMessage("Sign in to save stations and contribute price updates.");
       setShowAuthPrompt(true);
       return;
     }
@@ -142,6 +160,7 @@ export function StationDetail() {
 
   const handleEditStation = () => {
     if (!isAuthenticated) {
+      setAuthPromptMessage("Sign in to edit station information.");
       setShowAuthPrompt(true);
       return;
     }
@@ -164,6 +183,7 @@ export function StationDetail() {
 
   const handleEditPrice = (fuel) => {
     if (!isAuthenticated) {
+      setAuthPromptMessage("Sign in to update fuel prices.");
       setShowAuthPrompt(true);
       return;
     }
@@ -340,12 +360,72 @@ export function StationDetail() {
     window.open(url, "_blank");
   };
 
+  const handleOpenUpdatePrices = () => {
+    if (!isAuthenticated) {
+      setAuthPromptMessage("Sign in to update fuel prices.");
+      setShowAuthPrompt(true);
+      return;
+    }
+
+    if (isKarmaBlocked) {
+      toast.error("Your Karma is currently negative. You cannot update fuel prices.");
+      return;
+    }
+
+    navigate(`/app/update-price/${id}`);
+  };
+
+  const handleOpenReportIssues = () => {
+    if (!isAuthenticated) {
+      setAuthPromptMessage({
+        text: "Sign in to report station issues and help maintain accurate station information.",
+        returnTo: `/app/station/${id}`,
+      });
+      setShowAuthPrompt(true);
+      return;
+    }
+
+    setShowReportIssueModal(true);
+  };
+
+  const handleCloseReportIssues = () => {
+    setShowReportIssueModal(false);
+    setIssueType("");
+    setIssueDetails("");
+  };
+
+  const handleSubmitIssueReport = () => {
+    if (!issueType) {
+      toast.error("Please select an issue type.");
+      return;
+    }
+
+    const nextReport = {
+      id: `issue-${Date.now()}`,
+      stationId: id,
+      stationName: station.name,
+      issueType,
+      details: issueDetails.trim(),
+      reportedAt: new Date().toISOString(),
+      reportedBy: user?.id || "anonymous",
+    };
+
+    const existingReports = JSON.parse(localStorage.getItem(STATION_ISSUE_STORAGE_KEY) || "[]");
+    localStorage.setItem(
+      STATION_ISSUE_STORAGE_KEY,
+      JSON.stringify([nextReport, ...existingReports]),
+    );
+
+    toast.success("Issue report submitted. Thank you for helping keep station information accurate.");
+    handleCloseReportIssues();
+  };
+
   return (
     <>
       <AuthPrompt
         isOpen={showAuthPrompt}
         onClose={() => setShowAuthPrompt(false)}
-        message="Sign in to save stations and contribute price updates."
+        message={authPromptMessage}
       />
       <ConfirmationModal
         isOpen={Boolean(priceDeleteTarget)}
@@ -385,7 +465,92 @@ export function StationDetail() {
         cancelText="Cancel"
         type="info"
       />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20 lg:pb-8">
+      {showReportIssueModal ? (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/55 backdrop-blur-sm p-0 lg:items-center lg:p-4">
+          <div
+            className="absolute inset-0"
+            onClick={handleCloseReportIssues}
+          />
+          <div className="relative w-full max-w-xl rounded-t-[2rem] lg:rounded-[2rem] bg-white dark:bg-neutral-900 border border-white/20 dark:border-neutral-800 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.45)]">
+            <div className="px-5 pt-4 pb-3 lg:px-6 lg:pt-5 lg:pb-4 border-b border-gray-100 dark:border-neutral-800">
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200 dark:bg-neutral-700 lg:hidden" />
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-50 dark:bg-amber-950/30 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300 mb-3">
+                    <Flag className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    Station Issues Only
+                  </div>
+                  <h3 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Report Issues</h3>
+                  <p className="mt-1 text-sm text-muted-foreground font-medium">
+                    Report station information problems for {station.name}.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseReportIssues}
+                  className="w-10 h-10 rounded-full border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800 flex items-center justify-center text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 lg:px-6 lg:py-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div className="rounded-2xl bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-4 py-3">
+                <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1">Station Name</div>
+                <div className="font-bold text-foreground">{station.name}</div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-foreground mb-2">Issue Type</label>
+                <select
+                  value={issueType}
+                  onChange={(e) => setIssueType(e.target.value)}
+                  className="w-full rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-3.5 text-sm font-medium text-foreground focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">Select an issue type</option>
+                  {stationIssueTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-foreground mb-2">Details (Optional)</label>
+                <textarea
+                  value={issueDetails}
+                  onChange={(e) => setIssueDetails(e.target.value)}
+                  placeholder="Add more context to help us understand the station issue."
+                  rows={4}
+                  className="w-full rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-3.5 text-sm font-medium text-foreground focus:outline-none focus:border-emerald-500 resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="px-5 py-4 lg:px-6 border-t border-gray-100 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 rounded-b-[2rem] pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <div className="flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseReportIssues}
+                  className="w-full sm:flex-1 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-5 py-3.5 text-sm font-bold text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitIssueReport}
+                  className="w-full sm:flex-1 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-orange-500/25"
+                >
+                  Submit Issue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-48 lg:pb-8">
       {/* Compact Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-4 pb-3 sm:pt-5 sm:pb-4 lg:pt-6 lg:pb-5 px-4 sm:px-5 lg:px-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
@@ -570,15 +735,7 @@ export function StationDetail() {
 
               <div className="space-y-3">
                 <button
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      setShowAuthPrompt(true);
-                    } else if (isKarmaBlocked) {
-                      toast.error("Your Karma is currently negative. You cannot update fuel prices.");
-                    } else {
-                      navigate(`/app/update-price/${id}`);
-                    }
-                  }}
+                  onClick={handleOpenUpdatePrices}
                   className={`w-full px-6 py-4 rounded-2xl font-bold text-base shadow-2xl transition-all border-2 ${
                     isKarmaBlocked 
                       ? "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border-gray-200 dark:border-neutral-700 cursor-not-allowed"
@@ -587,13 +744,19 @@ export function StationDetail() {
                 >
                   {isKarmaBlocked ? "Action Blocked (Negative Karma)" : "Update Fuel Price"}
                 </button>
-                {/* Report Price removed — use Update Fuel Price flow instead */}
                 <button
                   onClick={handleGetDirections}
                   className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
                 >
                   <Navigation className="w-4 h-4" strokeWidth={2.5} />
                   Get Directions
+                </button>
+                <button
+                  onClick={handleOpenReportIssues}
+                  className="w-full px-5 py-3.5 bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-200 dark:border-amber-800/40 rounded-2xl font-bold text-sm text-amber-700 dark:text-amber-300 shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <Flag className="w-4 h-4" strokeWidth={2.5} />
+                  Report Issues
                 </button>
               </div>
             </div>
@@ -687,39 +850,43 @@ export function StationDetail() {
           ))}
         </div>
 
-        <div className="mt-6 space-y-3">
-          <button
-            onClick={() => {
-              if (!isAuthenticated) {
-                setShowAuthPrompt(true);
-              } else if (isKarmaBlocked) {
-                toast.error("Your Karma is currently negative. You cannot update fuel prices.");
-              } else {
-                navigate(`/app/update-price/${id}`);
-              }
-            }}
-            className={`w-full px-6 py-4 rounded-2xl font-bold text-base shadow-2xl transition-all border-2 ${
-              isKarmaBlocked 
-                ? "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border-gray-200 dark:border-neutral-700 cursor-not-allowed"
-                : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-emerald-500/50 border-emerald-400/30"
-            }`}
-          >
-            {isKarmaBlocked ? "Blocked (Negative Karma)" : "Update Fuel Price"}
-          </button>
-          {/* Report Price removed — use Update Fuel Price flow instead */}
-          <button
-            onClick={handleGetDirections}
-            className="w-full px-5 py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-2xl font-bold text-sm text-foreground shadow-xl transition-all flex items-center justify-center gap-2"
-          >
-            <Navigation className="w-4 h-4" strokeWidth={2.5} />
-            Get Directions
-          </button>
+      </div>
+
+      <div className="px-4 sm:px-5 lg:px-8 pb-8 lg:pb-10">
+        <div className="max-w-6xl mx-auto">
+          <StationPriceHistoryCard stationId={id} stationName={station.name} compact />
         </div>
       </div>
 
-      <div className="px-4 sm:px-5 lg:px-8 pb-6 lg:pb-10">
-        <div className="max-w-6xl mx-auto">
-          <StationPriceHistoryCard stationId={id} stationName={station.name} compact />
+      <div className="lg:hidden fixed inset-x-0 bottom-[6.5rem] z-40 px-4 sm:px-5 pointer-events-none">
+        <div className="max-w-md mx-auto pointer-events-auto rounded-[1.9rem] border border-white/60 dark:border-neutral-700/70 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl shadow-[0_28px_60px_-24px_rgba(0,0,0,0.5)] px-3 py-3.5 pb-[calc(0.9rem+env(safe-area-inset-bottom))]">
+          <div className="grid grid-cols-3 gap-2.5">
+            <button
+              type="button"
+              onClick={handleOpenUpdatePrices}
+              className={`min-h-[3.75rem] rounded-2xl px-3 py-3 text-xs font-bold leading-tight transition-all ${
+                isKarmaBlocked
+                  ? "bg-gray-100 dark:bg-neutral-800 text-muted-foreground border border-gray-200 dark:border-neutral-700"
+                  : "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30"
+              }`}
+            >
+              Update Fuel Prices
+            </button>
+            <button
+              type="button"
+              onClick={handleGetDirections}
+              className="min-h-[3.75rem] rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 py-3 text-xs font-bold leading-tight text-foreground"
+            >
+              Get Directions
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenReportIssues}
+              className="min-h-[3.75rem] rounded-2xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/20 px-3 py-3 text-xs font-bold leading-tight text-amber-700 dark:text-amber-300"
+            >
+              Report Issues
+            </button>
+          </div>
         </div>
       </div>
       </div>

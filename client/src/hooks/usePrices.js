@@ -43,10 +43,13 @@ export function useReportPricesBatch() {
   });
 }
 
-export function useMyContributions() {
+export function useMyContributions(options = {}) {
+  const { enabled = true, ...rest } = options;
   return useQuery({
     queryKey: ["my-contributions"],
     queryFn: () => api.get("/me/contributions"),
+    enabled,
+    ...rest,
   });
 }
 

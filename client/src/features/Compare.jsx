@@ -1,34 +1,165 @@
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeftRight, TrendingDown, MapPin, Map as MapIcon, SearchX, Loader2 } from "lucide-react";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
 import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
+import { findCanonicalCityName, normalizeCityName, resolveCityFromCoordinates } from "@/shared/utils/location";
 import { StationLogo } from "@/shared/components/StationLogo";
 import { isValidPrice, formatPrice } from "@/shared/utils/priceUtils";
-import { CardSkeleton, Skeleton } from "@/shared/components/Skeleton";
+import { Skeleton } from "@/shared/components/Skeleton";
 
 const fuelTypes = FUEL_TYPES;
+const DEFAULT_FALLBACK_CITY = "Quezon City";
 
 export function Compare() {
   const navigate = useNavigate();
   const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
-  
+  const [selectedCity, setSelectedCity] = useState("");
+  const [detectedCity, setDetectedCity] = useState("");
+  const [citySelectionMode, setCitySelectionMode] = useState("auto");
+  const [userCoords, setUserCoords] = useState(null);
+  const [isDetectingCity, setIsDetectingCity] = useState(true);
+  const [locationError, setLocationError] = useState("");
+
   const { data: allStations = [], isLoading } = useStations();
-  
+
   const cities = useMemo(() => {
     return getAvailableCities(allStations);
   }, [allStations]);
 
-  const [selectedCity, setSelectedCity] = useState("Quezon City");
+  const fallbackCity = useMemo(() => {
+    if (cities.includes(DEFAULT_FALLBACK_CITY)) return DEFAULT_FALLBACK_CITY;
+    return cities[0] || DEFAULT_FALLBACK_CITY;
+  }, [cities]);
 
-  // Sync selected city if it's not in the list anymore or if we just loaded
-  useMemo(() => {
-    if (cities.length > 0 && !cities.includes(selectedCity)) {
-      setSelectedCity(cities[0]);
-    }
+  const selectableCities = useMemo(() => {
+    const mergedCities = selectedCity ? [selectedCity, ...cities] : cities;
+    return [...new Set(mergedCities)];
   }, [cities, selectedCity]);
+
+  useEffect(() => {
+    if (selectedCity) return;
+    if (detectedCity) {
+      setSelectedCity(detectedCity);
+      return;
+    }
+    if (!isDetectingCity && fallbackCity) {
+      setSelectedCity(fallbackCity);
+    }
+  }, [detectedCity, fallbackCity, isDetectingCity, selectedCity]);
+
+  useEffect(() => {
+    if (!selectedCity) return;
+
+    const cityStillAvailable = selectableCities.some(
+      (city) => normalizeCityName(city) === normalizeCityName(selectedCity),
+    );
+
+    if (!cityStillAvailable) {
+      setSelectedCity(detectedCity || fallbackCity);
+    }
+  }, [detectedCity, fallbackCity, selectableCities, selectedCity]);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setIsDetectingCity(false);
+      setLocationError("Unable to detect your location. Please select a city manually.");
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setUserCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationError("");
+      },
+      () => {
+        setIsDetectingCity(false);
+        setLocationError("Unable to detect your location. Please select a city manually.");
+        setSelectedCity((currentCity) => currentCity || fallbackCity);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 },
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [fallbackCity]);
+
+  useEffect(() => {
+    if (!userCoords) return;
+
+    let cancelled = false;
+
+    async function detectCity() {
+      setIsDetectingCity(true);
+
+      try {
+        const result = await resolveCityFromCoordinates(userCoords.lat, userCoords.lng, cities);
+        if (cancelled) return;
+
+        const nextDetectedCity =
+          findCanonicalCityName(result.city, cities) || fallbackCity;
+
+        setDetectedCity(nextDetectedCity);
+        setLocationError("");
+
+        if (citySelectionMode === "auto") {
+          setSelectedCity(nextDetectedCity);
+        }
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Compare city detection failed:", error);
+        setLocationError("Unable to detect your location. Please select a city manually.");
+        if (citySelectionMode === "auto") {
+          setSelectedCity((currentCity) => currentCity || fallbackCity);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsDetectingCity(false);
+        }
+      }
+    }
+
+    detectCity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cities, citySelectionMode, fallbackCity, userCoords]);
+
+  const handleCityChange = (city) => {
+    setCitySelectionMode("manual");
+    setSelectedCity(city);
+  };
+
+  const handleUseCurrentLocation = useCallback(() => {
+    setCitySelectionMode("auto");
+    setLocationError("");
+    setIsDetectingCity(true);
+
+    if (!("geolocation" in navigator)) {
+      setIsDetectingCity(false);
+      setLocationError("Unable to detect your location. Please select a city manually.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        setIsDetectingCity(false);
+        setLocationError("Unable to detect your location. Please select a city manually.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }, []);
 
   const getStationPrice = (station, fuelType) => {
     const priceEntry = station.latest_prices?.[fuelType];
@@ -38,7 +169,11 @@ export function Compare() {
 
   const getSortedStations = () => {
     return allStations
-      .filter((station) => station.city === selectedCity && getStationPrice(station, selectedFuelType) !== null)
+      .filter(
+        (station) =>
+          normalizeCityName(station.city) === normalizeCityName(selectedCity) &&
+          getStationPrice(station, selectedFuelType) !== null,
+      )
       .sort((a, b) => (getStationPrice(a, selectedFuelType) || 0) - (getStationPrice(b, selectedFuelType) || 0));
   };
 
@@ -63,6 +198,7 @@ export function Compare() {
 
   const potentialSavingsPerLiter = averagePrice - lowestPrice;
   const maxSavingsPerLiter = highestPrice - lowestPrice;
+  const activeCityLabel = selectedCity || detectedCity || (isDetectingCity ? "your area" : fallbackCity);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
@@ -82,12 +218,12 @@ export function Compare() {
               <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Compare Prices</h1>
             </div>
             <p className="text-white/95 text-sm lg:text-base font-medium drop-shadow-lg pl-1">
-              Comparing <span className="font-bold">{selectedFuelType}</span> prices in <span className="font-bold">{selectedCity}</span>
+              Comparing <span className="font-bold">{selectedFuelType}</span> prices in <span className="font-bold">{activeCityLabel}</span>
             </p>
           </div>
 
           {/* City Selector */}
-          <div className="relative z-40 mb-2 md:mb-0">
+          <div className="relative z-40 mb-2 md:mb-0 md:w-72">
             <label className="block text-white/90 text-xs font-bold mb-1.5 uppercase tracking-wider pl-1">
               Location
             </label>
@@ -95,16 +231,42 @@ export function Compare() {
               <MapIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-700" />
               <select
                 value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
+                onChange={(e) => handleCityChange(e.target.value)}
                 className="w-full md:w-64 appearance-none pl-10 pr-10 py-3 bg-white text-emerald-900 rounded-xl border-none focus:ring-4 focus:ring-white/30 shadow-xl font-bold text-sm cursor-pointer"
               >
-                {cities.map(city => (
+                {!selectedCity && (
+                  <option value="" disabled>
+                    Detecting your city...
+                  </option>
+                )}
+                {selectableCities.map(city => (
                   <option key={city} value={city}>{city}</option>
                 ))}
               </select>
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
                 <div className="w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-emerald-700"></div>
               </div>
+            </div>
+            <div className="mt-2 flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={handleUseCurrentLocation}
+                className="inline-flex w-fit items-center gap-2 text-xs font-bold text-white/95 hover:text-white transition-colors"
+              >
+                {isDetectingCity ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+                Use Current Location
+              </button>
+              {isDetectingCity ? (
+                <p className="text-xs text-white/85 font-medium">Detecting your city...</p>
+              ) : locationError ? (
+                <p className="text-xs text-white/85 font-medium">{locationError}</p>
+              ) : citySelectionMode === "manual" && detectedCity ? (
+                <p className="text-xs text-white/85 font-medium">
+                  Using {selectedCity}. Current GPS city: {detectedCity}.
+                </p>
+              ) : detectedCity ? (
+                <p className="text-xs text-white/85 font-medium">Current GPS city: {detectedCity}</p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -169,7 +331,7 @@ export function Compare() {
               </div>
               <h3 className="text-2xl font-bold text-foreground mb-2 tracking-tight">No Stations Found</h3>
               <p className="text-muted-foreground font-medium max-w-md">
-                We couldn't find any gasoline stations offering {selectedFuelType} in {selectedCity}. Try selecting a different location or fuel type.
+                We couldn't find any gasoline stations offering {selectedFuelType} in {activeCityLabel}. Try selecting a different location or fuel type.
               </p>
             </div>
           ) : (
@@ -311,7 +473,7 @@ export function Compare() {
                         Potential Savings
                       </h4>
                       <p className="text-sm lg:text-base text-muted-foreground/90 mb-5 lg:mb-6 font-medium leading-relaxed">
-                        By choosing the lowest price in <span className="font-bold">{selectedCity}</span>, you save an average of <span className="text-emerald-600 font-bold">₱{potentialSavingsPerLiter.toFixed(2)}/L</span> compared to other stations.
+                        By choosing the lowest price in <span className="font-bold">{activeCityLabel}</span>, you save an average of <span className="text-emerald-600 font-bold">₱{potentialSavingsPerLiter.toFixed(2)}/L</span> compared to other stations.
                       </p>
                       
                       <div className="grid grid-cols-1 gap-4 lg:gap-5">

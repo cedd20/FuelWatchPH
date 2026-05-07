@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { supabase, isValidUrl } from "../../lib/supabase";
+import { supabase, isValidUrl, setStoredRememberMePreference } from "../../lib/supabase";
 import { KarmaService } from "../../lib/karmaService";
+import {
+  clearMockAuthSession,
+  getMockAuthSession,
+  setMockAuthSession,
+} from "@/shared/utils/authSession";
 
 const AuthContext = createContext();
 
@@ -12,17 +17,8 @@ export function AuthProvider({ children }) {
     async function getUser() {
       try {
         if (!isValidUrl) {
-          console.warn("Supabase credentials missing, providing mock user session.");
-          setUser({
-            id: 'demo-user-id',
-            email: 'user@fuelwatch.ph',
-            name: 'FuelWatch Explorer',
-            initials: 'FE',
-            contributionCount: (142 + KarmaService.getContributions().length),
-            trustScore: KarmaService.getTrustScore(),
-            karma: KarmaService.getKarma(),
-            rank: 'Gold Contributor'
-          });
+          const mockSession = getMockAuthSession();
+          setUser(mockSession || null);
           setLoading(false);
           return;
         }
@@ -154,9 +150,38 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     loading,
     refreshProfile,
-    login: async (email, password) => {
+    login: async (email, password, options = {}) => {
       console.log("Attempting login for:", email);
-      if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
+      const rememberMe = options.rememberMe ?? false;
+
+      if (!isValidUrl) {
+        const normalizedEmail = email.trim().toLowerCase();
+        const isValidMockLogin =
+          normalizedEmail === "test@fuelwatch.ph" && password === "Test1234!";
+
+        if (!isValidMockLogin) {
+          throw new Error("Invalid email or password. Use the dev test account for mock login.");
+        }
+
+        const mockUser = {
+          id: "demo-user-id",
+          email: normalizedEmail,
+          name: "FuelWatch Explorer",
+          initials: "FE",
+          contributionCount: 142 + KarmaService.getContributions().length,
+          trustScore: KarmaService.getTrustScore(),
+          karma: KarmaService.getKarma(),
+          rank: "Gold Contributor",
+        };
+
+        setMockAuthSession(mockUser, rememberMe);
+        setUser(mockUser);
+        return { user: mockUser };
+      }
+
+      // Real backend token/session persistence will continue to use Supabase,
+      // but the chosen storage is controlled by the Remember Me preference.
+      setStoredRememberMePreference(rememberMe);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       console.log("Login response:", { data, error });
       if (error) throw error;
@@ -176,6 +201,7 @@ export function AuthProvider({ children }) {
     logout: async () => {
       console.log("Attempting logout");
       if (!isValidUrl) {
+        clearMockAuthSession();
         setUser(null);
         return;
       }

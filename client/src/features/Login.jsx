@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Logo } from "@/shared/components/Logo";
 import { useAuth } from "@/app/providers/AuthContext";
+import {
+  clearStoredRememberedCredentials,
+  getStoredRememberedCredentials,
+  setStoredRememberedCredentials,
+  setStoredRememberMePreference,
+} from "@/shared/utils/authSession";
 import { toast } from "sonner";
 
 // DEV TEST ACCOUNT: test@fuelwatch.ph / Test1234!
@@ -15,10 +21,31 @@ export function Login() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const returnTo = location.state?.returnTo || "/app/map";
+
+  useEffect(() => {
+    const storedCredentials = getStoredRememberedCredentials();
+    if (!storedCredentials) return;
+
+    setEmail(storedCredentials.email || "");
+    setPassword(storedCredentials.password || "");
+    setRememberMe(true);
+  }, []);
+
+  const handleRememberMeChange = (checked) => {
+    setRememberMe(checked);
+    setStoredRememberMePreference(checked);
+
+    if (checked) {
+      return;
+    }
+
+    clearStoredRememberedCredentials();
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -26,7 +53,14 @@ export function Login() {
 
     try {
       console.log("Calling login...");
-      await login(email, password);
+      await login(email, password, { rememberMe });
+
+      if (rememberMe) {
+        setStoredRememberedCredentials(email, password);
+      } else {
+        clearStoredRememberedCredentials();
+      }
+
       console.log("Login successful, showing toast...");
       toast.success("Welcome back!");
       console.log("Navigating to:", returnTo);
@@ -190,16 +224,32 @@ export function Login() {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="text-sm lg:text-base text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
-          >
-            Forgot password?
-          </button>
+          <div className="flex items-center justify-between gap-4">
+            <label className="inline-flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => handleRememberMeChange(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-sm lg:text-base font-semibold text-foreground">Remember Me</span>
+            </label>
+
+            <button
+              type="button"
+              className="text-sm lg:text-base text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           <Button type="submit" fullWidth disabled={isLoading}>
             {isLoading ? "Signing In..." : "Sign In"}
           </Button>
+
+          <p className="text-xs lg:text-sm text-muted-foreground text-center">
+            Only use Remember Me on your personal device.
+          </p>
         </form>
 
         {/* Continue as Guest */}

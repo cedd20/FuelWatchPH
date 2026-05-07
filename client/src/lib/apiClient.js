@@ -1,22 +1,12 @@
+import { getParsedSessionValue, getSupabaseAuthStorageKey } from "@/shared/utils/authSession";
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 function getAuthHeaders() {
-  // Read Supabase session from local storage
-  // The key pattern used by Supabase is sb-<project-id>-auth-token
-  const projectRef = import.meta.env.VITE_SUPABASE_URL?.split(".")[0].split("//")[1];
-  const storageKey = `sb-${projectRef}-auth-token`;
-  const sessionData = localStorage.getItem(storageKey);
-  
-  if (!sessionData) return {};
-  
-  try {
-    const session = JSON.parse(sessionData);
-    const token = session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  } catch (e) {
-    console.error("Error parsing auth session", e);
-    return {};
-  }
+  const storageKey = getSupabaseAuthStorageKey();
+  const session = storageKey ? getParsedSessionValue(storageKey) : null;
+  const token = session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function request(path, options = {}) {

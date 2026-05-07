@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import {
   Settings,
   TrendingUp,
-  ShieldCheck,
   Award,
   Trophy,
   Bell,
@@ -16,6 +15,10 @@ import {
   UserPlus,
   User,
   Info,
+  Lock,
+  Compass,
+  Sparkles,
+  MapPinned,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
@@ -27,7 +30,9 @@ export function Profile() {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading, logout, refreshProfile } = useAuth();
   const { data: notifications = [] } = useNotifications({ enabled: isAuthenticated });
-  const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions();
+  const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions({
+    enabled: isAuthenticated,
+  });
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const stats = useMemo(() => {
@@ -63,10 +68,14 @@ export function Profile() {
       </div>
     );
   }
-
-
-
-  const guestMenuItems = [
+  const publicMenuItems = [
+    {
+      icon: Compass,
+      label: "Continue Browsing",
+      subtitle: "Go back to the public app experience",
+      onClick: () => navigate("/app/home"),
+      badge: null,
+    },
     {
       icon: Trophy,
       label: "Leaderboard",
@@ -94,6 +103,34 @@ export function Profile() {
       subtitle: "Legal information",
       onClick: () => navigate("/app/terms"),
       badge: null,
+    },
+  ];
+
+  const lockedGuestFeatures = [
+    {
+      icon: TrendingUp,
+      label: "My Contributions",
+      subtitle: "Track your reports and contribution history",
+    },
+    {
+      icon: Heart,
+      label: "Saved Stations",
+      subtitle: "Keep your favorite stations ready anytime",
+    },
+    {
+      icon: Bell,
+      label: "Notifications",
+      subtitle: "Get alerts for updates and saved stations",
+    },
+    {
+      icon: Award,
+      label: "Contributor Stats / Karma",
+      subtitle: "See your trust score, achievements, and progress",
+    },
+    {
+      icon: Settings,
+      label: "Edit Profile",
+      subtitle: "Personalize your profile and account details",
     },
   ];
 
@@ -153,60 +190,132 @@ export function Profile() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
         {/* Header */}
-        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-14 pb-10 px-4 lg:px-8 relative overflow-hidden">
+        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-7 px-4 lg:px-8 lg:pt-14 lg:pb-9 relative overflow-hidden">
           {/* Enhanced radial glow background */}
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
 
-          <div className="relative z-10 flex flex-col items-center text-center max-w-6xl mx-auto">
-            <div className="w-24 h-24 lg:w-28 lg:h-28 bg-white/25 backdrop-blur-lg rounded-full flex items-center justify-center mb-5 shadow-2xl border border-white/30">
-              <User className="w-12 h-12 lg:w-14 lg:h-14 text-white" strokeWidth={2.5} />
-            </div>
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mb-3 drop-shadow-2xl tracking-tight">Guest User</h2>
-            <p className="text-white/95 text-sm lg:text-base font-medium mb-8 max-w-sm drop-shadow-lg">
-              Sign in to contribute updates and help keep fuel prices accurate
-            </p>
-            <div className="flex gap-3 w-full max-w-xs lg:max-w-md">
-              <Button
-                onClick={() => navigate("/login")}
-                variant="secondary"
-                fullWidth
-                icon={LogIn}
-              >
-                Sign In
-              </Button>
-              <Button
-                onClick={() => navigate("/signup")}
-                variant="primary"
-                fullWidth
-                icon={UserPlus}
-              >
-                Sign Up
-              </Button>
+          <div className="relative z-10 max-w-5xl mx-auto">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white/20 backdrop-blur-lg rounded-full flex items-center justify-center mb-4 lg:mb-5 shadow-2xl border border-white/25">
+                <User className="w-10 h-10 lg:w-12 lg:h-12 text-white" strokeWidth={2.5} />
+              </div>
+              <h2 className="text-2xl lg:text-4xl font-bold text-white mb-2 lg:mb-3 drop-shadow-2xl tracking-tight">Guest User</h2>
+              <p className="text-white/95 text-sm lg:text-base font-medium max-w-2xl drop-shadow-lg leading-relaxed">
+                Browse fuel prices, maps, compare results, and station details freely.
+              </p>
+              <p className="text-white/80 text-sm lg:text-base font-medium mt-2 max-w-2xl drop-shadow-lg leading-relaxed">
+                Sign in when you're ready to save stations, track contributions, receive notifications, and earn Karma.
+              </p>
+              <div className="mt-5 lg:mt-6 flex w-full max-w-md flex-col sm:flex-row gap-2.5 lg:gap-3">
+                <Button
+                  onClick={() => navigate("/login")}
+                  variant="secondary"
+                  fullWidth
+                  icon={LogIn}
+                >
+                  Sign In
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/signup")}
+                  className="w-full rounded-full border-2 border-white/60 bg-white/18 px-6 py-3.5 text-base font-bold text-white shadow-xl shadow-black/15 backdrop-blur-md transition-all hover:bg-white/28 hover:scale-[1.02]"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <UserPlus className="w-5 h-5" strokeWidth={2.5} />
+                    Create Account
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Menu Items */}
-        <div className="px-4 lg:px-8 mt-8">
-          <div className="max-w-3xl mx-auto bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 overflow-hidden shadow-2xl shadow-black/10">
-            {guestMenuItems.map((item, index) => (
-              <button
-                key={index}
-                onClick={item.onClick}
-                className="w-full flex items-center gap-4 lg:gap-5 p-5 lg:p-6 hover:bg-white/50 dark:hover:bg-neutral-800/50 transition-all border-b border-white/20 dark:border-neutral-700/30 last:border-b-0 group"
-              >
-                <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <item.icon className="w-6 h-6 lg:w-7 lg:h-7 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+        <div className="px-4 lg:px-8 -mt-5 lg:-mt-6 mb-5 lg:mb-6 relative z-10">
+          <div className="max-w-6xl mx-auto bg-white/92 dark:bg-neutral-900/92 backdrop-blur-2xl rounded-[28px] shadow-2xl border border-white/40 dark:border-neutral-700/40 p-4 lg:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-800/30 p-4 lg:p-5">
+                <MapPinned className="w-6 h-6 lg:w-7 lg:h-7 text-emerald-600 dark:text-emerald-400 mb-2.5" strokeWidth={2.5} />
+                <div className="font-bold text-foreground text-base lg:text-lg mb-1">Public Access</div>
+                <div className="text-sm text-muted-foreground font-medium leading-relaxed">
+                  Home, Map, Station Details, Compare Prices, Gas Price History, Search, and Filters stay available in guest mode.
                 </div>
-                <div className="flex-1 text-left">
-                  <div className="font-bold text-foreground text-base lg:text-lg">{item.label}</div>
-                  <div className="text-sm lg:text-base text-muted-foreground/80 font-medium">{item.subtitle}</div>
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border border-amber-100 dark:border-amber-800/30 p-4 lg:p-5">
+                <Sparkles className="w-6 h-6 lg:w-7 lg:h-7 text-amber-600 dark:text-amber-400 mb-2.5" strokeWidth={2.5} />
+                <div className="font-bold text-foreground text-base lg:text-lg mb-1">Why Sign In</div>
+                <div className="text-sm text-muted-foreground font-medium leading-relaxed">
+                  Save favorites, follow your updates, and unlock account-based features when you want them.
                 </div>
-                <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6 text-muted-foreground group-hover:translate-x-1 transition-transform" strokeWidth={2.5} />
-              </button>
-            ))}
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950/30 dark:to-cyan-950/30 border border-sky-100 dark:border-sky-800/30 p-4 lg:p-5">
+                <Compass className="w-6 h-6 lg:w-7 lg:h-7 text-sky-600 dark:text-sky-400 mb-2.5" strokeWidth={2.5} />
+                <div className="font-bold text-foreground text-base lg:text-lg mb-1">No Forced Login</div>
+                <div className="text-sm text-muted-foreground font-medium leading-relaxed">
+                  Sign in only when you choose it or when you open a protected feature.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 lg:px-8 mb-6 lg:mb-8">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.02fr_0.98fr] gap-4 lg:gap-5 items-start">
+            <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 overflow-hidden shadow-2xl shadow-black/10">
+              <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-3 border-b border-gray-100 dark:border-neutral-800">
+                <h3 className="text-lg lg:text-2xl font-bold text-foreground tracking-tight">Browse as Guest</h3>
+                <p className="text-sm lg:text-base text-muted-foreground font-medium mt-1">
+                  These pages remain available without signing in.
+                </p>
+              </div>
+              {publicMenuItems.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={item.onClick}
+                  className="w-full flex items-center gap-3 lg:gap-4 px-5 lg:px-6 py-4 lg:py-4.5 hover:bg-white/50 dark:hover:bg-neutral-800/50 transition-all border-b border-white/20 dark:border-neutral-700/30 last:border-b-0 group"
+                >
+                  <div className="w-10 h-10 lg:w-11 lg:h-11 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform shrink-0">
+                    <item.icon className="w-5 h-5 lg:w-5.5 lg:h-5.5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-bold text-foreground text-sm lg:text-base">{item.label}</div>
+                    <div className="text-xs lg:text-sm text-muted-foreground/80 font-medium leading-relaxed">{item.subtitle}</div>
+                  </div>
+                  <ChevronRight className="w-4.5 h-4.5 lg:w-5 lg:h-5 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" strokeWidth={2.5} />
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 overflow-hidden shadow-2xl shadow-black/10">
+              <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-3 border-b border-gray-100 dark:border-neutral-800">
+                <h3 className="text-lg lg:text-2xl font-bold text-foreground tracking-tight">Protected Features</h3>
+                <p className="text-sm lg:text-base text-muted-foreground font-medium mt-1">
+                  These stay restricted until the user signs in.
+                </p>
+              </div>
+              <div className="p-4 lg:p-5 space-y-2.5">
+                {lockedGuestFeatures.map((feature) => (
+                  <div
+                    key={feature.label}
+                    className="flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 dark:border-neutral-700 bg-gray-50/80 dark:bg-neutral-800/40 px-3.5 py-3.5 lg:px-4 lg:py-3.5"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 flex items-center justify-center shrink-0">
+                      <feature.icon className="w-4.5 h-4.5 text-muted-foreground" strokeWidth={2.3} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-foreground text-sm lg:text-base">{feature.label}</div>
+                      <div className="text-xs lg:text-sm text-muted-foreground font-medium leading-relaxed">{feature.subtitle}</div>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 px-2.5 py-1 text-[11px] lg:text-xs font-bold text-muted-foreground shrink-0 self-start lg:self-center">
+                      <Lock className="w-3 h-3" strokeWidth={2.5} />
+                      <span className="hidden sm:inline">Sign in to access</span>
+                      <span className="sm:hidden">Locked</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
