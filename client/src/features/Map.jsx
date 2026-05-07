@@ -62,9 +62,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Earth's radius in km
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
@@ -156,13 +156,13 @@ function buildActiveFilterLabels(filters) {
 // Map Events component extracted outside to prevent infinite unmount/remount loops
 function MapEvents({ onMoveStart, onMoveEnd, onBoundsChange }) {
   const map = useMap();
-  
+
   useEffect(() => {
     // Set initial bounds once map is ready
     if (onBoundsChange) onBoundsChange(map.getBounds());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
-  
+
   useMapEvents({
     movestart: () => {
       if (onMoveStart) onMoveStart();
@@ -218,7 +218,7 @@ export function Map() {
       type,
       price: details.price
     })),
-    lastUpdated: s.latest_prices && Object.keys(s.latest_prices).length > 0 
+    lastUpdated: s.latest_prices && Object.keys(s.latest_prices).length > 0
       ? new Date(Math.max(...Object.values(s.latest_prices).map(p => new Date(p.observed_at)))).toLocaleDateString()
       : 'No reports',
     verified: s.is_active // Simple mapping for now
@@ -473,7 +473,7 @@ export function Map() {
           const { latitude, longitude } = position.coords;
           const newLoc = [latitude, longitude];
           setUserLocation(newLoc);
-          
+
           if (mapRef.current) {
             mapRef.current.flyTo(newLoc, 13, { animate: true });
           }
@@ -501,16 +501,16 @@ export function Map() {
     setMapMoveCenter(pos);
     setVisibleBounds(bounds);
     setIsUpdatingMap(false);
-    
+
     // Check if moved far enough from last sync (> 1.5km)
-    const dist = lastSyncPos.current 
+    const dist = lastSyncPos.current
       ? calculateDistance(lastSyncPos.current[0], lastSyncPos.current[1], pos[0], pos[1])
       : 999;
 
     if (dist > 1.5) {
       // Show search button but also trigger automatic throttled sync
       setShowSyncButton(true);
-      
+
       if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
       syncTimeoutRef.current = setTimeout(() => {
         handleOSMSync(true); // silent sync
@@ -521,12 +521,12 @@ export function Map() {
   const handleOSMSync = async (silent = false) => {
     const target = mapMoveCenter;
     if (!target) return;
-    
+
     setIsSyncingOSM(true);
     try {
       await api.post(`/stations/sync?lat=${target[0]}&lng=${target[1]}`, {});
       if (!silent) toast.success("Nearby stations updated!");
-      
+
       lastSyncPos.current = target;
       // Refetch stations from our DB
       queryClient.invalidateQueries({ queryKey: ["stations"] });
@@ -552,17 +552,17 @@ export function Map() {
   // --------------------------------------------------------
   // FILTERING LOGIC
   // --------------------------------------------------------
-  
+
   // Determine if the user is actively panning away from their GPS location
-  const distFromMapCenterToGPS = userLocation && mapMoveCenter 
-    ? calculateDistance(userLocation[0], userLocation[1], mapMoveCenter[0], mapMoveCenter[1]) 
+  const distFromMapCenterToGPS = userLocation && mapMoveCenter
+    ? calculateDistance(userLocation[0], userLocation[1], mapMoveCenter[0], mapMoveCenter[1])
     : 0;
   // If the map center is more than 1km away from GPS, consider it manual browsing
   const isBrowsingManually = distFromMapCenterToGPS > 1;
 
   const filteredStations = stations.map(station => {
     // Add dynamic distance calculation if userLocation is available
-    const distance = userLocation 
+    const distance = userLocation
       ? calculateDistance(userLocation[0], userLocation[1], station.lat, station.lng)
       : (station.distance || 0);
     return { ...station, distance: parseFloat(distance.toFixed(1)) };
@@ -574,7 +574,7 @@ export function Map() {
         return false;
       }
     }
-    
+
     // 2. Fuel Type Selection
     if (activeFuelTypes.length > 0 && station.prices.length > 0) {
       const hasFuel = station.prices.some(
@@ -593,8 +593,8 @@ export function Map() {
     // 4. Radius vs City Logic (Priority: City > Nearby)
     const locationMode = normalizedFilters.location || "nearby";
     if (locationMode === "city" && normalizedFilters.selectedCity) {
-      const cityMatch = station.city === normalizedFilters.selectedCity || 
-                        station.address?.toLowerCase().includes(normalizedFilters.selectedCity.toLowerCase());
+      const cityMatch = station.city === normalizedFilters.selectedCity ||
+        station.address?.toLowerCase().includes(normalizedFilters.selectedCity.toLowerCase());
       if (!cityMatch) return false;
     } else if (locationMode === "nearby") {
       const radiusVal = normalizedFilters.radius || "all";
@@ -608,7 +608,7 @@ export function Map() {
     if (normalizedFilters.brands?.length > 0) {
       if (!normalizedFilters.brands.includes(station.brand)) return false;
     }
-    
+
     if (normalizedFilters.verifiedOnly) {
       if (!station.verified) return false;
     }
@@ -620,27 +620,14 @@ export function Map() {
     .map(s => getStationPrice(s))
     .filter(p => p !== null);
 
-  const avgPrice = stationsWithPrices.length > 0 
-    ? stationsWithPrices.reduce((sum, price) => sum + price, 0) / stationsWithPrices.length 
+  const avgPrice = stationsWithPrices.length > 0
+    ? stationsWithPrices.reduce((sum, price) => sum + price, 0) / stationsWithPrices.length
     : 0;
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden lg:flex-row lg:overflow-hidden">
       {/* Map View */}
       <div className="flex-1 relative bg-muted overflow-hidden z-10 h-full min-h-0">
-
-        {/* Loading overlay — shown while GPS + OSM fetch is in progress */}
-        {isLoadingStations && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-            <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-2xl px-6 py-4 shadow-2xl border-2 border-emerald-400/30 flex items-center gap-3">
-              <Loader2 className="w-5 h-5 text-emerald-500 animate-spin flex-shrink-0" />
-              <div>
-                <p className="text-sm font-bold text-foreground">Locating nearby stations...</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Fetching from OpenStreetMap</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Empty state — shown when not loading, no stations, and no GPS yet */}
         {!isLoadingStations && filteredStations.length === 0 && !userLocation && (
@@ -656,10 +643,10 @@ export function Map() {
         )}
 
         <div className="absolute inset-0 lg:top-0 z-0">
-          <MapContainer 
+          <MapContainer
             ref={mapRef}
-            center={[14.636, 121.047]} 
-            zoom={15} 
+            center={[14.636, 121.047]}
+            zoom={15}
             zoomControl={false}
             className="w-full h-full"
           >
@@ -667,7 +654,7 @@ export function Map() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapEvents 
+            <MapEvents
               onMoveStart={() => setIsUpdatingMap(true)}
               onMoveEnd={handleMoveEnd}
               onBoundsChange={setVisibleBounds}
@@ -675,7 +662,7 @@ export function Map() {
             {filteredStations.map((station) => {
               const price = getStationPrice(station);
               const isSelected = selectedStation === station.id;
-              
+
               const customIcon = L.divIcon({
                 className: "custom-pin",
                 html: renderToString(
@@ -704,13 +691,13 @@ export function Map() {
                 />
               );
             })}
-            
+
             {/* User's Exact Location Marker */}
             {userLocation && (
-              <CircleMarker 
-                center={userLocation} 
-                radius={8} 
-                pathOptions={{ color: 'white', fillColor: '#3b82f6', fillOpacity: 1, weight: 3 }} 
+              <CircleMarker
+                center={userLocation}
+                radius={8}
+                pathOptions={{ color: 'white', fillColor: '#3b82f6', fillOpacity: 1, weight: 3 }}
               />
             )}
           </MapContainer>
@@ -875,22 +862,20 @@ export function Map() {
             <div className="w-[92px] shrink-0 px-4 py-5 flex flex-col items-center gap-3 rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
               <button
                 onClick={toggleDesktopListPanel}
-                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${
-                  desktopToolPanel === "list"
-                    ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/30"
-                    : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-800"
-                }`}
+                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${desktopToolPanel === "list"
+                  ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/30"
+                  : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-800"
+                  }`}
                 title="Nearby stations"
               >
                 <List className="w-5 h-5" strokeWidth={2.5} />
               </button>
               <button
                 onClick={toggleDesktopSavedPanel}
-                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${
-                  desktopToolPanel === "saved"
-                    ? "bg-rose-500 text-white border-rose-300 shadow-lg shadow-rose-500/25"
-                    : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-neutral-800"
-                }`}
+                className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${desktopToolPanel === "saved"
+                  ? "bg-rose-500 text-white border-rose-300 shadow-lg shadow-rose-500/25"
+                  : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-neutral-800"
+                  }`}
                 title="Saved stations"
               >
                 <Heart className="w-5 h-5" strokeWidth={2.5} />
@@ -905,19 +890,17 @@ export function Map() {
             </div>
 
             <div
-              className={`min-w-0 overflow-hidden rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_32px_80px_rgba(15,23,42,0.24)] transition-[width,opacity,transform] duration-300 ease-out ${
-                isDesktopSidebarExpanded
-                  ? "w-[min(455px,34vw)] h-[min(720px,calc(100vh-8rem))] opacity-100 translate-x-0"
-                  : "w-0 opacity-0 -translate-x-2 pointer-events-none border-transparent shadow-none"
-              }`}
+              className={`min-w-0 overflow-hidden rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_32px_80px_rgba(15,23,42,0.24)] transition-[width,opacity,transform] duration-300 ease-out ${isDesktopSidebarExpanded
+                ? "w-[min(455px,34vw)] h-[min(720px,calc(100vh-8rem))] opacity-100 translate-x-0"
+                : "w-0 opacity-0 -translate-x-2 pointer-events-none border-transparent shadow-none"
+                }`}
             >
               <div className="h-full flex flex-col px-5 py-5">
                 {renderDesktopSearchBar("w-full")}
                 <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-[28px] bg-white/60 dark:bg-neutral-950/34 border border-white/50 dark:border-neutral-700/55 shadow-inner">
                   <div
-                    className={`h-full transition-all duration-300 ease-out ${
-                      isDesktopSidebarExpanded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-                    }`}
+                    className={`h-full transition-all duration-300 ease-out ${isDesktopSidebarExpanded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                      }`}
                   >
                     {desktopToolPanel === "list" ? (
                       <div className="h-full flex flex-col">
@@ -943,9 +926,8 @@ export function Map() {
                             filteredStations.map((station) => (
                               <div
                                 key={station.id}
-                                className={`cursor-pointer rounded-3xl transition-all ${
-                                  selectedStation === station.id ? "ring-2 ring-emerald-500" : ""
-                                }`}
+                                className={`cursor-pointer rounded-3xl transition-all ${selectedStation === station.id ? "ring-2 ring-emerald-500" : ""
+                                  }`}
                               >
                                 <StationCard
                                   {...station}
@@ -977,9 +959,8 @@ export function Map() {
                             filteredSavedStations.map((station) => (
                               <div
                                 key={station.id}
-                                className={`cursor-pointer rounded-3xl transition-all ${
-                                  selectedStation === station.id ? "ring-2 ring-rose-400" : ""
-                                }`}
+                                className={`cursor-pointer rounded-3xl transition-all ${selectedStation === station.id ? "ring-2 ring-rose-400" : ""
+                                  }`}
                               >
                                 <StationCard
                                   {...station}
@@ -1011,7 +992,7 @@ export function Map() {
         </div>
 
         <div className="absolute right-4 bottom-[8.25rem] lg:hidden z-20">
-          <button 
+          <button
             onClick={() => handlePreciseLocation(false)}
             className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-transform"
             title="Go to my location"
@@ -1027,9 +1008,8 @@ export function Map() {
 
         {/* Desktop Map Actions */}
         <div
-          className={`hidden lg:flex absolute right-6 z-20 flex-col items-center gap-3 ${
-            selectedStation && !showList && !isDesktopSidebarExpanded ? "bottom-[24rem]" : "bottom-8"
-          }`}
+          className={`hidden lg:flex absolute right-6 z-20 flex-col items-center gap-3 ${selectedStation && !showList && !isDesktopSidebarExpanded ? "bottom-[24rem]" : "bottom-8"
+            }`}
         >
           <button
             onClick={() => handlePreciseLocation(false)}
@@ -1068,11 +1048,11 @@ export function Map() {
             {filteredStations
               .filter((s) => s.id === selectedStation)
               .map((station) => (
-                <StationCard 
-                  key={station.id} 
-                  {...station} 
+                <StationCard
+                  key={station.id}
+                  {...station}
                   prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
-                  onClick={() => navigate(`/app/station/${station.id}`)} 
+                  onClick={() => navigate(`/app/station/${station.id}`)}
                 />
               ))}
           </div>
@@ -1092,11 +1072,11 @@ export function Map() {
               {filteredStations
                 .filter((s) => s.id === selectedStation)
                 .map((station) => (
-                  <StationCard 
-                    key={station.id} 
-                    {...station} 
+                  <StationCard
+                    key={station.id}
+                    {...station}
                     prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
-                    onClick={() => navigate(`/app/station/${station.id}`)} 
+                    onClick={() => navigate(`/app/station/${station.id}`)}
                   />
                 ))}
             </div>
@@ -1109,7 +1089,6 @@ export function Map() {
           onClose={() => setShowList(false)}
           title={`Nearby Stations (${filteredStations.length})`}
           subtitle={getFilterDescription()}
-          badge="Live map results"
           initialHeightVh={40}
           expandedHeightVh={70}
         >
@@ -1139,7 +1118,6 @@ export function Map() {
           onClose={() => setShowSavedSheet(false)}
           title={`Saved Stations (${filteredSavedStations.length})`}
           subtitle="Quick access favorites"
-          badge="Saved for later"
           initialHeightVh={40}
           expandedHeightVh={70}
         >

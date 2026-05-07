@@ -274,7 +274,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
         onClose={onClose}
         title="Filter Stations"
         subtitle="Refine the map view with location, fuel, and station filters."
-        initialHeightVh={40}
+        initialHeightVh={56}
         expandedHeightVh={72}
         footer={footer}
       >
