@@ -4,6 +4,7 @@ import { Navigation, Filter, List, Search, Loader2, Plus, Heart, Minus } from "l
 import { StationCard } from "@/shared/components/StationCard";
 import { FuelTypeChip } from "@/shared/components/FuelTypeChip";
 import { MapFilterSheet } from "@/shared/components/MapFilterSheet";
+import { MobileBottomSheet } from "@/shared/components/MobileBottomSheet";
 import { FilterChip } from "@/shared/components/FilterChip";
 import { BrandLogoPin } from "@/shared/components/BrandLogoPin";
 import { MapPriceLegend } from "@/shared/components/MapPriceLegend";
@@ -191,6 +192,7 @@ export function Map() {
   const [userLocation, setUserLocation] = useState(null);
   const [visibleBounds, setVisibleBounds] = useState(null);
   const [isUpdatingMap, setIsUpdatingMap] = useState(false);
+  const [showSavedSheet, setShowSavedSheet] = useState(false);
   const mapRef = useRef(null);
   const lastSyncPos = useRef(null);
   const syncTimeoutRef = useRef(null);
@@ -623,37 +625,9 @@ export function Map() {
     : 0;
 
   return (
-    <div className="h-full min-h-0 flex flex-col lg:flex-row lg:overflow-hidden">
+    <div className="h-full min-h-0 flex flex-col overflow-hidden lg:flex-row lg:overflow-hidden">
       {/* Map View */}
-      <div className="flex-1 relative bg-muted overflow-hidden z-10">
-
-        {/* Sync Button — shown when map moved */}
-        {showSyncButton && !isLoadingStations && (
-          <div className="absolute top-24 lg:top-8 left-1/2 -translate-x-1/2 z-20">
-            <button
-              onClick={handleOSMSync}
-              disabled={isSyncingOSM}
-              className="bg-white dark:bg-neutral-900 backdrop-blur-xl border-2 border-emerald-500/50 rounded-full px-5 py-2.5 shadow-2xl shadow-emerald-500/20 flex items-center gap-2 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-all group scale-105"
-            >
-              {isSyncingOSM ? (
-                <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4 text-emerald-500 group-hover:scale-125 transition-transform" />
-              )}
-              <span className="text-sm font-bold text-foreground">
-                {isSyncingOSM ? "Syncing stations..." : "Search this area"}
-              </span>
-            </button>
-          </div>
-        )}
-
-        {/* Subtle Map Update Indicator */}
-        <div className={`absolute top-[4.5rem] lg:top-8 left-1/2 -translate-x-1/2 z-20 transition-all duration-300 pointer-events-none ${isUpdatingMap ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-full px-4 py-2 shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center gap-2">
-            <Loader2 className="w-3.5 h-3.5 text-emerald-500 animate-spin" />
-            <span className="text-xs font-bold text-foreground">Updating visible stations...</span>
-          </div>
-        </div>
+      <div className="flex-1 relative bg-muted overflow-hidden z-10 h-full min-h-0">
 
         {/* Loading overlay — shown while GPS + OSM fetch is in progress */}
         {isLoadingStations && (
@@ -745,8 +719,8 @@ export function Map() {
         <div className="hidden lg:block absolute top-0 left-0 right-0 h-40 z-10 pointer-events-none bg-gradient-to-b from-black/28 via-black/10 to-transparent" />
 
         {/* Mobile Top Controls */}
-        <div className="absolute top-0 left-0 right-0 p-4 space-y-3 bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
-          <div className="flex items-center gap-3">
+        <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3 bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
+          <div className="flex items-center gap-2.5">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
               <input
@@ -762,6 +736,17 @@ export function Map() {
                 className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-2xl shadow-black/20 transition-all placeholder:text-gray-500 text-foreground font-medium"
               />
             </div>
+            <button
+              onClick={() => setShowFilters(true)}
+              className="w-12 h-12 min-w-12 min-h-12 rounded-full bg-white dark:bg-neutral-900 backdrop-blur-xl shadow-2xl shadow-black/20 flex items-center justify-center relative border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-transform"
+            >
+              <Filter className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
+              {activeFilters.length > 0 && (
+                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50 border-2 border-white">
+                  <span className="text-xs text-white font-bold">{activeFilters.length}</span>
+                </div>
+              )}
+            </button>
           </div>
 
           <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
@@ -786,6 +771,35 @@ export function Map() {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Mobile Top-Right Actions */}
+        <div className="lg:hidden absolute top-[calc(8.75rem+env(safe-area-inset-top))] right-4 z-20 flex flex-col gap-2.5">
+          <button
+            onClick={() => setShowList(!showList)}
+            className="w-12 h-12 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 flex items-center justify-center border border-gray-200/90 dark:border-neutral-700/90"
+            title="Station list"
+          >
+            <List className="w-5 h-5 text-foreground" strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={() => {
+              setShowSavedSheet(true);
+              setShowList(false);
+              setSelectedStation(null);
+            }}
+            className="w-12 h-12 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 flex items-center justify-center border border-gray-200/90 dark:border-neutral-700/90"
+            title="Saved stations"
+          >
+            <Heart className="w-5 h-5 text-rose-500" strokeWidth={2.5} />
+          </button>
+          <button
+            onClick={() => navigate("/app/add-station")}
+            className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-2xl shadow-emerald-500/45 flex items-center justify-center border border-emerald-400/40"
+            title="Add station"
+          >
+            <Plus className="w-6 h-6 text-white" strokeWidth={2.8} />
+          </button>
         </div>
 
         {/* Desktop Top Controls */}
@@ -996,46 +1010,18 @@ export function Map() {
           </div>
         </div>
 
-        <div className="absolute right-4 top-36 lg:hidden z-20">
+        <div className="absolute right-4 bottom-[8.25rem] lg:hidden z-20">
           <button 
             onClick={() => handlePreciseLocation(false)}
-            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-110 transition-transform mb-3"
+            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-transform"
             title="Go to my location"
           >
             <Navigation className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
           </button>
-          <button 
-            onClick={() => navigate("/app/add-station")}
-            className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 transition-transform border-2 border-emerald-400/30"
-            title="Add new station"
-          >
-            <Plus className="w-8 h-8 text-white" strokeWidth={3} />
-          </button>
-        </div>
-
-        {/* Mobile Filter and List Controls */}
-        <div className="lg:hidden absolute right-4 bottom-32 space-y-3 z-20">
-          <button
-            onClick={() => setShowFilters(true)}
-            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center relative border-2 border-gray-200 dark:border-neutral-700 hover:scale-110 transition-transform"
-          >
-            <Filter className="w-6 h-6 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
-            {activeFilters.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50 border-2 border-white">
-                <span className="text-xs text-white font-bold">{activeFilters.length}</span>
-              </div>
-            )}
-          </button>
-          <button
-            onClick={() => setShowList(!showList)}
-            className="w-14 h-14 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center justify-center hover:scale-110 transition-transform border-2 border-emerald-400/40"
-          >
-            <List className="w-6 h-6 text-white" strokeWidth={2.5} />
-          </button>
         </div>
 
         {/* Price Legend */}
-        <div className="absolute left-4 bottom-24 lg:left-6 lg:bottom-12 z-20 pointer-events-none">
+        <div className="absolute left-4 bottom-[6.5rem] lg:left-6 lg:bottom-12 z-20 pointer-events-none">
           <MapPriceLegend />
         </div>
 
@@ -1093,8 +1079,8 @@ export function Map() {
         )}
 
         {/* Bottom Sheet - Selected Station (Mobile Only) */}
-        {selectedStation && !showList && (
-          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[58vh] overflow-y-auto z-30">
+        {selectedStation && !showList && !showSavedSheet && (
+          <div className="lg:hidden absolute bottom-[5.5rem] left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[52vh] overflow-y-auto z-30">
             <div className="w-16 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
             <div className="relative">
               <button
@@ -1118,42 +1104,71 @@ export function Map() {
         )}
 
         {/* Bottom Sheet - Station List (Mobile Only) */}
-        {showList && (
-          <div className="lg:hidden absolute bottom-0 left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[72vh] overflow-y-auto flex flex-col z-30">
-            <div className="flex items-center justify-between mb-5 shrink-0">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-lg font-bold text-foreground tracking-tight">
-                  Nearby Stations ({filteredStations.length})
-                </h3>
-                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-full w-fit">
-                  {getFilterDescription()}
-                </div>
-              </div>
-              <button onClick={() => setShowList(false)} className="p-2">
-                <div className="w-16 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full" />
-              </button>
-            </div>
-            <div className="space-y-3 overflow-y-auto pb-28 pt-2">
-              {isLoadingStations ? (
-                Array(4).fill(0).map((_, i) => (
-                  <StationCardSkeleton key={i} />
-                ))
-              ) : (
-                filteredStations.map((station) => (
-                  <StationCard
-                    key={station.id}
-                    {...station}
-                    prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
-                    onClick={() => {
-                      setSelectedStation(station.id);
-                      setShowList(false);
-                    }}
-                  />
-                ))
-              )}
-            </div>
+        <MobileBottomSheet
+          isOpen={showList && !showSavedSheet}
+          onClose={() => setShowList(false)}
+          title={`Nearby Stations (${filteredStations.length})`}
+          subtitle={getFilterDescription()}
+          badge="Live map results"
+          initialHeightVh={40}
+          expandedHeightVh={70}
+        >
+          <div className="space-y-3 pb-4">
+            {isLoadingStations ? (
+              Array(4).fill(0).map((_, i) => (
+                <StationCardSkeleton key={i} />
+              ))
+            ) : (
+              filteredStations.map((station) => (
+                <StationCard
+                  key={station.id}
+                  {...station}
+                  prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                  onClick={() => {
+                    setSelectedStation(station.id);
+                    setShowList(false);
+                  }}
+                />
+              ))
+            )}
           </div>
-        )}
+        </MobileBottomSheet>
+
+        <MobileBottomSheet
+          isOpen={showSavedSheet}
+          onClose={() => setShowSavedSheet(false)}
+          title={`Saved Stations (${filteredSavedStations.length})`}
+          subtitle="Quick access favorites"
+          badge="Saved for later"
+          initialHeightVh={40}
+          expandedHeightVh={70}
+        >
+          <div className="space-y-3 pb-4">
+            {filteredSavedStations.length > 0 ? (
+              filteredSavedStations.map((station) => (
+                <StationCard
+                  key={station.id}
+                  {...station}
+                  prices={Object.entries(station.latest_prices || {}).map(([type, details]) => ({ type, price: details.price }))}
+                  onClick={() => {
+                    setSelectedStation(station.id);
+                    setShowSavedSheet(false);
+                  }}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={Heart}
+                title={savedStations.length === 0 ? "No saved stations yet" : "No saved stations match"}
+                description={
+                  savedStations.length === 0
+                    ? "Save stations to keep your go-to locations within easy reach."
+                    : `No saved stations match "${searchQuery}".`
+                }
+              />
+            )}
+          </div>
+        </MobileBottomSheet>
       </div>
 
       {/* Filter Sheet */}

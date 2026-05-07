@@ -60,6 +60,7 @@ export function Layout() {
     location.pathname === "/app" ||
     location.pathname === "/app/" ||
     location.pathname.startsWith("/app/map");
+  const isMobileMapRoute = isDesktopMapRoute;
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
@@ -100,8 +101,10 @@ export function Layout() {
 
       {/* Main Content */}
       <main
-        className={`flex-1 pb-20 lg:pb-0 ${
-          isDesktopMapRoute ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto"
+        className={`flex-1 ${
+          isMobileMapRoute ? "pb-0 overflow-hidden" : "pb-20 overflow-y-auto"
+        } ${
+          isDesktopMapRoute ? "lg:pb-0 lg:overflow-hidden" : ""
         }`}
       >
         <Outlet />
