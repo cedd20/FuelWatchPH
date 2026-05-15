@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { Layout } from "@/shared/components/Layout";
 import { AdminLayout } from "@/shared/components/admin/AdminLayout";
 import { AdminRouteGuard } from "@/shared/components/admin/AdminRouteGuard";

@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, MapPin, ArrowLeftRight, TrendingUp, User } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "@/app/providers/AuthContext";
@@ -32,7 +32,7 @@ export function Layout() {
   const isMobileMapRoute = isDesktopMapRoute;
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="flex flex-col h-screen bg-[#050A09]">
       {/* Desktop Top Navigation - Hidden on Mobile */}
       <nav className="hidden lg:block sticky top-0 z-50 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700 shadow-lg">
         <div className="max-w-6xl mx-auto px-6 py-4">
@@ -80,8 +80,8 @@ export function Layout() {
       </main>
 
       {/* Bottom Navigation - Mobile Only */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4">
-        <div className="bg-white dark:bg-neutral-900 rounded-full shadow-2xl shadow-black/20 max-w-lg mx-auto px-6 py-3 border-2 border-gray-200 dark:border-neutral-700">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-6 pb-6">
+        <div className="bg-[#0C1A17] border border-emerald-500/10 rounded-full shadow-[0_15px_40px_rgba(0,0,0,0.4)] max-w-md mx-auto px-2 py-3">
           <div className="flex items-center justify-around relative">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -92,20 +92,17 @@ export function Layout() {
                   <button
                     key={item.path}
                     onClick={() => navigate(item.path)}
-                    className="flex flex-col items-center justify-center -mt-8 transition-transform hover:scale-110 relative"
+                    className="flex flex-col items-center justify-center -mt-10 transition-transform hover:scale-110 active:scale-95 relative"
                   >
                     <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transition-all border-2 ${
+                      className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${
                         active
-                          ? "bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 shadow-emerald-500/50 border-emerald-400/40"
-                          : "bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 shadow-emerald-500/40 border-emerald-400/30"
+                          ? "bg-gradient-to-br from-emerald-500 to-green-700 shadow-emerald-500/20"
+                          : "bg-gradient-to-br from-emerald-600/80 to-green-800/80 shadow-emerald-500/10"
                       }`}
                     >
-                      <Icon className="w-7 h-7 text-white" strokeWidth={2} />
+                      <Icon className="w-7 h-7 text-white" strokeWidth={2.5} />
                     </div>
-                    {active && (
-                      <div className="absolute -bottom-2 w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    )}
                   </button>
                 );
               }
@@ -114,16 +111,16 @@ export function Layout() {
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className="flex flex-col items-center justify-center py-2 px-3 transition-all relative group"
+                  className="flex flex-col items-center justify-center py-1 px-4 transition-all relative"
                 >
                   <Icon
-                    className={`w-6 h-6 transition-colors ${
-                      active ? "text-emerald-600 dark:text-emerald-400" : "text-neutral-400 dark:text-neutral-500"
+                    className={`w-6 h-6 transition-all ${
+                      active ? "text-emerald-400" : "text-gray-600"
                     }`}
-                    strokeWidth={active ? 2.5 : 2}
+                    strokeWidth={active ? 3 : 2}
                   />
                   {active && (
-                    <div className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                    <div className="absolute bottom-[-6px] w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-in fade-in zoom-in" />
                   )}
                 </button>
               );

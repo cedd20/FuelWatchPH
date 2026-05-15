@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, MessageCircle, Mail, HelpCircle, ChevronRight, Phone, ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Mail, HelpCircle, ChevronDown, ExternalLink, MessageCircle } from "lucide-react";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ContactModal } from "@/shared/components/ContactModal";
 
@@ -28,96 +29,118 @@ export function Support() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
+    <div className="min-h-screen bg-[#050A09] text-white pb-28">
       {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-
-        <div className="relative z-10 flex items-center gap-3 max-w-7xl mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-12 h-12 bg-white dark:bg-neutral-800 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40 dark:border-neutral-700/50"
-          >
-            <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-          </button>
-          <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Help & Support</h1>
+      <div className="relative pt-14 pb-24 px-6 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+        <div className="max-w-2xl mx-auto relative z-10">
+          <div className="flex items-center gap-6 mb-10">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group"
+            >
+              <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-4xl font-black tracking-tight">Help Center</h1>
+              <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">We're here to help</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="px-4 lg:px-8 py-6 lg:py-10">
-        <div className="max-w-3xl mx-auto space-y-10">
-          {/* FAQs */}
-          <div>
-            <div className="flex items-center gap-3 mb-6 px-1">
-              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-500/10 rounded-xl flex items-center justify-center shadow-md">
-                <HelpCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
-              </div>
-              <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Frequently Asked Questions</h2>
-            </div>
+      <div className="max-w-2xl mx-auto px-6 -mt-12 space-y-6">
 
-            <Accordion.Root type="single" collapsible className="space-y-4">
-              {faqs.map((faq, index) => (
-                <Accordion.Item
-                  key={index}
-                  value={`faq-${index}`}
-                  className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl rounded-2xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-lg overflow-hidden group"
-                >
-                  <Accordion.Header>
-                    <Accordion.Trigger className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all group-data-[state=open]:bg-emerald-50/50 dark:group-data-[state=open]:bg-emerald-950/20">
-                      <span className="font-bold text-foreground text-base lg:text-lg tracking-tight pr-4">{faq.question}</span>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-300 group-data-[state=open]:rotate-90" strokeWidth={2.5} />
-                    </Accordion.Trigger>
-                  </Accordion.Header>
-                  <Accordion.Content className="p-5 text-muted-foreground/90 font-medium text-sm lg:text-base leading-relaxed border-t border-gray-100 dark:border-neutral-700/30">
-                    {faq.answer}
-                  </Accordion.Content>
-                </Accordion.Item>
-              ))}
-            </Accordion.Root>
+        {/* FAQ Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl"
+        >
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center">
+              <HelpCircle className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black">FAQs</h2>
+              <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Common questions answered</p>
+            </div>
           </div>
 
-          {/* Contact */}
-          <div className="flex justify-center pt-2">
-            <button 
-              onClick={() => setIsContactModalOpen(true)}
-              className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl px-12 py-6 rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-xl hover:border-emerald-400/50 transition-all text-center group w-full max-w-sm block"
-            >
-              <div className="w-14 h-14 bg-teal-100 dark:bg-teal-500/10 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                <Mail className="w-7 h-7 text-teal-600 dark:text-teal-400" strokeWidth={2.5} />
+          <Accordion.Root type="single" collapsible className="space-y-3">
+            {faqs.map((faq, index) => (
+              <Accordion.Item
+                key={index}
+                value={`faq-${index}`}
+                className="bg-[#050A09] rounded-2xl border border-emerald-500/5 overflow-hidden group data-[state=open]:border-emerald-500/20 transition-all"
+              >
+                <Accordion.Header>
+                  <Accordion.Trigger className="w-full flex items-center justify-between p-5 text-left group">
+                    <span className="font-bold text-sm text-gray-300 group-data-[state=open]:text-white transition-colors pr-4">{faq.question}</span>
+                    <ChevronDown
+                      className="w-4 h-4 text-gray-600 transition-transform duration-300 group-data-[state=open]:rotate-180 group-data-[state=open]:text-emerald-400 shrink-0"
+                      strokeWidth={2.5}
+                    />
+                  </Accordion.Trigger>
+                </Accordion.Header>
+                <Accordion.Content className="px-5 pb-5 text-gray-500 font-medium text-sm leading-relaxed">
+                  {faq.answer}
+                </Accordion.Content>
+              </Accordion.Item>
+            ))}
+          </Accordion.Root>
+        </motion.div>
+
+        {/* Contact Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <button
+            onClick={() => setIsContactModalOpen(true)}
+            className="w-full bg-gradient-to-br from-emerald-600 to-teal-700 rounded-[3rem] p-10 shadow-2xl shadow-emerald-500/20 relative overflow-hidden group hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl">
+                <Mail className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
-              <div className="font-bold text-foreground text-lg">Email Us</div>
-              <div className="text-sm text-muted-foreground mt-1 font-semibold">Response in 24h</div>
+              <div>
+                <div className="text-xl font-black mb-1">Send Us a Message</div>
+                <div className="text-emerald-200 text-xs font-bold uppercase tracking-widest">We reply within 24 hours</div>
+              </div>
+            </div>
+          </button>
+        </motion.div>
+
+        {/* Community Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-teal-500/10 rounded-2xl flex items-center justify-center shrink-0">
+                <MessageCircle className="w-6 h-6 text-teal-400" />
+              </div>
+              <div>
+                <div className="font-black text-lg mb-1">Join the Community</div>
+                <p className="text-gray-500 text-xs font-bold leading-relaxed">Get real-time fuel alerts and updates from other contributors.</p>
+              </div>
+            </div>
+            <button className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 shrink-0">
+              Follow Us
             </button>
           </div>
-
-          {/* Social / Links */}
-          <div className="pt-6">
-            <div className="bg-gradient-to-br from-neutral-800 to-neutral-900 dark:from-neutral-800 dark:to-neutral-950 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:scale-125 transition-transform duration-1000" />
-
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">Join the Community</h3>
-                  <p className="text-neutral-300 text-sm font-medium">Follow us for real-time fuel price alerts and community updates.</p>
-                </div>
-                <div className="flex gap-3">
-                  <button className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors backdrop-blur-md border border-white/10">
-                    <ExternalLink className="w-5 h-5" />
-                  </button>
-                  <button className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-500/20">
-                    Follow Us
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </motion.div>
       </div>
-      <ContactModal 
-        isOpen={isContactModalOpen} 
-        onClose={() => setIsContactModalOpen(false)} 
-      />
+
+      <ContactModal isOpen={isContactModalOpen} onClose={() => setIsContactModalOpen(false)} />
     </div>
   );
 }

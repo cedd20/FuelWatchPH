@@ -2,6 +2,7 @@ import { MapPin, Clock, ShieldCheck, ChevronRight, Navigation } from "lucide-rea
 import { useNavigate } from "react-router";
 import { StationLogo } from "./StationLogo";
 import { formatPrice } from "@/shared/utils/priceUtils";
+import { motion } from "framer-motion";
 
 export function StationCard({
   id,
@@ -26,64 +27,82 @@ export function StationCard({
   };
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -4, scale: 1.01 }}
       onClick={handleClick}
-      className="bg-white dark:bg-neutral-900 rounded-2xl lg:rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-5 lg:p-6 cursor-pointer hover:shadow-2xl hover:scale-[1.01] hover:border-emerald-400/40 transition-all shadow-xl shadow-black/10"
+      className="group relative bg-[#0C1A17] rounded-[2rem] border border-emerald-500/10 p-5 lg:p-6 cursor-pointer shadow-2xl shadow-black/40 hover:border-emerald-500/30 transition-all overflow-hidden"
     >
-      <div className="flex items-start gap-4 lg:gap-5 mb-4 lg:mb-5">
-        <StationLogo name={name} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-bold text-foreground text-base lg:text-lg truncate">{name}</h3>
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      
+      <div className="relative z-10">
+        <div className="flex items-start gap-4 mb-5">
+          <div className="relative">
+            <StationLogo name={name} size="md" className="rounded-2xl shadow-xl border border-emerald-500/10" />
             {verified && (
-              <ShieldCheck className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" strokeWidth={2.5} />
+              <div className="absolute -top-1 -right-1 bg-[#050A09] p-0.5 rounded-full border border-emerald-500/20">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-1.5 text-sm lg:text-base text-muted-foreground/80 mb-1.5 font-medium">
-            <MapPin className="w-4 h-4 lg:w-5 lg:h-5 flex-shrink-0" strokeWidth={2.5} />
-            <span className="truncate">{address}</span>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="font-black text-white text-base lg:text-lg tracking-tight truncate group-hover:text-emerald-400 transition-colors">
+              {name}
+            </h3>
+            
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1 font-bold">
+              <MapPin className="w-3 h-3 text-emerald-500/50" />
+              <span className="truncate">{address}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs lg:text-sm text-muted-foreground/70 font-semibold">
-            <Clock className="w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0" strokeWidth={2.5} />
-            <span>Updated {lastUpdated}</span>
+
+          <div className="flex flex-col items-end gap-2">
+            <div className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-3 py-1 rounded-full border border-emerald-500/20 shadow-lg shadow-emerald-500/5">
+              {distance} KM
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-end flex-shrink-0 ml-3 lg:ml-4 gap-2">
-          <div className="text-xs lg:text-sm text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 rounded-lg border border-emerald-200/50 dark:border-emerald-800/50">
-            {distance} km
+
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {prices.slice(0, 4).map((fuel) => (
+            <div key={fuel.type} className="bg-[#1A2E2A] rounded-2xl p-3 border border-emerald-500/5 hover:border-emerald-500/20 transition-all shadow-lg">
+              <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">
+                {fuel.type}
+              </div>
+              <div className="font-black text-white text-sm lg:text-base">
+                {formatPrice(fuel.price)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between pt-4 border-t border-emerald-500/5">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-600 font-bold">
+            <Clock className="w-3 h-3" />
+            <span>{lastUpdated}</span>
           </div>
-          <div className="mt-auto flex items-center gap-1.5">
+          
+          <div className="flex items-center gap-2">
             {lat && lng && (
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
                 }}
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 shadow-sm hover:scale-105"
-                title="Directions"
+                className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl hover:bg-emerald-500 hover:text-white transition-all shadow-lg shadow-emerald-500/5"
               >
-                <Navigation className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <Navigation className="w-3.5 h-3.5" />
               </button>
             )}
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-50 dark:bg-neutral-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors border border-gray-200 dark:border-neutral-700 shadow-sm hover:scale-105">
-              <ChevronRight className="w-4 h-4" strokeWidth={2.5} />
+            <div className="p-2 bg-[#1A2E2A] text-gray-400 rounded-xl group-hover:text-emerald-400 transition-colors">
+              <ChevronRight className="w-4 h-4" />
             </div>
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-2 lg:gap-3">
-        {prices.slice(0, 4).map((fuel) => (
-          <div key={fuel.type} className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl lg:rounded-2xl p-3 lg:p-4 border border-emerald-200/60 dark:border-emerald-800/40 shadow-sm">
-            <div className="text-xs text-muted-foreground/80 mb-1 font-bold">
-              {fuel.type}
-            </div>
-            <div className="font-bold text-foreground text-sm lg:text-base tracking-tight">
-              {formatPrice(fuel.price)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    </motion.div>
+  );
+}
   );
 }

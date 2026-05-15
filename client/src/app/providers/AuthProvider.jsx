@@ -48,13 +48,11 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           const basicUser = {
             ...session.user,
-            initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 1).toUpperCase(),
-            name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
           };
           setUser(basicUser);
 
-          // Enrich asynchronously using backend API for calculated stats (accuracy, contributionCount)
-          refreshProfile();
+          // Wait for the first profile refresh before clearing the loading state
+          await refreshProfile();
         } else {
           setUser(null);
         }
@@ -74,8 +72,6 @@ export function AuthProvider({ children }) {
         // Set basic user immediately to unblock UI
         const basicUser = {
           ...session.user,
-          initials: (session.user.user_metadata?.full_name || session.user.email || 'U').substring(0, 1).toUpperCase(),
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
         };
         setUser(basicUser);
 

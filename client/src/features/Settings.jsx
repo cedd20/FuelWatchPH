@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Bell, MapPin, Fuel, Globe, Moon, ChevronDown } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Fuel, Moon, ChevronDown, Search, Settings2 } from "lucide-react";
 import { useTheme } from "@/app/providers/ThemeContext";
 
 export function Settings() {
@@ -10,87 +11,113 @@ export function Settings() {
   const [defaultFuelType, setDefaultFuelType] = useState("UL91");
   const [radius, setRadius] = useState("5");
 
+  const selectClass = "w-full bg-[#050A09] border border-emerald-500/10 rounded-2xl p-5 text-sm font-bold text-white focus:border-emerald-500/50 outline-none transition-all appearance-none cursor-pointer";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
+    <div className="min-h-screen bg-[#050A09] text-white pb-28">
       {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-
-        <div className="relative z-10 flex items-center gap-3 max-w-7xl mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-12 h-12 bg-white dark:bg-neutral-800 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40 dark:border-neutral-700/50"
-          >
-            <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-          </button>
-          <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Settings</h1>
-        </div>
-      </div>
-
-      <div className="px-4 lg:px-8 py-6 lg:py-10">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 lg:gap-10">
-
-          {/* Preferences */}
-          <div className="space-y-8 mt-8 lg:mt-0">
-             <div className="flex items-center gap-3 mb-2 px-1">
-              <div className="w-11 h-11 bg-amber-100 dark:bg-amber-500/10 rounded-xl flex items-center justify-center shadow-lg border border-amber-200/50 dark:border-amber-500/20">
-                <Fuel className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Preferences</h3>
-            </div>
-            
-            <div className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 p-7 lg:p-8 shadow-2xl shadow-black/5 space-y-6">
-              <div>
-                <label className="block text-xs font-black text-muted-foreground mb-3 uppercase tracking-widest pl-1">Default Fuel Type</label>
-                <div className="relative">
-                  <select value={defaultFuelType} onChange={(e) => setDefaultFuelType(e.target.value)} className="w-full p-4 lg:p-5 bg-gray-50 dark:bg-neutral-800 rounded-2xl border-2 border-transparent focus:border-emerald-500/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 text-foreground font-bold transition-all appearance-none cursor-pointer">
-                    <option>UL91</option>
-                    <option>PR95</option>
-                    <option>PR97</option>
-                    <option>DSL</option>
-                    <option>PDSL</option>
-                    <option>Kerosene</option>
-                  </select>
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-black text-muted-foreground mb-3 uppercase tracking-widest pl-1">Search Radius</label>
-                <div className="relative">
-                  <select value={radius} onChange={(e) => setRadius(e.target.value)} className="w-full p-4 lg:p-5 bg-gray-50 dark:bg-neutral-800 rounded-2xl border-2 border-transparent focus:border-emerald-500/30 dark:focus:border-emerald-500/30 focus:ring-4 focus:ring-emerald-500/10 text-foreground font-bold transition-all appearance-none cursor-pointer">
-                    <option value="5">5 km</option>
-                    <option value="10">10 km</option>
-                    <option value="20">20 km</option>
-                  </select>
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Appearance */}
-            <div className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 p-7 lg:p-8 shadow-2xl shadow-black/5 flex items-center justify-between group hover:border-emerald-400/40 transition-all">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-neutral-100 dark:bg-neutral-700 rounded-2xl flex items-center justify-center shadow-inner group-hover:bg-emerald-100 dark:group-hover:bg-emerald-500/10 transition-colors">
-                  <Moon className="w-6 h-6 text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400" />
-                </div>
-                <div>
-                  <div className="font-bold text-foreground text-base lg:text-lg tracking-tight">Dark Mode</div>
-                  <div className="text-sm text-muted-foreground font-medium">Adjust display for night</div>
-                </div>
-              </div>
-              <label className="relative inline-block w-14 h-7 cursor-pointer">
-                <input type="checkbox" checked={theme === "dark"} onChange={toggleTheme} className="sr-only peer" />
-                <div className="w-14 h-7 bg-gray-200 dark:bg-neutral-700 rounded-full peer peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-600 transition-all shadow-inner"></div>
-                <div className="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-all peer-checked:translate-x-7 shadow-md"></div>
-              </label>
+      <div className="relative pt-14 pb-20 px-6 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+        <div className="max-w-2xl mx-auto relative z-10">
+          <div className="flex items-center gap-6 mb-10">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group"
+            >
+              <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-4xl font-black tracking-tight">Settings</h1>
+              <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">Customize your experience</p>
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-6 -mt-10 space-y-6">
+        {/* Preferences Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl"
+        >
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center">
+              <Fuel className="w-6 h-6 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black">Preferences</h2>
+              <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Fuel & location defaults</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Default Fuel Type</label>
+              <div className="relative">
+                <select
+                  value={defaultFuelType}
+                  onChange={(e) => setDefaultFuelType(e.target.value)}
+                  className={selectClass}
+                >
+                  <option>UL91</option>
+                  <option>PR95</option>
+                  <option>PR97</option>
+                  <option>DSL</option>
+                  <option>PDSL</option>
+                  <option>Kerosene</option>
+                </select>
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Search Radius</label>
+              <div className="relative">
+                <select
+                  value={radius}
+                  onChange={(e) => setRadius(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="5">5 km</option>
+                  <option value="10">10 km</option>
+                  <option value="20">20 km</option>
+                </select>
+                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Appearance Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl flex items-center justify-between group hover:border-emerald-500/20 transition-all cursor-pointer"
+          onClick={toggleTheme}
+        >
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-[#050A09] rounded-2xl flex items-center justify-center border border-emerald-500/10">
+              <Moon className="w-6 h-6 text-gray-400" />
+            </div>
+            <div>
+              <div className="font-black text-base">Dark Mode</div>
+              <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Adjust for night use</div>
+            </div>
+          </div>
+          <label className="relative inline-block w-14 h-7 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+            <input type="checkbox" checked={theme === "dark"} onChange={toggleTheme} className="sr-only peer" />
+            <div className="w-14 h-7 bg-[#050A09] border border-emerald-500/10 rounded-full peer peer-checked:bg-emerald-500 peer-checked:border-emerald-400 transition-all shadow-inner"></div>
+            <div className="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-all peer-checked:translate-x-7 shadow-md"></div>
+          </label>
+        </motion.div>
+
+        {/* Info Note */}
+        <p className="text-center text-[10px] font-bold text-gray-700 uppercase tracking-widest px-4">
+          Settings are saved automatically
+        </p>
       </div>
     </div>
   );

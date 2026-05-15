@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Shield, FileText, CheckCircle2, Scale } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { ArrowLeft, Shield, Scale, CheckCircle2 } from "lucide-react";
 
 export function Terms() {
   const navigate = useNavigate();
@@ -36,75 +37,98 @@ export function Terms() {
     }
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-900 dark:to-neutral-950 pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-4 lg:px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+  const activeContent = activeTab === "terms" ? termsContent : privacyContent;
 
-        <div className="relative z-10 flex items-center gap-3 max-w-7xl mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-12 h-12 bg-white dark:bg-neutral-800 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40 dark:border-neutral-700/50"
-          >
-            <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-          </button>
-          <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Terms & Privacy</h1>
+  return (
+    <div className="min-h-screen bg-[#050A09] text-white pb-28">
+      {/* Header */}
+      <div className="relative pt-14 pb-24 px-6 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+        <div className="max-w-2xl mx-auto relative z-10">
+          <div className="flex items-center gap-6 mb-10">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group"
+            >
+              <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            </button>
+            <div>
+              <h1 className="text-4xl font-black tracking-tight">Legal</h1>
+              <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">Terms & Privacy Policy</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="px-4 lg:px-8 py-6 lg:py-10">
-        <div className="max-w-3xl mx-auto">
-          {/* Tabs */}
-          <div className="flex p-1.5 bg-gray-100 dark:bg-neutral-800/50 backdrop-blur-xl rounded-2xl mb-8 border-2 border-gray-200/50 dark:border-neutral-700/30">
-            <button
-              onClick={() => setActiveTab("terms")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-                activeTab === "terms"
-                  ? "bg-white dark:bg-neutral-700 text-emerald-600 dark:text-emerald-400 shadow-lg"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Scale className="w-4 h-4" />
-              Terms of Service
-            </button>
-            <button
-              onClick={() => setActiveTab("privacy")}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-all ${
-                activeTab === "privacy"
-                  ? "bg-white dark:bg-neutral-700 text-emerald-600 dark:text-emerald-400 shadow-lg"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              Privacy Policy
-            </button>
-          </div>
+      <div className="max-w-2xl mx-auto px-6 -mt-12 space-y-6">
 
-          {/* Content */}
-          <div className="space-y-6">
-            {(activeTab === "terms" ? termsContent : privacyContent).map((section, index) => (
-              <div key={index} className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl p-6 lg:p-8 rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 shadow-xl group">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        {/* Tab Switcher */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#0C1A17] p-2 rounded-[2.5rem] flex border border-emerald-500/10 shadow-2xl"
+        >
+          <button
+            onClick={() => setActiveTab("terms")}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
+              activeTab === "terms"
+                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                : "text-gray-600 hover:text-gray-400"
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            Terms
+          </button>
+          <button
+            onClick={() => setActiveTab("privacy")}
+            className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
+              activeTab === "privacy"
+                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+                : "text-gray-600 hover:text-gray-400"
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            Privacy
+          </button>
+        </motion.div>
+
+        {/* Content Sections */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
+            {activeContent.map((section, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08 }}
+                className="bg-[#0C1A17] rounded-[2.5rem] p-8 border border-emerald-500/5 hover:border-emerald-500/20 transition-all shadow-2xl group"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <h3 className="font-bold text-foreground text-lg tracking-tight">{section.title}</h3>
+                  <h3 className="font-black text-base tracking-tight">{section.title}</h3>
                 </div>
-                <p className="text-muted-foreground/90 font-medium text-sm lg:text-base leading-relaxed">
+                <p className="text-gray-500 font-medium text-sm leading-relaxed pl-14">
                   {section.content}
                 </p>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
+        </AnimatePresence>
 
-          {/* Legal Footer */}
-          <div className="mt-10 p-6 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border-2 border-emerald-100 dark:border-emerald-500/20 text-center">
-            <p className="text-xs lg:text-sm text-emerald-800 dark:text-emerald-400 font-semibold italic">
-              Last Updated: April 24, 2026. These terms are subject to change to improve community standards.
-            </p>
-          </div>
+        {/* Legal Footer */}
+        <div className="bg-emerald-500/5 rounded-[2rem] p-6 border border-emerald-500/10 text-center">
+          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+            Last updated: April 24, 2026 · Subject to change
+          </p>
         </div>
       </div>
     </div>

@@ -437,7 +437,7 @@ export function Map() {
           }
         }}
         placeholder={desktopToolPanel === "saved" ? "Search saved stations" : "Search stations, cities, or roads"}
-        className="w-full pl-12 pr-5 py-3.5 bg-white/96 dark:bg-neutral-950/92 rounded-2xl border border-gray-200/80 dark:border-neutral-700/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-[0_14px_30px_rgba(15,23,42,0.2)] transition-all placeholder:text-gray-500 text-foreground font-medium"
+        className="w-full pl-12 pr-5 py-3.5 bg-[#0C1A17] rounded-2xl border border-emerald-500/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-2xl transition-all placeholder:text-gray-600 text-white font-bold"
       />
 
       {showRecentSearches && recentSearches.length > 0 && (
@@ -723,17 +723,17 @@ export function Map() {
                   }
                 }}
                 placeholder="Search stations or locations"
-                className="w-full pl-12 pr-5 py-3.5 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-2xl shadow-black/20 transition-all placeholder:text-gray-500 text-foreground font-medium"
+                className="w-full pl-12 pr-5 py-3.5 bg-[#0C1A17] rounded-full border border-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-2xl transition-all placeholder:text-gray-600 text-white font-black text-xs uppercase tracking-widest"
               />
             </div>
             <button
               onClick={() => setShowFilters(true)}
-              className="w-12 h-12 min-w-12 min-h-12 rounded-full bg-white dark:bg-neutral-900 backdrop-blur-xl shadow-2xl shadow-black/20 flex items-center justify-center relative border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-transform"
+              className="w-12 h-12 min-w-12 min-h-12 rounded-full bg-[#0C1A17] shadow-2xl flex items-center justify-center relative border border-emerald-500/20 hover:scale-105 transition-transform"
             >
-              <Filter className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
+              <Filter className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
               {activeFilters.length > 0 && (
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50 border-2 border-white">
-                  <span className="text-xs text-white font-bold">{activeFilters.length}</span>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg border border-[#050A09]">
+                  <span className="text-[10px] text-white font-black">{activeFilters.length}</span>
                 </div>
               )}
             </button>
@@ -778,7 +778,7 @@ export function Map() {
               setShowList(false);
               setSelectedStation(null);
             }}
-            className="w-12 h-12 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-xl rounded-2xl shadow-2xl shadow-black/20 flex items-center justify-center border border-gray-200/90 dark:border-neutral-700/90"
+            className="w-12 h-12 bg-[#0C1A17] rounded-2xl shadow-2xl flex items-center justify-center border border-emerald-500/10"
             title="Saved stations"
           >
             <Heart className="w-5 h-5 text-rose-500" strokeWidth={2.5} />
