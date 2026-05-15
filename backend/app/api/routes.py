@@ -961,7 +961,7 @@ async def list_verifications(
         if not profile.data or profile.data.get("user_type") != 0:
             raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
 
-        query = supabase_admin.table("verification_requests").select("*, user_profiles(username, email)")
+        query = supabase_admin.table("verification_requests").select("*, user_profiles(username)")
         if status and status != "all":
             query = query.eq("status", status)
         

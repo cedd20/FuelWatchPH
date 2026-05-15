@@ -180,8 +180,8 @@ export function VerificationDetail() {
                       <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Email Address</div>
-                      <div className="font-bold text-foreground text-sm lg:text-base break-all">{request?.user_profiles?.email}</div>
+                      <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Username</div>
+                      <div className="font-bold text-foreground text-sm lg:text-base break-all">{request?.user_profiles?.username || request?.full_name}</div>
                     </div>
                   </div>
 
