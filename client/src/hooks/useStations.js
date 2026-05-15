@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/apiClient";
 import { toDBFuelType, toAliasFuelType } from "../shared/utils/fuelTypes";
 
@@ -27,7 +27,9 @@ export function useStations(filters = {}) {
         return station;
       });
     },
+    placeholderData: keepPreviousData,
     staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
@@ -47,7 +49,9 @@ export function useStation(id) {
       return station;
     },
     enabled: !!id,
+    placeholderData: keepPreviousData,
     staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 

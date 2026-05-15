@@ -28,6 +28,7 @@ import { isValidPrice } from "@/shared/utils/priceUtils";
 import { StationCardSkeleton } from "@/shared/components/Skeleton";
 import { getSavedStationIds } from "@/shared/utils/favorites";
 import { toast } from "sonner";
+import { useTheme } from "@/app/providers/ThemeContext";
 
 const MAP_STATE_KEY = "fuelwatch_map_state";
 const MAP_RECENT_SEARCHES_KEY = "fuelwatch_map_recent_searches";
@@ -178,6 +179,7 @@ export function Map() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { theme } = useTheme();
   const [isSyncingOSM, setIsSyncingOSM] = useState(false);
   const [showSyncButton, setShowSyncButton] = useState(false);
   const [mapMoveCenter, setMapMoveCenter] = useState(null);
@@ -204,6 +206,9 @@ export function Map() {
   const selectedFuelType = fuelSelection.selectedFuelType;
   const activeFilters = buildActiveFilterLabels(normalizedFilters);
   const isDesktopSidebarExpanded = desktopToolPanel === "list" || desktopToolPanel === "saved";
+  const tileLayerUrl = theme === "dark"
+    ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   // Fetch real stations from backend (No GPS limits, fetch all to allow seamless map panning)
   const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
@@ -212,17 +217,17 @@ export function Map() {
   });
 
   // Process stations for UI components
-  const stations = rawStations.map(s => ({
+  const stations = useMemo(() => rawStations.map((s) => ({
     ...s,
     prices: Object.entries(s.latest_prices || {}).map(([type, details]) => ({
       type,
-      price: details.price
+      price: details.price,
     })),
     lastUpdated: s.latest_prices && Object.keys(s.latest_prices).length > 0
-      ? new Date(Math.max(...Object.values(s.latest_prices).map(p => new Date(p.observed_at)))).toLocaleDateString()
-      : 'No reports',
-    verified: s.is_active // Simple mapping for now
-  }));
+      ? new Date(Math.max(...Object.values(s.latest_prices).map((p) => new Date(p.observed_at)))).toLocaleDateString()
+      : "No reports",
+    verified: s.is_active,
+  })), [rawStations]);
 
   const savedStations = useMemo(() => {
     const savedIds = getSavedStationIds();
@@ -543,14 +548,14 @@ export function Map() {
   };
 
   // Calculate price for the selected fuel type
-  const getStationPrice = (station) => {
+  function getStationPrice(station) {
     const prices = station.prices
       ?.filter((priceEntry) => activeFuelTypes.length === 0 || activeFuelTypes.includes(priceEntry.type))
       .map((priceEntry) => Number(priceEntry.price))
       .filter((price) => isValidPrice(price)) || [];
 
     return prices.length > 0 ? Math.min(...prices) : null;
-  };
+  }
 
   // --------------------------------------------------------
   // FILTERING LOGIC
@@ -563,69 +568,109 @@ export function Map() {
   // If the map center is more than 1km away from GPS, consider it manual browsing
   const isBrowsingManually = distFromMapCenterToGPS > 1;
 
-  const filteredStations = stations.map(station => {
-    // Add dynamic distance calculation if userLocation is available
-    const distance = userLocation
-      ? calculateDistance(userLocation[0], userLocation[1], station.lat, station.lng)
-      : (station.distance || 0);
-    return { ...station, distance: parseFloat(distance.toFixed(1)) };
-  }).filter((station) => {
-    // 1. Search Query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      if (!station.name.toLowerCase().includes(query) && !station.address?.toLowerCase().includes(query)) {
-        return false;
-      }
-    }
-
-    // 2. Fuel Type Selection
-    if (activeFuelTypes.length > 0 && station.prices.length > 0) {
-      const hasFuel = station.prices.some(
-        (p) => activeFuelTypes.includes(p.type) && isValidPrice(p.price)
-      );
-      if (!hasFuel) return false;
-    }
-
-    // 3. Viewport Boundary Check (Performance optimization to prevent crashing map with too many markers)
-    // Only apply if there's no active City filter or Search query (we want them to find stuff off-screen if explicitly searched)
-    if (!searchQuery && normalizedFilters.location !== "city" && visibleBounds) {
-      const inBounds = visibleBounds.contains([station.lat, station.lng]);
-      if (!inBounds) return false;
-    }
-
-    // 4. Radius vs City Logic (Priority: City > Nearby)
+  const filteredStations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
     const locationMode = normalizedFilters.location || "nearby";
-    if (locationMode === "city" && normalizedFilters.selectedCity) {
-      const cityMatch = station.city === normalizedFilters.selectedCity ||
-        station.address?.toLowerCase().includes(normalizedFilters.selectedCity.toLowerCase());
-      if (!cityMatch) return false;
-    } else if (locationMode === "nearby") {
-      const radiusVal = normalizedFilters.radius || "all";
-      if (radiusVal !== "all") {
-        const radiusLimit = parseFloat(radiusVal);
-        if (userLocation && !isBrowsingManually && station.distance > radiusLimit) return false;
-      }
-    }
+    const radiusVal = normalizedFilters.radius || "all";
+    const radiusLimit = radiusVal === "all" ? null : parseFloat(radiusVal);
 
-    // 5. Sheet Filters (Brands / Verified)
-    if (normalizedFilters.brands?.length > 0) {
-      if (!normalizedFilters.brands.includes(station.brand)) return false;
-    }
+    return stations
+      .map((station) => {
+        const distance = userLocation
+          ? calculateDistance(userLocation[0], userLocation[1], station.lat, station.lng)
+          : (station.distance || 0);
+        return { ...station, distance: parseFloat(distance.toFixed(1)) };
+      })
+      .filter((station) => {
+        if (query) {
+          if (!station.name.toLowerCase().includes(query) && !station.address?.toLowerCase().includes(query)) {
+            return false;
+          }
+        }
 
-    if (normalizedFilters.verifiedOnly) {
-      if (!station.verified) return false;
-    }
+        if (activeFuelTypes.length > 0 && station.prices.length > 0) {
+          const hasFuel = station.prices.some(
+            (p) => activeFuelTypes.includes(p.type) && isValidPrice(p.price)
+          );
+          if (!hasFuel) return false;
+        }
 
-    return true;
-  }).sort((a, b) => a.distance - b.distance);
+        if (!query && normalizedFilters.location !== "city" && visibleBounds) {
+          const inBounds = visibleBounds.contains([station.lat, station.lng]);
+          if (!inBounds) return false;
+        }
 
-  const stationsWithPrices = filteredStations
-    .map(s => getStationPrice(s))
-    .filter(p => p !== null);
+        if (locationMode === "city" && normalizedFilters.selectedCity) {
+          const cityMatch = station.city === normalizedFilters.selectedCity ||
+            station.address?.toLowerCase().includes(normalizedFilters.selectedCity.toLowerCase());
+          if (!cityMatch) return false;
+        } else if (locationMode === "nearby" && radiusLimit !== null) {
+          if (userLocation && !isBrowsingManually && station.distance > radiusLimit) return false;
+        }
 
-  const avgPrice = stationsWithPrices.length > 0
-    ? stationsWithPrices.reduce((sum, price) => sum + price, 0) / stationsWithPrices.length
-    : 0;
+        if (normalizedFilters.brands?.length > 0) {
+          if (!normalizedFilters.brands.includes(station.brand)) return false;
+        }
+
+        if (normalizedFilters.verifiedOnly && !station.verified) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => a.distance - b.distance);
+  }, [
+    activeFuelTypes,
+    isBrowsingManually,
+    normalizedFilters.brands,
+    normalizedFilters.location,
+    normalizedFilters.radius,
+    normalizedFilters.selectedCity,
+    normalizedFilters.verifiedOnly,
+    searchQuery,
+    stations,
+    userLocation,
+    visibleBounds,
+  ]);
+
+  const stationsWithPrices = useMemo(
+    () => filteredStations.map((s) => getStationPrice(s)).filter((p) => p !== null),
+    [filteredStations]
+  );
+
+  const avgPrice = useMemo(() => {
+    if (stationsWithPrices.length === 0) return 0;
+    return stationsWithPrices.reduce((sum, price) => sum + price, 0) / stationsWithPrices.length;
+  }, [stationsWithPrices]);
+
+  const stationMarkerIcons = useMemo(() => {
+    const icons = new globalThis.Map();
+
+    filteredStations.forEach((station) => {
+      const price = getStationPrice(station);
+      const isSelected = selectedStation === station.id;
+
+      icons.set(
+        station.id,
+        L.divIcon({
+          className: "custom-pin",
+          html: renderToString(
+            <BrandLogoPin
+              brandName={station.brand}
+              price={price}
+              avgPrice={avgPrice}
+              isSelected={isSelected}
+              showPrice={true}
+            />
+          ),
+          iconSize: [48, 64],
+          iconAnchor: [24, 64],
+        })
+      );
+    });
+
+    return icons;
+  }, [avgPrice, filteredStations, selectedStation]);
 
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden lg:flex-row lg:overflow-hidden">
@@ -654,8 +699,9 @@ export function Map() {
             className="w-full h-full"
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              url={tileLayerUrl}
+              key={tileLayerUrl}
             />
             <MapEvents
               onMoveStart={() => setIsUpdatingMap(true)}
@@ -663,23 +709,7 @@ export function Map() {
               onBoundsChange={setVisibleBounds}
             />
             {filteredStations.map((station) => {
-              const price = getStationPrice(station);
-              const isSelected = selectedStation === station.id;
-
-              const customIcon = L.divIcon({
-                className: "custom-pin",
-                html: renderToString(
-                  <BrandLogoPin
-                    brandName={station.brand}
-                    price={price}
-                    avgPrice={avgPrice}
-                    isSelected={isSelected}
-                    showPrice={true}
-                  />
-                ),
-                iconSize: [48, 64],
-                iconAnchor: [24, 64],
-              });
+              const customIcon = stationMarkerIcons.get(station.id);
 
               return (
                 <Marker

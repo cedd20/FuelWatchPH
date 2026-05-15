@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useTheme } from "@/app/providers/ThemeContext";
 
 // Fix Leaflet default marker icon for Vite builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -53,9 +54,13 @@ export function AddStation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { theme } = useTheme();
   const mapRef = useRef(null);
   const existingStation = location.state?.station ?? null;
   const isEditMode = Boolean(existingStation);
+  const tileLayerUrl = theme === "dark"
+    ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   const queryClient = useQueryClient();
   const createStationMutation = useCreateStation();
@@ -457,12 +462,13 @@ export function AddStation() {
                       style={{ cursor: "crosshair" }}
                     >
                       <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                       />
                       {/* Click handler */}
                       <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
-                      {/* OSM Suggestions */}
+                          url={tileLayerUrl}
+                          key={tileLayerUrl}
                       {osmSuggestions.map(s => (
                         <Marker 
                           key={s.id} 
@@ -676,8 +682,9 @@ export function AddStation() {
                     style={{ cursor: "crosshair" }}
                   >
                     <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                      url={tileLayerUrl}
+                      key={tileLayerUrl}
                     />
                     <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
                   </MapContainer>
