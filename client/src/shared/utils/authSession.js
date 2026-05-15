@@ -1,5 +1,6 @@
 export const AUTH_REMEMBER_ME_KEY = "fuelwatch_auth_remember_me";
 export const MOCK_AUTH_SESSION_KEY = "fuelwatch_mock_auth_session";
+export const MOCK_ADMIN_AUTH_SESSION_KEY = "fuelwatch_mock_admin_auth_session";
 export const AUTH_REMEMBERED_CREDENTIALS_KEY = "fuelwatch_auth_remembered_credentials";
 
 export function getSupabaseProjectRef() {
@@ -101,4 +102,19 @@ export function getMockAuthSession() {
 
 export function clearMockAuthSession() {
   clearStoredSessionValue(MOCK_AUTH_SESSION_KEY);
+}
+
+export function setMockAdminAuthSession(user, rememberMe) {
+  if (!user) return;
+  setStoredRememberMePreference(rememberMe);
+  // Safe placeholder admin session until backend role-based auth is integrated.
+  storeSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY, JSON.stringify(user), rememberMe);
+}
+
+export function getMockAdminAuthSession() {
+  return getParsedSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY);
+}
+
+export function clearMockAdminAuthSession() {
+  clearStoredSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY);
 }

@@ -2,8 +2,11 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isValidUrl, setStoredRememberMePreference } from "../../lib/supabase";
 import { KarmaService } from "../../lib/karmaService";
 import {
+  clearMockAdminAuthSession,
   clearMockAuthSession,
+  getMockAdminAuthSession,
   getMockAuthSession,
+  setMockAdminAuthSession,
   setMockAuthSession,
 } from "@/shared/utils/authSession";
 
@@ -11,6 +14,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [adminUser, setAdminUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,7 +22,9 @@ export function AuthProvider({ children }) {
       try {
         if (!isValidUrl) {
           const mockSession = getMockAuthSession();
+          const mockAdminSession = getMockAdminAuthSession();
           setUser(mockSession || null);
+          setAdminUser(mockAdminSession || null);
           setLoading(false);
           return;
         }
@@ -58,6 +64,8 @@ export function AuthProvider({ children }) {
         } else {
           setUser(null);
         }
+
+        setAdminUser(getMockAdminAuthSession() || null);
       } catch (error) {
         console.error("Auth initialization error:", error);
       } finally {
@@ -84,6 +92,8 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null);
       }
+
+      setAdminUser(getMockAdminAuthSession() || null);
       setLoading(false);
     });
     
@@ -147,7 +157,9 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
+    adminUser,
     isAuthenticated: !!user,
+    isAdminAuthenticated: !!adminUser,
     loading,
     refreshProfile,
     login: async (email, password, options = {}) => {
@@ -209,6 +221,34 @@ export function AuthProvider({ children }) {
       console.log("Logout response:", { error });
       if (error) throw error;
       setUser(null);
+    },
+    adminLogin: async (email, password, options = {}) => {
+      const rememberMe = options.rememberMe ?? false;
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Frontend-only placeholder until admin auth is connected to backend role checks.
+      const isValidMockAdminLogin =
+        normalizedEmail === "admin@fuelwatch.ph" && password === "Admin1234!";
+
+      if (!isValidMockAdminLogin) {
+        throw new Error("Invalid admin credentials. Use the mock admin account for now.");
+      }
+
+      const mockAdmin = {
+        id: "demo-admin-id",
+        email: normalizedEmail,
+        name: "FuelWatch Admin",
+        initials: "FA",
+        role: "Super Admin",
+      };
+
+      setMockAdminAuthSession(mockAdmin, rememberMe);
+      setAdminUser(mockAdmin);
+      return { user: mockAdmin };
+    },
+    adminLogout: async () => {
+      clearMockAdminAuthSession();
+      setAdminUser(null);
     },
     resendVerification: async (email) => {
       if (!isValidUrl) throw new Error("Supabase is not configured.");
