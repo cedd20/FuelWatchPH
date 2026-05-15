@@ -530,21 +530,26 @@ export function StationDetail() {
             </div>
 
             <div className="px-5 py-4 lg:px-6 border-t border-gray-100 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 rounded-b-[2rem] pb-[calc(1rem+env(safe-area-inset-bottom))]">
-              <div className="flex flex-col-reverse sm:flex-row gap-3">
-                <button
+              <div className="flex flex-row gap-3">
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={handleCloseReportIssues}
-                  className="w-full sm:flex-1 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-5 py-3.5 text-sm font-bold text-foreground"
+                  fullWidth
+                  size="md"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={handleSubmitIssueReport}
-                  className="w-full sm:flex-1 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 px-5 py-3.5 text-sm font-bold text-white shadow-xl shadow-orange-500/25"
+                  variant="primary"
+                  fullWidth
+                  size="md"
+                  className="bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 shadow-xl shadow-orange-500/25 border-orange-400/20"
                 >
                   Submit Issue
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -338,12 +338,12 @@ export function EditProfile() {
           </div>
 
           {/* Submit Button */}
-          <div className="flex gap-4">
+          <div className="flex flex-row gap-3 sm:gap-4 mt-8">
             <Button 
               type="button" 
               variant="outline" 
               fullWidth 
-              size="lg"
+              size="md"
               onClick={() => navigate(-1)}
             >
               Cancel
@@ -351,7 +351,7 @@ export function EditProfile() {
             <Button 
               type="submit" 
               fullWidth 
-              size="lg" 
+              size="md" 
               loading={isLoading}
               icon={Save}
             >

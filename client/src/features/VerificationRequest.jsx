@@ -370,12 +370,12 @@ export function VerificationRequest() {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-row gap-3 sm:gap-4 mt-8">
             <Button 
               type="button" 
               variant="outline" 
               fullWidth 
-              size="lg"
+              size="md"
               onClick={() => navigate(-1)}
             >
               Cancel
@@ -383,7 +383,7 @@ export function VerificationRequest() {
             <Button 
               type="submit" 
               fullWidth 
-              size="lg" 
+              size="md" 
               loading={isLoading}
               disabled={!!isUploading || !formData.id_front_url || !formData.id_back_url}
               icon={Shield}

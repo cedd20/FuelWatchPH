@@ -153,31 +153,25 @@ function PriceUpdateConfirmationModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-5 py-4 sm:px-7 sm:py-5 grid grid-cols-2 gap-3 sm:gap-4">
-          <button
-            type="button"
+        <div className="border-t border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur px-5 py-4 sm:px-7 sm:py-5 flex flex-row gap-3 sm:gap-4">
+          <Button
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="rounded-2xl border-2 border-gray-300 dark:border-neutral-600 bg-gray-100 dark:bg-neutral-800 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-bold text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+            fullWidth
+            size="md"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={error ? onRetry : onConfirm}
             disabled={isSubmitting && !error}
-            className="rounded-2xl bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 px-4 py-3 sm:py-3.5 text-sm sm:text-base font-bold text-white shadow-xl shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
+            fullWidth
+            size="md"
+            loading={isSubmitting && !error}
           >
-            {isSubmitting && !error ? (
-              <>
-                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                <span>Processing...</span>
-              </>
-            ) : error ? (
-              "Try Again"
-            ) : (
-              "Confirm Update"
-            )}
-          </button>
+            {error ? "Try Again" : "Confirm Update"}
+          </Button>
         </div>
       </div>
     </div>
@@ -655,9 +649,9 @@ export function UpdatePrice() {
                 <Button
                   type="submit"
                   fullWidth
-                  size="lg"
+                  size="md"
                   disabled={!hasAnyPrice || !isNearStation}
-                  className="py-4 lg:py-5 text-lg shadow-xl shadow-emerald-500/20"
+                  className="shadow-xl shadow-emerald-500/20"
                 >
                   Submit Updates
                 </Button>

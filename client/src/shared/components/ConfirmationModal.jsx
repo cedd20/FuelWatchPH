@@ -48,17 +48,21 @@ export function ConfirmationModal({
             {message}
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
-            <button
+          <div className="flex flex-row gap-3 sm:gap-4">
+            <Button
+              variant="outline"
               onClick={onClose}
-              className="px-6 py-4 bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 text-foreground font-bold rounded-2xl transition-all active:scale-95"
+              fullWidth
+              size="md"
             >
               {cancelText}
-            </button>
+            </Button>
             <Button
               onClick={onConfirm}
               variant={type === 'warning' ? 'primary' : 'primary'}
-              className={`py-4 shadow-xl active:scale-95 ${
+              fullWidth
+              size="md"
+              className={`shadow-xl active:scale-95 ${
                 type === 'warning' ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-500/20' : ''
               }`}
             >
