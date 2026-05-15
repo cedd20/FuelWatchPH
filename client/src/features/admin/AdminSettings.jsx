@@ -8,14 +8,7 @@ export function AdminSettings() {
     role: "Super Admin",
   });
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailVerifications: true,
-    emailReports: true,
-    emailBans: false,
-    pushVerifications: true,
-    pushReports: false,
-    pushBans: true,
-  });
+
 
   const [dashboardSettings, setDashboardSettings] = useState({
     defaultView: "dashboard",
@@ -27,7 +20,7 @@ export function AdminSettings() {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleSaveSettings = () => {
-    console.log("Saving settings:", { profileData, notificationSettings, dashboardSettings });
+    console.log("Saving settings:", { profileData, dashboardSettings });
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -95,103 +88,7 @@ export function AdminSettings() {
           </div>
         </div>
 
-        {/* Notification Settings */}
-        <div className="bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 shadow-lg mb-6 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 lg:p-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center flex-shrink-0">
-                <Bell className="w-5 h-5 lg:w-6 lg:h-6 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-lg lg:text-xl font-bold text-white">Notification Preferences</h2>
-                <p className="text-white/80 text-xs lg:text-sm">Choose how you want to be notified</p>
-              </div>
-            </div>
-          </div>
-          <div className="p-4 lg:p-6">
-            <div className="space-y-6">
-              {/* Email Notifications */}
-              <div>
-                <h3 className="text-sm font-bold text-foreground mb-3">Email Notifications</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">New verification requests</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.emailVerifications}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, emailVerifications: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">New station reports</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.emailReports}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, emailReports: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">User bans and unbans</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.emailBans}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, emailBans: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                </div>
-              </div>
 
-              {/* Push Notifications */}
-              <div>
-                <h3 className="text-sm font-bold text-foreground mb-3">Push Notifications</h3>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">New verification requests</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.pushVerifications}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, pushVerifications: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">New station reports</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.pushReports}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, pushReports: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors">
-                    <span className="text-sm font-medium text-foreground">User bans and unbans</span>
-                    <input
-                      type="checkbox"
-                      checked={notificationSettings.pushBans}
-                      onChange={(e) =>
-                        setNotificationSettings({ ...notificationSettings, pushBans: e.target.checked })
-                      }
-                      className="w-5 h-5 rounded border-2 border-gray-300 text-emerald-600 focus:ring-4 focus:ring-emerald-500/20"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Dashboard Preferences */}
         <div className="bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 shadow-lg mb-6 overflow-hidden">

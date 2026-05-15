@@ -210,7 +210,7 @@ export function AddStation() {
       fetchOSMSuggestions(lat, lng);
       // Auto reverse-geocode silently when map stops moving
       handlePinSet(lat, lng, "drag", true);
-    }, 1000);
+    }, 2000);
   }, [fetchOSMSuggestions, handlePinSet]);
 
   const handleOSMSuggestionClick = useCallback(async (suggestion) => {

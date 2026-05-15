@@ -22,18 +22,16 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
-import { useNotifications } from "@/hooks/useUsers";
+
 import { useMyContributions } from "@/hooks/usePrices";
 import { ProfileSkeleton } from "@/shared/components/Skeleton";
 
 export function Profile() {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading, logout, refreshProfile } = useAuth();
-  const { data: notifications = [] } = useNotifications({ enabled: isAuthenticated });
   const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions({
     enabled: isAuthenticated,
   });
-  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const stats = useMemo(() => {
     if (!isAuthenticated) return { total: 0, verified: 0, points: 0, accuracy: 0 };
@@ -117,11 +115,7 @@ export function Profile() {
       label: "Saved Stations",
       subtitle: "Keep your favorite stations ready anytime",
     },
-    {
-      icon: Bell,
-      label: "Notifications",
-      subtitle: "Get alerts for updates and saved stations",
-    },
+
     {
       icon: Award,
       label: "Contributor Stats / Karma",
@@ -156,13 +150,7 @@ export function Profile() {
       onClick: () => navigate("/app/saved"),
       badge: null,
     },
-    {
-      icon: Bell,
-      label: "Notifications",
-      subtitle: "Price alerts & updates",
-      onClick: () => navigate("/app/notifications"),
-      badge: unreadCount > 0 ? unreadCount.toString() : null,
-    },
+
     {
       icon: Settings,
       label: "Settings",
@@ -188,7 +176,7 @@ export function Profile() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-24 lg:pb-8">
         {/* Header */}
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-7 px-4 lg:px-8 lg:pt-14 lg:pb-9 relative overflow-hidden">
           {/* Enhanced radial glow background */}
@@ -328,7 +316,7 @@ export function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-24 lg:pb-8">
       {/* Header */}
       <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-14 pb-10 px-4 lg:px-8 relative overflow-hidden">
         {/* Enhanced radial glow background */}
@@ -378,7 +366,7 @@ export function Profile() {
             </div>
           </div>
 
-          <div className="mt-8 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 max-w-2xl relative overflow-hidden group">
+          <div className="mt-4 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 max-w-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors" />
             <div className="relative z-10">
               <h4 className="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">

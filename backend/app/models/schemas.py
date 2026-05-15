@@ -95,12 +95,3 @@ class UserProfileOut(UserProfileBase):
     accuracy: Optional[int] = None
 
 
-class NotificationOut(BaseModel):
-    id: str
-    user_id: str
-    type: str
-    title: str
-    message: str
-    metadata: dict = Field(default_factory=dict)
-    is_read: bool = False
-    created_at: datetime

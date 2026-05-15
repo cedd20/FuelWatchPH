@@ -34,7 +34,10 @@ export function usePriceHistory(filters = {}) {
 
   return useQuery({
     queryKey: ["priceHistory", filters],
-    queryFn: () => api.get(`/prices/history${params ? `?${params}` : ""}`),
+    queryFn: async () => {
+      const data = await api.get(`/prices/history${params ? `?${params}` : ""}`);
+      return data.map(p => ({ ...p, fuel_type: toAliasFuelType(p.fuel_type) }));
+    },
     staleTime: 300_000,
   });
 }

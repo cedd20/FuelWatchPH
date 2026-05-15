@@ -61,7 +61,15 @@ export function getNearestPhilippineCity(lat, lng) {
   return nearest?.name || "";
 }
 
+const geocodeCache = new Map();
+
 export async function reverseGeocode(lat, lng) {
+  // Round coordinates to ~11 meters to use cache for nearby points and prevent API spam
+  const cacheKey = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+  if (geocodeCache.has(cacheKey)) {
+    return geocodeCache.get(cacheKey);
+  }
+
   const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18&email=contact@fuelwatchph.com`;
   
   try {
@@ -72,7 +80,6 @@ export async function reverseGeocode(lat, lng) {
     });
 
     if (!response.ok) {
-      console.warn(`Reverse geocoding failed with status ${response.status}`);
       return { address: "", city: "" };
     }
 
@@ -96,12 +103,16 @@ export async function reverseGeocode(lat, lng) {
       address.country,
     ].filter(Boolean);
 
-    return {
+    const result = {
       address: parts.join(", ") || data.display_name || "Address not found",
       city,
     };
+    
+    geocodeCache.set(cacheKey, result);
+    return result;
   } catch (error) {
-    console.warn("Reverse geocode error:", error);
+    // Silently catch network/CORS/429 errors. The app will gracefully fall back
+    // to the local offline city calculator in resolveCityFromCoordinates.
     return { address: "", city: "" };
   }
 }

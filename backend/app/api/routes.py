@@ -17,11 +17,10 @@ from app.models.schemas import (
     StationUpdate,
     UserProfileBase,
     UserProfileOut,
-    NotificationOut,
 )
 from app.services import report_service
 from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client
-from app.services import notification_service, stats_service
+from app.services import stats_service
 
 router = APIRouter()
 
@@ -208,26 +207,7 @@ def create_station(
             raise HTTPException(status_code=500, detail="Failed to create station in database")
         new_station = result.data[0]
         
-        # 1. Notify the creator personally
-        try:
-            notification_service.notify_station_added(
-                user_id=user_id,
-                station_name=new_station["name"],
-                station_id=new_station["id"],
-            )
-        except Exception as n_err:
-            print(f"Failed to create personal station notification: {n_err}")
 
-        # 2. Broadcast to all other users
-        try:
-            notification_service.broadcast_new_station(
-                station_name=new_station["name"],
-                city=new_station.get("city", "your area"),
-                station_id=new_station["id"],
-                exclude_user_id=user_id,
-            )
-        except Exception as n_err:
-            print(f"Failed to broadcast new station notification: {n_err}")
             
         return new_station
     except Exception as e:
@@ -344,21 +324,7 @@ def create_price(
     
     new_report = result.data[0]
 
-    # Trigger notification for single report
-    if user_id:
-        try:
-            station_id = new_report.get("station_id")
-            station_res = supabase.table("stations").select("name").eq("id", station_id).single().execute()
-            station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
-            
-            notification_service.notify_price_submitted(
-                user_id=user_id,
-                station_name=station_name,
-                fuel_types=[new_report.get("fuel_type", "fuel")],
-                station_id=station_id
-            )
-        except Exception as n_err:
-            print(f"Notification failed for single report: {n_err}")
+
 
     return new_report
 
@@ -433,48 +399,7 @@ def create_prices_batch(
         station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
         station_city = station_res.data.get("city", "your area") if station_res.data else "your area"
 
-        # 1. Notify the contributor personally
-        if user_id:
-            try:
-                fuel_types_submitted = [r["fuel_type"] for r in to_insert]
-                notification_service.notify_price_submitted(
-                    user_id=user_id,
-                    station_name=station_name,
-                    fuel_types=fuel_types_submitted,
-                    station_id=station_id,
-                )
-            except Exception as n_err:
-                print(f"Failed to create personal price notification: {n_err}")
 
-        # 2. Broadcast price drops to all users
-        try:
-            for record in to_insert:
-                ft = record["fuel_type"]
-                new_price = float(record["price"])
-                old_price = prev_prices.get(ft)
-                if old_price is not None:
-                    if new_price < old_price:
-                        notification_service.broadcast_price_drop(
-                            station_name=station_name,
-                            city=station_city,
-                            fuel_type=ft,
-                            old_price=old_price,
-                            new_price=new_price,
-                            station_id=station_id,
-                            exclude_user_id=user_id,
-                        )
-                    elif new_price > old_price:
-                        notification_service.broadcast_price_increase(
-                            station_name=station_name,
-                            city=station_city,
-                            fuel_type=ft,
-                            old_price=old_price,
-                            new_price=new_price,
-                            station_id=station_id,
-                            exclude_user_id=user_id,
-                        )
-        except Exception as n_err:
-            print(f"Failed to broadcast price drop notifications: {n_err}")
                 
         return {"count": len(result.data), "records": result.data}
     except Exception as e:
@@ -506,27 +431,7 @@ def update_price(
     
     updated_report = result.data[0]
     
-    # Notify the user about their single price update
-    try:
-        # Get station info for the notification
-        station_id = updated_report.get("station_id")
-        if station_id:
-            station_res = supabase.table("stations").select("name").eq("id", station_id).single().execute()
-            station_name = station_res.data.get("name", "a station") if station_res.data else "a station"
-            
-            # Fetch user_id from token for the notification service
-            user_res = client.auth.get_user(token)
-            user_id = user_res.user.id if user_res.user else None
-            
-            if user_id:
-                notification_service.notify_price_submitted(
-                    user_id=user_id,
-                    station_name=station_name,
-                    fuel_types=[updated_report.get("fuel_type", "fuel")],
-                    station_id=station_id
-                )
-    except Exception as n_err:
-        print(f"Failed to create notification for single update: {n_err}")
+
     
     return updated_report
 
@@ -628,22 +533,7 @@ async def confirm_price(
     
     supabase_admin.table("price_reports").update({"confirmation_count": new_count}).eq("id", price_id).execute()
 
-    # Notify the original reporter that their price was verified
-    if reporter_id:
-        try:
-            station = supabase.table("stations").select("name").eq("id", station_id).single().execute()
-            station_name = station.data.get("name", "a station") if station.data else "a station"
-            fuel_res = supabase.table("price_reports").select("fuel_type").eq("id", price_id).single().execute()
-            fuel_type = fuel_res.data.get("fuel_type", "Fuel") if fuel_res.data else "Fuel"
 
-            notification_service.notify_price_confirmed(
-                user_id=reporter_id,
-                station_name=station_name,
-                fuel_type=fuel_type,
-                station_id=station_id,
-            )
-        except Exception as n_err:
-            print(f"Failed to create price confirmation notification: {n_err}")
 
     return {"confirmation_count": new_count}
 
@@ -894,85 +784,7 @@ async def get_price_history(
         location_mode=location
     )
 
-# --- Notifications ---
 
-@router.get("/notifications")
-async def get_notifications(
-    token: str = Depends(get_jwt_token),
-    limit: int = 20
-):
-    """
-    Returns notifications for the current user.
-    """
-    try:
-        # 1. Verify user identity using the token explicitly
-        user_res = supabase.auth.get_user(token)
-        if not user_res.user:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        user_id = user_res.user.id
-        
-        # 2. Fetch using admin client to guarantee delivery
-        result = supabase_admin.table("notifications") \
-            .select("*") \
-            .eq("user_id", user_id) \
-            .order("created_at", desc=True) \
-            .limit(limit) \
-            .execute()
-            
-        return result.data
-    except Exception as e:
-        error_msg = f"Failed to fetch notifications: {str(e)}"
-        print(f"CRITICAL ERROR: {error_msg}")
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=500, detail=error_msg)
-
-@router.patch("/notifications/{notification_id}/read", response_model=NotificationOut)
-async def mark_notification_as_read(
-    notification_id: str,
-    token: str = Depends(get_jwt_token)
-):
-    try:
-        # Verify user
-        user_res = supabase.auth.get_user(token)
-        if not user_res.user:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        user_id = user_res.user.id
-        
-        # Use admin client to ensure update succeeds
-        result = supabase_admin.table("notifications") \
-            .update({"is_read": True}) \
-            .eq("id", notification_id) \
-            .eq("user_id", user_id) \
-            .execute()
-            
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Notification not found")
-        return result.data[0]
-    except Exception as e:
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/notifications/mark-all-read")
-async def mark_all_notifications_as_read(
-    token: str = Depends(get_jwt_token)
-):
-    try:
-        # Verify user
-        user_res = supabase.auth.get_user(token)
-        if not user_res.user:
-            raise HTTPException(status_code=401, detail="Unauthorized")
-        
-        result = supabase_admin.table("notifications") \
-            .update({"is_read": True}) \
-            .eq("user_id", user_res.user.id) \
-            .eq("is_read", False) \
-            .execute()
-            
-        return {"count": len(result.data)}
-    except Exception as e:
-        print(f"Error marking all notifications as read: {e}")
-        if isinstance(e, HTTPException): raise e
-        raise HTTPException(status_code=500, detail=str(e))
 
 # --- Profile ---
 

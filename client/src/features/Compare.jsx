@@ -69,7 +69,7 @@ export function Compare() {
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
+    navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserCoords({
           lat: position.coords.latitude,
@@ -84,8 +84,6 @@ export function Compare() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60_000 },
     );
-
-    return () => navigator.geolocation.clearWatch(watchId);
   }, [fallbackCity]);
 
   useEffect(() => {

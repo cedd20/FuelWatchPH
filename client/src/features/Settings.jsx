@@ -6,11 +6,7 @@ import { useTheme } from "@/app/providers/ThemeContext";
 export function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [notifications, setNotifications] = useState({
-    priceAlerts: true,
-    nearbyStations: true,
-    weeklyDigest: false,
-  });
+
   const [defaultFuelType, setDefaultFuelType] = useState("UL91");
   const [radius, setRadius] = useState("5");
 
@@ -34,35 +30,6 @@ export function Settings() {
 
       <div className="px-4 lg:px-8 py-6 lg:py-10">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 lg:gap-10">
-          {/* Notifications */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 mb-2 px-1">
-              <div className="w-11 h-11 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center shadow-lg border border-emerald-200/50 dark:border-emerald-500/20">
-                <Bell className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-              </div>
-              <h3 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Notifications</h3>
-            </div>
-            <div className="bg-white dark:bg-neutral-800/50 backdrop-blur-xl rounded-3xl border-2 border-gray-100 dark:border-neutral-700/40 p-2 shadow-2xl shadow-black/5">
-              {Object.entries(notifications).map(([key, value], index) => (
-                <div key={key} className={`flex items-center justify-between p-6 lg:p-7 ${index < 2 ? "border-b border-gray-50 dark:border-neutral-700/30" : ""}`}>
-                  <div>
-                    <div className="font-bold text-foreground text-base lg:text-lg capitalize tracking-tight">{key.replace(/([A-Z])/g, ' $1')}</div>
-                    <div className="text-sm text-muted-foreground font-medium">Receive updates for {key}</div>
-                  </div>
-                  <label className="relative inline-block w-14 h-7 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={(e) => setNotifications({ ...notifications, [key]: e.target.checked })}
-                      className="sr-only peer"
-                    />
-                    <div className="w-14 h-7 bg-gray-200 dark:bg-neutral-700 rounded-full peer peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-600 transition-all shadow-inner"></div>
-                    <div className="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-all peer-checked:translate-x-7 shadow-md"></div>
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* Preferences */}
           <div className="space-y-8 mt-8 lg:mt-0">

@@ -34,7 +34,18 @@ export function useStations(filters = {}) {
 export function useStation(id) {
   return useQuery({
     queryKey: ["stations", id],
-    queryFn: () => api.get(`/stations`).then(stations => stations.find(s => s.id === id)),
+    queryFn: async () => {
+      const stations = await api.get(`/stations`);
+      const station = stations.find(s => s.id === id);
+      if (station && station.latest_prices) {
+        const mappedPrices = {};
+        for (const [key, val] of Object.entries(station.latest_prices)) {
+          mappedPrices[toAliasFuelType(key)] = val;
+        }
+        station.latest_prices = mappedPrices;
+      }
+      return station;
+    },
     enabled: !!id,
     staleTime: 60_000,
   });

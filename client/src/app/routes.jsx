@@ -15,7 +15,7 @@ import { UpdatePrice } from "@/features/UpdatePrice";
 import { AddStation } from "@/features/AddStation";
 import { SavedStations } from "@/features/SavedStations";
 import { ContributionHistory } from "@/features/ContributionHistory";
-import { Notifications } from "@/features/Notifications";
+
 import { Profile } from "@/features/Profile";
 import { Settings } from "@/features/Settings";
 import { Leaderboard } from "@/features/Leaderboard";
@@ -123,10 +123,7 @@ export const router = createBrowserRouter([
         path: "contributions",
         element: <ContributionHistory />,
       },
-      {
-        path: "notifications",
-        element: <Notifications />,
-      },
+
       {
         path: "settings",
         element: <Settings />,

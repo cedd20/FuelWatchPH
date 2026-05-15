@@ -12,7 +12,6 @@ import { useStations } from "@/hooks/useStations";
 import { getAvailableCities } from "@/shared/utils/cityUtils";
 import { PHILIPPINE_CITIES } from "@/shared/utils/philippineCities";
 import { useAuth } from "@/app/providers/AuthContext";
-import { useUnreadCount } from "@/hooks/useUsers";
 import { isValidPrice, formatPriceWithUnit } from "@/shared/utils/priceUtils";
 import { StationCardSkeleton, Skeleton } from "@/shared/components/Skeleton";
 
@@ -24,7 +23,6 @@ const FALLBACK_LOCATION = PHILIPPINE_CITIES.find((city) => city.city === "Manila
 export function Home() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const unreadCount = useUnreadCount(isAuthenticated);
   const [selectedFuelType, setSelectedFuelType] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [userLocation, setUserLocation] = useState(null);
@@ -204,17 +202,6 @@ export function Home() {
       <div className="lg:hidden relative z-20 px-4 pt-6 pb-4">
         <div className="flex items-center justify-between">
           <Logo size="sm" className="drop-shadow-lg" />
-          <button
-            onClick={() => navigate("/app/notifications")}
-            className="w-11 h-11 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-full flex items-center justify-center relative shadow-xl shadow-black/10 hover:bg-white dark:hover:bg-neutral-700 transition-all hover:scale-110 border border-white/40 dark:border-neutral-700/50"
-          >
-            <Bell className="w-5 h-5 text-gray-700 dark:text-white" />
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg ring-2 ring-white dark:ring-neutral-800">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </div>
-            )}
-          </button>
         </div>
       </div>
 
@@ -240,17 +227,6 @@ export function Home() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
           </div>
 
-          <button
-            onClick={() => navigate("/app/notifications")}
-            className="hidden lg:flex absolute top-6 right-6 z-20 w-11 h-11 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-full items-center justify-center shadow-xl shadow-black/20 hover:bg-white dark:hover:bg-neutral-700 transition-all hover:scale-110 border border-white/40 dark:border-neutral-700/50"
-          >
-            <Bell className="w-5 h-5 text-gray-700 dark:text-white" />
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg ring-2 ring-white dark:ring-neutral-800">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </div>
-            )}
-          </button>
 
           <div className="relative z-10 px-6 lg:px-12 py-8 lg:py-12 flex flex-col items-center text-center space-y-5 lg:space-y-6">
             <h1 className="text-4xl lg:text-5xl font-bold text-white drop-shadow-2xl tracking-tight">
