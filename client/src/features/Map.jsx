@@ -15,7 +15,7 @@ import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } f
 import { renderToString } from "react-dom/server";
 import { useStations } from "@/hooks/useStations";
 import { getCitiesSortedByProximity } from "@/shared/utils/philippineCities";
-import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import { FUEL_TYPES, canonicalizeFuelType } from "@/shared/utils/fuelTypes";
 import {
   DEFAULT_MAP_FILTERS,
   getFuelSelectionSummary,
@@ -253,13 +253,16 @@ export function Map() {
     }
     if (!storedFilters && storedState?.appliedFilters) {
       setAppliedFilters(normalizeMapFilters(storedState.appliedFilters));
-    } else if (!storedFilters && storedState?.selectedFuelType && FUEL_TYPES.includes(storedState.selectedFuelType)) {
-      setAppliedFilters((prev) =>
-        normalizeMapFilters({
-          ...prev,
-          fuelTypes: [storedState.selectedFuelType],
-        })
-      );
+    } else if (!storedFilters && storedState?.selectedFuelType) {
+      const canonFuel = canonicalizeFuelType(storedState.selectedFuelType);
+      if (FUEL_TYPES.includes(canonFuel)) {
+        setAppliedFilters((prev) =>
+          normalizeMapFilters({
+            ...prev,
+            fuelTypes: [canonFuel],
+          })
+        );
+      }
     }
 
     if (q !== null) {

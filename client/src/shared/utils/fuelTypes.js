@@ -1,11 +1,43 @@
 export const FUEL_TYPES = [
-  "Unleaded 91",
-  "Unleaded 95",
-  "Unleaded 98",
-  "Diesel",
-  "Premium Diesel",
+  "UL91",
+  "PR95",
+  "PR97",
+  "DSL",
+  "PDSL",
   "Kerosene",
 ];
+
+export const DB_FUEL_TYPE_MAPPING = {
+  "UL91": "Unleaded 91",
+  "PR95": "Unleaded 95",
+  "PR97": "Unleaded 98",
+  "DSL": "Diesel",
+  "PDSL": "Premium Diesel",
+  "Kerosene": "Kerosene",
+};
+
+export const ALIAS_FUEL_TYPE_MAPPING = {
+  "Unleaded 91": "UL91",
+  "Unleaded 95": "PR95",
+  "Unleaded 98": "PR97",
+  "Diesel": "DSL",
+  "Premium Diesel": "PDSL",
+  "Kerosene": "Kerosene",
+};
+
+export function toDBFuelType(label) {
+  if (!label) return label;
+  return DB_FUEL_TYPE_MAPPING[label] || label;
+}
+
+export function toAliasFuelType(label) {
+  if (!label) return label;
+  return ALIAS_FUEL_TYPE_MAPPING[label] || label;
+}
+
+export function canonicalizeFuelType(label) {
+  return toAliasFuelType(label);
+}
 
 export const BRAND_ABBREVIATIONS = {
   "Shell": "SHL",

@@ -5,32 +5,6 @@ ALTER TABLE user_profiles
 ADD COLUMN IF NOT EXISTS bio TEXT,
 ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
--- Notifications table
-CREATE TABLE IF NOT EXISTS notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  type TEXT NOT NULL,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  metadata JSONB DEFAULT '{}'::jsonb,
-  is_read BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- RLS for notifications
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
-DO $$ 
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can read their own notifications') THEN
-        CREATE POLICY "Users can read their own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
-    END IF;
-    
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can update their own notifications') THEN
-        CREATE POLICY "Users can update their own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid());
-    END IF;
-END $$;
-
 -- Leaderboard view
 CREATE OR REPLACE VIEW leaderboard AS
 SELECT 

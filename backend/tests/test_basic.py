@@ -14,7 +14,7 @@ def test_health():
 def test_create_report_in_memory():
     payload = {
         "station_id": 1,
-        "fuel_type": "Unleaded 91",
+        "fuel_type": "UL91",
         "price": 68.5,
         "reported_by": "test@example.com",
     }

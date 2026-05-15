@@ -19,7 +19,7 @@ export function ReportPrice() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user, isAuthenticated } = useAuth();
-  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
+  const [selectedFuelType, setSelectedFuelType] = useState("UL91");
   const [price, setPrice] = useState("");
   const [observedAt, setObservedAt] = useState(todayIsoDate());
   const [notes, setNotes] = useState("");

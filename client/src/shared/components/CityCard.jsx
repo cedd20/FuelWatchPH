@@ -1,6 +1,6 @@
 import { MapPin } from "lucide-react";
 
-export function CityCard({ name, stationCount, avgPrice, fuelType = "Diesel", onClick }) {
+export function CityCard({ name, stationCount, avgPrice, fuelType = "DSL", onClick }) {
   return (
     <button
       onClick={onClick}

@@ -13,7 +13,7 @@ const MOCK_CONTRIBUTIONS = [
   {
     id: "1",
     stationName: "Petron Quezon Avenue",
-    fuelType: "Diesel",
+    fuelType: "DSL",
     price: 55.30,
     date: "Today, 2:30 PM",
     status: "verified",

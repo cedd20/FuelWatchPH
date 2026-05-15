@@ -12,22 +12,22 @@ const GAS_HISTORY_STATE_KEY = "fuelwatch_gas_history_state";
 
 // Fuel type mapping
 const fuelTypeMap = {
-  "All": "all",
-  "Diesel": "diesel",
-  "Premium Diesel": "premiumDiesel",
-  "Unleaded 91": "unleaded91",
-  "Unleaded 95": "unleaded95",
-  "Unleaded 98": "unleaded98",
-  "Kerosene": "kerosene",
+  All: "all",
+  DSL: "diesel",
+  PDSL: "premiumDiesel",
+  UL91: "unleaded91",
+  PR95: "unleaded95",
+  PR97: "unleaded98",
+  Kerosene: "kerosene",
 };
 
 const fuelTypeColors = {
-  "Diesel": "#F59E0B",
-  "Premium Diesel": "#EF4444",
-  "Unleaded 91": "#3B82F6",
-  "Unleaded 95": "#8B5CF6",
-  "Unleaded 98": "#EC4899",
-  "Kerosene": "#10B981",
+  DSL: "#F59E0B",
+  PDSL: "#EF4444",
+  UL91: "#3B82F6",
+  PR95: "#8B5CF6",
+  PR97: "#EC4899",
+  Kerosene: "#10B981",
 };
 
 
@@ -478,7 +478,7 @@ export function GasHistory() {
                                     if (!fuelName || fuelName === "All" || !isValidPrice(value)) return null;
                                     return (
                                       <span key={key} className="text-[10px] lg:text-xs font-bold text-muted-foreground">
-                                        {fuelName.split(' ')[0]}: <span className="text-foreground">{formatPrice(value)}</span>
+                                        {fuelName}: <span className="text-foreground">{formatPrice(value)}</span>
                                       </span>
                                     );
                                   })}
@@ -505,23 +505,6 @@ export function GasHistory() {
                                   })()
                                 : getPriceChange(visibleHistoryData, index, selectedFuelType)
                             } />
-                            <div className="text-xs text-muted-foreground/80 mt-1.5 font-semibold">
-                              {(() => {
-                                const change = selectedFuelType === "All"
-                                  ? (() => {
-                                      const vals = Object.values(weekData.averages).filter(v => isValidPrice(v));
-                                      const currentAvg = vals.length > 0 ? vals.reduce((a,b)=>a+b,0) / vals.length : 0;
-                                      const prevWeek = visibleHistoryData[index + 1];
-                                      const prevVals = prevWeek ? Object.values(prevWeek.averages).filter(v => isValidPrice(v)) : [];
-                                      const prevAvg = prevVals.length > 0 
-                                        ? prevVals.reduce((a,b)=>a+b,0) / prevVals.length
-                                        : currentAvg;
-                                      return currentAvg - prevAvg;
-                                    })()
-                                  : getPriceChange(visibleHistoryData, index, selectedFuelType);
-                                return change > 0 ? "Increased" : change < 0 ? "Decreased" : "Stable";
-                              })()}
-                            </div>
                           </div>
                         </div>
                       </Accordion.Trigger>
@@ -562,7 +545,7 @@ export function GasHistory() {
                                             const fuelName = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key) || key;
                                             return (
                                               <div key={key}>
-                                                <div className="text-[10px] text-muted-foreground/80 mb-0.5 font-black uppercase tracking-widest">{fuelName.split(' ')[0]}</div>
+                                                <div className="text-[10px] text-muted-foreground/80 mb-0.5 font-black uppercase tracking-widest">{fuelName}</div>
                                                 <div className="text-sm font-bold text-foreground">
                                                   {formatPrice(value)}
                                                 </div>

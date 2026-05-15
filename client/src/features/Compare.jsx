@@ -15,7 +15,7 @@ const DEFAULT_FALLBACK_CITY = "Quezon City";
 
 export function Compare() {
   const navigate = useNavigate();
-  const [selectedFuelType, setSelectedFuelType] = useState("Unleaded 91");
+  const [selectedFuelType, setSelectedFuelType] = useState("UL91");
   const [selectedCity, setSelectedCity] = useState("");
   const [detectedCity, setDetectedCity] = useState("");
   const [citySelectionMode, setCitySelectionMode] = useState("auto");

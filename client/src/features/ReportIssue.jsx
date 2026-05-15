@@ -14,11 +14,11 @@ const issueTypes = [
 ];
 
 const mockPrices = [
-  { type: "Diesel", price: 58.40, lastUpdated: "2 hours ago" },
-  { type: "Premium Diesel", price: 62.50, lastUpdated: "2 hours ago" },
-  { type: "Unleaded 91", price: 64.30, lastUpdated: "1 hour ago" },
-  { type: "Unleaded 95", price: 68.20, lastUpdated: "1 hour ago" },
-  { type: "Unleaded 98", price: 72.80, lastUpdated: "3 hours ago" },
+  { type: "DSL", price: 58.40, lastUpdated: "2 hours ago" },
+  { type: "PDSL", price: 62.50, lastUpdated: "2 hours ago" },
+  { type: "UL91", price: 64.30, lastUpdated: "1 hour ago" },
+  { type: "PR95", price: 68.20, lastUpdated: "1 hour ago" },
+  { type: "PR97", price: 72.80, lastUpdated: "3 hours ago" },
 ];
 
 export function ReportIssue() {

@@ -86,11 +86,11 @@ export function AddStation() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [prices, setPrices] = useState({
-    diesel: getFuelPriceValue(existingStation, "Diesel"),
-    premiumdiesel: getFuelPriceValue(existingStation, "Premium Diesel"),
-    unleaded91: getFuelPriceValue(existingStation, "Unleaded 91"),
-    unleaded95: getFuelPriceValue(existingStation, "Unleaded 95"),
-    unleaded98: getFuelPriceValue(existingStation, "Unleaded 98"),
+    diesel: getFuelPriceValue(existingStation, "DSL"),
+    premiumdiesel: getFuelPriceValue(existingStation, "PDSL"),
+    unleaded91: getFuelPriceValue(existingStation, "UL91"),
+    unleaded95: getFuelPriceValue(existingStation, "PR95"),
+    unleaded98: getFuelPriceValue(existingStation, "PR97"),
     kerosene: getFuelPriceValue(existingStation, "Kerosene"),
   });
 
@@ -289,11 +289,11 @@ export function AddStation() {
 
       // Submit prices in batch
       const priceBatch = [
-        { key: "diesel", type: "Diesel" },
-        { key: "premiumdiesel", type: "Premium Diesel" },
-        { key: "unleaded91", type: "Unleaded 91" },
-        { key: "unleaded95", type: "Unleaded 95" },
-        { key: "unleaded98", type: "Unleaded 98" },
+        { key: "diesel", type: "DSL" },
+        { key: "premiumdiesel", type: "PDSL" },
+        { key: "unleaded91", type: "UL91" },
+        { key: "unleaded95", type: "PR95" },
+        { key: "unleaded98", type: "PR97" },
         { key: "kerosene", type: "Kerosene" },
       ]
       .filter((entry) => prices[entry.key] !== "")
@@ -523,11 +523,11 @@ export function AddStation() {
                   </h3>
                   <div className="grid grid-cols-2 gap-5">
                     {[
-                      { key: "diesel", label: "Diesel" },
-                      { key: "premiumdiesel", label: "Premium Diesel" },
-                      { key: "unleaded91", label: "Unleaded 91" },
-                      { key: "unleaded95", label: "Unleaded 95" },
-                      { key: "unleaded98", label: "Unleaded 98" },
+                      { key: "diesel", label: "DSL" },
+                      { key: "premiumdiesel", label: "PDSL" },
+                      { key: "unleaded91", label: "UL91" },
+                      { key: "unleaded95", label: "PR95" },
+                      { key: "unleaded98", label: "PR97" },
                       { key: "kerosene", label: "Kerosene" },
                     ].map((fuel) => (
                       <div key={fuel.key}>
@@ -733,11 +733,11 @@ export function AddStation() {
                 <h3 className="font-semibold text-foreground mb-3">Initial Fuel Prices (Optional)</h3>
                 <div className="space-y-3">
                   {[
-                    { key: "diesel", label: "Diesel" },
-                    { key: "premiumdiesel", label: "Premium Diesel" },
-                    { key: "unleaded91", label: "Unleaded 91" },
-                    { key: "unleaded95", label: "Unleaded 95" },
-                    { key: "unleaded98", label: "Unleaded 98" },
+                    { key: "diesel", label: "DSL" },
+                    { key: "premiumdiesel", label: "PDSL" },
+                    { key: "unleaded91", label: "UL91" },
+                    { key: "unleaded95", label: "PR95" },
+                    { key: "unleaded98", label: "PR97" },
                     { key: "kerosene", label: "Kerosene" },
                   ].map((fuel) => (
                     <div key={fuel.key}>

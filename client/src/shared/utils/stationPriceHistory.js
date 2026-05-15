@@ -6,11 +6,11 @@ const HISTORY_EVENT = "fuelwatchph:station-price-history-updated";
 export const STATION_HISTORY_RANGES = ["7D", "1M", "3M", "6M", "1Y", "All"];
 
 export const FUEL_HISTORY_COLORS = {
-  Diesel: "#0ea5e9",
-  "Premium Diesel": "#0369a1",
-  "Unleaded 91": "#16a34a",
-  "Unleaded 95": "#f59e0b",
-  "Unleaded 98": "#ef4444",
+  DSL: "#0ea5e9",
+  PDSL: "#0369a1",
+  UL91: "#16a34a",
+  PR95: "#f59e0b",
+  PR97: "#ef4444",
   Kerosene: "#8b5cf6",
 };
 

@@ -1,4 +1,4 @@
-import { FUEL_TYPES } from "@/shared/utils/fuelTypes";
+import { FUEL_TYPES, canonicalizeFuelType } from "./fuelTypes";
 
 export const DEFAULT_MAP_FILTERS = {
   location: "nearby",
@@ -16,7 +16,11 @@ export const DEFAULT_MAP_FILTERS = {
 const VALID_FUEL_TYPES = new Set(FUEL_TYPES);
 
 export function normalizeFuelTypeSelection(fuelTypes = []) {
-  const normalized = [...new Set((fuelTypes || []).filter((fuel) => VALID_FUEL_TYPES.has(fuel)))];
+  const normalized = [
+    ...new Set(
+      (fuelTypes || []).map((fuel) => canonicalizeFuelType(fuel)).filter((fuel) => VALID_FUEL_TYPES.has(fuel))
+    ),
+  ];
 
   if (normalized.length === FUEL_TYPES.length) {
     return [];

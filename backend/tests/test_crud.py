@@ -87,7 +87,7 @@ def test_price_crud_flow():
 
     price_payload = {
         "station_id": station_id,
-        "fuel_type": "Unleaded 91",
+        "fuel_type": "UL91",
         "price": 64.5,
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "notes": "Morning observation",
@@ -96,9 +96,9 @@ def test_price_crud_flow():
     assert create_response.status_code == 200
     price = create_response.json()
     assert price["station_id"] == station_id
-    assert price["fuel_type"] == "Unleaded 91"
+    assert price["fuel_type"] == "UL91"
 
-    list_response = client.get(f"/api/prices?station_id={station_id}&fuel_type=Unleaded 91")
+    list_response = client.get(f"/api/prices?station_id={station_id}&fuel_type=UL91")
     assert list_response.status_code == 200
     assert len(list_response.json()) == 1
 
