@@ -31,6 +31,7 @@ import { ProfileSkeleton } from "@/shared/components/Skeleton";
 export function Profile() {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading, logout, refreshProfile } = useAuth();
+  const hasTrustedContributorBadge = (user?.karma || 0) > 200;
   const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions({
     enabled: isAuthenticated,
   });
@@ -381,12 +382,14 @@ export function Profile() {
                 {user?.email || ""}
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <div className="px-4 py-1.5 lg:px-5 lg:py-2 bg-yellow-400/90 backdrop-blur-md rounded-full flex items-center gap-2 shadow-xl border border-yellow-300/50">
-                  <Award className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-900" strokeWidth={2.5} />
-                  <span className="text-xs lg:text-sm font-bold text-yellow-900">
-                    Trusted Contributor
-                  </span>
-                </div>
+                {hasTrustedContributorBadge && (
+                  <div className="px-4 py-1.5 lg:px-5 lg:py-2 bg-yellow-400/90 backdrop-blur-md rounded-full flex items-center gap-2 shadow-xl border border-yellow-300/50">
+                    <Award className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-900" strokeWidth={2.5} />
+                    <span className="text-xs lg:text-sm font-bold text-yellow-900">
+                      Trusted Contributor
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

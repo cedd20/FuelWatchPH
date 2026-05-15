@@ -21,6 +21,9 @@ export function EditProfile() {
     avatar_url: "",
   });
 
+  const [existingRequest, setExistingRequest] = useState(undefined);
+  const [isCheckingRequest, setIsCheckingRequest] = useState(true);
+
   useEffect(() => {
     async function fetchProfile() {
       try {
@@ -48,6 +51,27 @@ export function EditProfile() {
     if (user) {
       fetchProfile();
     }
+  }, [user]);
+
+  // Fetch existing verification request status for displaying Pending/Resubmit states
+  useEffect(() => {
+    async function checkExistingRequest() {
+      try {
+        const requests = await apiClient.get("/me/verifications");
+        if (requests && requests.length > 0) {
+          setExistingRequest(requests[0]);
+        } else {
+          setExistingRequest(null);
+        }
+      } catch (e) {
+        console.error('Failed to check verification requests', e);
+        setExistingRequest(null);
+      } finally {
+        setIsCheckingRequest(false);
+      }
+    }
+
+    if (user) checkExistingRequest();
   }, [user]);
 
   const handleSubmit = async (e) => {
@@ -236,20 +260,78 @@ export function EditProfile() {
                     </div>
                   </div>
                 </div>
-                {!user?.is_verified && (
-                  <button 
-                    type="button" 
-                    onClick={() => navigate("/app/verify-identity")}
-                    className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
-                  >
-                    Get Verified
-                  </button>
-                )}
-                {user?.is_verified && (
+                {user?.is_verified ? (
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">
                     <CheckCircle className="w-3.5 h-3.5" strokeWidth={3} />
                     Verified
                   </div>
+                ) : (
+                  // Show verification status based on existing request
+                  (function(){
+                    if (typeof existingRequest === 'undefined') return (
+                      <button 
+                        type="button" 
+                        onClick={() => navigate("/app/verify-identity")}
+                        className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                      >
+                        Get Verified
+                      </button>
+                    );
+
+                    if (existingRequest === null) {
+                      return (
+                        <button 
+                          type="button" 
+                          onClick={() => navigate("/app/verify-identity")}
+                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                        >
+                          Get Verified
+                        </button>
+                      );
+                    }
+
+                    const status = existingRequest?.status;
+                    if (status === 'pending') {
+                      return (
+                        <div className="px-4 py-2 rounded-xl bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 text-xs font-bold text-yellow-700">Pending</div>
+                      );
+                    }
+
+                    if (status === 'needs_correction') {
+                      return (
+                        <button 
+                          type="button" 
+                          onClick={() => navigate("/app/verify-identity")}
+                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-amber-500 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-amber-600 transition-all shadow-sm"
+                        >
+                          Edit Submission
+                        </button>
+                      );
+                    }
+
+                    if (status === 'rejected') {
+                      return (
+                        <button 
+                          type="button" 
+                          onClick={() => navigate("/app/verify-identity")}
+                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-rose-500 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-rose-600 transition-all shadow-sm"
+                        >
+                          Resubmit
+                        </button>
+                      );
+                    }
+
+                    // default fallback
+                    return (
+                      <button 
+                        type="button" 
+                        onClick={() => navigate("/app/verify-identity")}
+                        className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                      >
+                        Get Verified
+                      </button>
+                    );
+                  })()
                 )}
               </div>
             </div>

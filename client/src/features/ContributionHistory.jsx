@@ -93,6 +93,7 @@ export function ContributionHistory() {
   const pendingCount = contributions.filter((c) => c.status === "pending").length;
   const trustScore = user?.trustScore || 0;
   const totalKarma = user?.karma || 0;
+  const hasTrustedContributorBadge = totalKarma > 200;
 
   if (isLoading) {
     return (
@@ -519,13 +520,21 @@ export function ContributionHistory() {
                     Your contributions help {contributions.length * 15}+ drivers save money on fuel every week.
                   </p>
                   <div className="bg-white/50 dark:bg-neutral-800/50 rounded-xl p-4 backdrop-blur-sm">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-                      <span className="font-bold text-sm text-foreground">Trusted Contributor</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground/80">
-                      {trustScore}% trust score • Keep up the great work!
-                    </p>
+                    {hasTrustedContributorBadge ? (
+                      <>
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                          <span className="font-bold text-sm text-foreground">Trusted Contributor</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground/80">
+                          {trustScore}% trust score • Keep up the great work!
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground/80">
+                        Earn more karma to unlock the Trusted Contributor badge.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

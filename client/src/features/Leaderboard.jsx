@@ -56,7 +56,12 @@ export function Leaderboard() {
     trustScore: entry.accuracy || 0,
     karma: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
     isVerified: !!entry.is_verified,
-    badge: (entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0)) > 1000 ? "Fuel Guardian" : "Trusted Contributor",
+    badge: (() => {
+      const karma = entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0);
+      if (karma > 1000) return "Fuel Guardian";
+      if (karma > 200) return "Trusted Contributor";
+      return null;
+    })(),
     color: RANK_COLORS[index % RANK_COLORS.length],
   })).sort((a, b) => (b.karma || 0) - (a.karma || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
 
@@ -67,7 +72,7 @@ export function Leaderboard() {
     trustScore: myStats.trustScore,
     karma: myStats.karma,
     isVerified: !!user?.is_verified,
-    badge: myStats.karma > 1000 ? "Fuel Guardian" : "Trusted Contributor"
+    badge: myStats.karma > 1000 ? "Fuel Guardian" : myStats.karma > 200 ? "Trusted Contributor" : null
   };
 
   // If I am in the leaderboard list, override its static values with my real-time ones
@@ -191,7 +196,9 @@ export function Leaderboard() {
                             </div>
                           )}
                         </h3>
-                        <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 px-2.5 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{entry.badge}</span>
+                        {entry.badge && (
+                          <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 px-2.5 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{entry.badge}</span>
+                        )}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground font-medium">
                         <span className="inline-flex items-center gap-1.5">
@@ -229,7 +236,7 @@ export function Leaderboard() {
                       </div>
                     )}
                   </div>
-                  <div className="text-sm text-muted-foreground font-medium">{me?.badge}</div>
+                  {me?.badge && <div className="text-sm text-muted-foreground font-medium">{me.badge}</div>}
                 </div>
               </div>
               <div className="mt-5 grid grid-cols-3 gap-3">

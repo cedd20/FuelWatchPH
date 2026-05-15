@@ -9,6 +9,7 @@ const mockUsers = [
     email: "juan.delacruz@email.com",
     verificationStatus: "verified",
     contributorStatus: "trusted",
+    karma: 320,
     totalUpdates: 45,
     accuracyRate: 98,
     accountStatus: "active",
@@ -20,6 +21,7 @@ const mockUsers = [
     email: "maria.santos@email.com",
     verificationStatus: "verified",
     contributorStatus: "regular",
+    karma: 180,
     totalUpdates: 23,
     accuracyRate: 95,
     accountStatus: "active",
@@ -31,6 +33,7 @@ const mockUsers = [
     email: "pedro.reyes@email.com",
     verificationStatus: "pending",
     contributorStatus: "regular",
+    karma: 60,
     totalUpdates: 8,
     accuracyRate: 90,
     accountStatus: "active",
@@ -42,6 +45,7 @@ const mockUsers = [
     email: "ana.garcia@email.com",
     verificationStatus: "verified",
     contributorStatus: "trusted",
+    karma: 410,
     totalUpdates: 67,
     accuracyRate: 97,
     accountStatus: "active",
@@ -53,6 +57,7 @@ const mockUsers = [
     email: "carlos.martinez@email.com",
     verificationStatus: "unverified",
     contributorStatus: "regular",
+    karma: 35,
     totalUpdates: 3,
     accuracyRate: 85,
     accountStatus: "active",
@@ -100,7 +105,7 @@ export function UserManagement() {
   };
 
   const verifiedCount = mockUsers.filter((u) => u.verificationStatus === "verified").length;
-  const trustedCount = mockUsers.filter((u) => u.contributorStatus === "trusted").length;
+  const trustedCount = mockUsers.filter((u) => (u.karma || 0) > 200).length;
   const pendingCount = mockUsers.filter((u) => u.verificationStatus === "pending").length;
 
   const getVerificationBadge = (status) => {
@@ -280,7 +285,7 @@ export function UserManagement() {
 
                 {/* Contributor Status */}
                 <div className="mb-3">
-                  {user.contributorStatus === "trusted" ? (
+                  {(user.karma || 0) > 200 ? (
                     <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold">
                       <Shield className="w-3 h-3" strokeWidth={2.5} />
                       Trusted Contributor
@@ -393,7 +398,7 @@ export function UserManagement() {
                         </span>
                       </td>
                       <td className="p-4">
-                        {user.contributorStatus === "trusted" ? (
+                        {(user.karma || 0) > 200 ? (
                           <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold">
                             <Shield className="w-3 h-3" strokeWidth={2.5} />
                             Trusted

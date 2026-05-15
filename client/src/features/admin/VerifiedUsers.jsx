@@ -10,6 +10,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-04-15 09:30:00",
     accountCreated: "2024-01-10 14:20:00",
     isTrustedContributor: true,
+    karma: 280,
     totalUpdates: 156,
     accuracyRate: 98.5,
     reportsSubmitted: 12,
@@ -22,6 +23,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-04-20 11:45:00",
     accountCreated: "2024-02-05 10:15:00",
     isTrustedContributor: true,
+    karma: 340,
     totalUpdates: 203,
     accuracyRate: 97.8,
     reportsSubmitted: 8,
@@ -34,6 +36,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-04-22 14:20:00",
     accountCreated: "2024-03-12 16:30:00",
     isTrustedContributor: false,
+    karma: 120,
     totalUpdates: 45,
     accuracyRate: 95.2,
     reportsSubmitted: 3,
@@ -46,6 +49,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-04-25 10:10:00",
     accountCreated: "2024-01-22 09:45:00",
     isTrustedContributor: true,
+    karma: 410,
     totalUpdates: 187,
     accuracyRate: 99.1,
     reportsSubmitted: 15,
@@ -58,6 +62,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-04-28 15:30:00",
     accountCreated: "2024-02-18 11:20:00",
     isTrustedContributor: false,
+    karma: 75,
     totalUpdates: 67,
     accuracyRate: 94.8,
     reportsSubmitted: 5,
@@ -70,6 +75,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-05-01 09:15:00",
     accountCreated: "2024-03-01 14:50:00",
     isTrustedContributor: false,
+    karma: 180,
     totalUpdates: 28,
     accuracyRate: 92.5,
     reportsSubmitted: 2,
@@ -82,6 +88,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-05-03 13:40:00",
     accountCreated: "2024-01-05 08:30:00",
     isTrustedContributor: true,
+    karma: 520,
     totalUpdates: 234,
     accuracyRate: 98.9,
     reportsSubmitted: 18,
@@ -94,6 +101,7 @@ const mockVerifiedUsers = [
     verificationDate: "2024-05-05 16:20:00",
     accountCreated: "2024-03-20 10:15:00",
     isTrustedContributor: false,
+    karma: 90,
     totalUpdates: 34,
     accuracyRate: 93.8,
     reportsSubmitted: 1,
@@ -114,8 +122,8 @@ export function VerifiedUsers() {
       user.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesContributor =
       contributorFilter === "all" ||
-      (contributorFilter === "trusted" && user.isTrustedContributor) ||
-      (contributorFilter === "regular" && !user.isTrustedContributor);
+      (contributorFilter === "trusted" && (user.karma || 0) > 200) ||
+      (contributorFilter === "regular" && (user.karma || 0) <= 200);
     return matchesSearch && matchesContributor;
   });
 
@@ -132,7 +140,7 @@ export function VerifiedUsers() {
   };
 
   const totalVerified = mockVerifiedUsers.length;
-  const trustedCount = mockVerifiedUsers.filter((u) => u.isTrustedContributor).length;
+  const trustedCount = mockVerifiedUsers.filter((u) => (u.karma || 0) > 200).length;
   const regularCount = totalVerified - trustedCount;
   const avgAccuracy = (
     mockVerifiedUsers.reduce((sum, u) => sum + u.accuracyRate, 0) / mockVerifiedUsers.length
@@ -281,7 +289,7 @@ export function VerifiedUsers() {
 
               {/* Contributor Status */}
               <div className="mb-3">
-                {user.isTrustedContributor ? (
+                {(user.karma || 0) > 200 ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold border-2 border-blue-400/40">
                     <Shield className="w-3.5 h-3.5" strokeWidth={2.5} />
                     Trusted Contributor
@@ -405,7 +413,7 @@ export function VerifiedUsers() {
                       </div>
                     </td>
                     <td className="p-4">
-                      {user.isTrustedContributor ? (
+                      {(user.karma || 0) > 200 ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full text-xs font-bold border-2 border-blue-400/40">
                           <Shield className="w-3.5 h-3.5" strokeWidth={2.5} />
                           Trusted Contributor
