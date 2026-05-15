@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
-import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move } from "lucide-react";
+import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move, LocateFixed } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
@@ -20,21 +20,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
-// Custom draggable green pin icon for the placement marker
-const placementIcon = L.divIcon({
-  className: "",
-  html: `<div style="
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, #10b981, #0d9488);
-    border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg);
-    border: 3px solid white;
-    box-shadow: 0 4px 12px rgba(16,185,129,0.5);
-  "></div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
 });
 
 // ─── Map Click & Drag Handler Component ────────────────────────────────────
@@ -95,13 +80,23 @@ export function AddStation() {
   });
 
   // Pin placement state
-  const [stationLat, setStationLat] = useState(existingStation?.lat ?? null);
-  const [stationLng, setStationLng] = useState(existingStation?.lng ?? null);
+  const [stationLat, setStationLat] = useState(() => {
+    const lat = Number(existingStation?.lat);
+    return Number.isFinite(lat) ? lat : null;
+  });
+  const [stationLng, setStationLng] = useState(() => {
+    const lng = Number(existingStation?.lng);
+    return Number.isFinite(lng) ? lng : null;
+  });
   const [isLocating, setIsLocating] = useState(false);
   const [isGeocodingPin, setIsGeocodingPin] = useState(false);
   const [pinMode, setPinMode] = useState(false); // true = user placing pin manually
   // Default map center: Metro Manila
-  const [mapCenter, setMapCenter] = useState(existingStation?.lat && existingStation?.lng ? [existingStation.lat, existingStation.lng] : [14.5995, 120.9842]);
+  const [mapCenter, setMapCenter] = useState(() => {
+    const lat = Number(existingStation?.lat);
+    const lng = Number(existingStation?.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : [14.5995, 120.9842];
+  });
   
   // OSM Suggestions state
   const [osmSuggestions, setOsmSuggestions] = useState([]);
@@ -115,31 +110,26 @@ export function AddStation() {
   }, [isAuthenticated]);
 
   // ── Auto-fly map to new pin position ──────────────────────────────────────
-  useEffect(() => {
-    // Robust check for valid coordinates to prevent "Invalid LatLng object: (NaN, NaN)"
-    const isValidLat = typeof stationLat === 'number' && Number.isFinite(stationLat);
-    const isValidLng = typeof stationLng === 'number' && Number.isFinite(stationLng);
-    
-    if (isValidLat && isValidLng && mapRef.current) {
+  const flyToLocation = useCallback((lat, lng, zoom = 17) => {
+    if (mapRef.current && typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)) {
       try {
         const map = mapRef.current;
         const currentCenter = map.getCenter();
-        
-        // Only fly if the distance is significant to avoid loops
-        const dist = Math.sqrt(Math.pow(currentCenter.lat - stationLat, 2) + Math.pow(currentCenter.lng - stationLng, 2));
+        const dist = Math.sqrt(Math.pow(currentCenter.lat - lat, 2) + Math.pow(currentCenter.lng - lng, 2));
         if (dist > 0.0001) {
-          map.flyTo([stationLat, stationLng], 17, { animate: true, duration: 0.8 });
+          map.flyTo([lat, lng], zoom, { animate: true, duration: 0.8 });
         }
       } catch (e) {
         console.warn("flyTo failed:", e);
       }
     }
-  }, [stationLat, stationLng]);
+  }, []);
 
   // ── Handle pin placement (from click or GPS) ───────────────────────────────
-  const handlePinSet = useCallback(async (lat, lng, source = "click") => {
+  const handlePinSet = useCallback(async (lat, lng, source = "click", silent = false) => {
     setStationLat(lat);
     setStationLng(lng);
+    setMapCenter([lat, lng]);
     setShowDuplicateWarning(false);
     setDuplicateInfo(null);
 
@@ -147,6 +137,8 @@ export function AddStation() {
     setIsGeocodingPin(true);
     try {
       const result = await reverseGeocode(lat, lng);
+      if (!result.address) throw new Error("No address found");
+      
       setAddress(result.address);
       // Standardize city name (Title Case)
       const standardizedCity = result.city
@@ -154,22 +146,16 @@ export function AddStation() {
         : "Unknown City";
       setCity(standardizedCity);
       
-      if (source === "click") {
-        toast.success("Pin placed! Drag it to fine-tune the position.");
+      if (!silent) {
+        if (source === "gps") toast.success("GPS location found!");
+        else toast.success("Pin placed! Drag map to adjust.");
       }
     } catch {
-      toast.error("Could not resolve address for this location.");
+      if (!silent) toast.error("Could not resolve address for this location.");
     } finally {
       setIsGeocodingPin(false);
     }
   }, []);
-
-  // ── Handle marker drag end ─────────────────────────────────────────────────
-  const handleMarkerDragEnd = useCallback(async (e) => {
-    const { lat, lng } = e.target.getLatLng();
-    await handlePinSet(lat, lng, "drag");
-    toast.success("Pin repositioned! Address updated.");
-  }, [handlePinSet]);
 
   // ── Fetch OSM Suggestions ────────────────────────────────────────────────
   const fetchOSMSuggestions = useCallback(async (lat, lng) => {
@@ -188,13 +174,16 @@ export function AddStation() {
       
       const data = await res.json();
       
-      const suggestions = (data.elements || []).map(el => ({
-        id: el.id,
-        lat: el.lat,
-        lng: el.lon,
-        name: el.tags.name || "Unknown Station",
-        brand: el.tags.brand || el.tags.name || "Independent",
-      }));
+      const suggestions = (data.elements || [])
+        .filter(el => el.lat != null && el.lon != null)
+        .map(el => ({
+          id: el.id,
+          lat: Number(el.lat),
+          lng: Number(el.lon),
+          name: el.tags.name || "Unknown Station",
+          brand: el.tags.brand || el.tags.name || "Independent",
+        }))
+        .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng));
       setOsmSuggestions(suggestions);
     } catch (err) {
       console.warn("Failed to fetch OSM suggestions", err);
@@ -204,10 +193,13 @@ export function AddStation() {
   }, [isEditMode]);
 
   const osmFetchTimeoutRef = useRef(null);
+  const isDraggingRef = useRef(false);
 
   // ── Handle map move ────────────────────────────────────────────────────────
   const handleMapMove = useCallback((lat, lng) => {
-    // Update map center and fetch suggestions based on new center
+    // Update coordinates immediately for UI reactivity
+    setStationLat(lat);
+    setStationLng(lng);
     setMapCenter([lat, lng]);
     
     if (osmFetchTimeoutRef.current) {
@@ -216,15 +208,17 @@ export function AddStation() {
     
     osmFetchTimeoutRef.current = setTimeout(() => {
       fetchOSMSuggestions(lat, lng);
-    }, 1500);
-  }, [fetchOSMSuggestions]);
-
+      // Auto reverse-geocode silently when map stops moving
+      handlePinSet(lat, lng, "drag", true);
+    }, 1000);
+  }, [fetchOSMSuggestions, handlePinSet]);
 
   const handleOSMSuggestionClick = useCallback(async (suggestion) => {
     setStationName(suggestion.name);
+    flyToLocation(suggestion.lat, suggestion.lng);
     await handlePinSet(suggestion.lat, suggestion.lng, "osm");
     toast.success(`Auto-filled from OSM: ${suggestion.name}`);
-  }, [handlePinSet]);
+  }, [handlePinSet, flyToLocation]);
 
   // ── Use GPS Current Location ───────────────────────────────────────────────
   const handleUseCurrentLocation = () => {
@@ -236,9 +230,8 @@ export function AddStation() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        setMapCenter([latitude, longitude]);
+        flyToLocation(latitude, longitude, 17);
         await handlePinSet(latitude, longitude, "gps");
-        toast.success("GPS location detected! You can still drag the pin to adjust.");
         setIsLocating(false);
       },
       (error) => {
@@ -432,15 +425,6 @@ export function AddStation() {
                           required
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleUseCurrentLocation}
-                        disabled={isLocating}
-                        className="mt-3 text-base text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-2 hover:underline disabled:opacity-50"
-                      >
-                        {isLocating ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
-                        {isLocating ? "Locating..." : "Use current location"}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -493,16 +477,31 @@ export function AddStation() {
                         >
                         </Marker>
                       ))}
-                      {/* Draggable Pin */}
-                      {Number.isFinite(stationLat) && Number.isFinite(stationLng) && (
-                        <Marker
-                          position={[stationLat, stationLng]}
-                          icon={placementIcon}
-                          draggable={true}
-                          eventHandlers={{ dragend: handleMarkerDragEnd }}
-                        />
-                      )}
                     </MapContainer>
+                    {/* Fixed Center Pin Overlay */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[400] pointer-events-none drop-shadow-xl transition-transform duration-200" style={{ transformOrigin: 'bottom center' }}>
+                      <div style={{
+                        width: "36px", height: "36px",
+                        background: "linear-gradient(135deg, #10b981, #0d9488)",
+                        borderRadius: "50% 50% 50% 0",
+                        transform: "rotate(-45deg)",
+                        border: "3px solid white",
+                        boxShadow: "0 4px 12px rgba(16,185,129,0.5)"
+                      }}></div>
+                    </div>
+                    {/* Location Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUseCurrentLocation();
+                      }}
+                      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 bg-white dark:bg-neutral-800 rounded-full shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                      title="Go to my location"
+                    >
+                      <LocateFixed className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    </button>
                     {/* Overlay hint when no pin placed */}
                     {!stationLat && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -655,17 +654,6 @@ export function AddStation() {
                 </div>
               )}
 
-              {/* GPS Button */}
-              <button
-                type="button"
-                onClick={handleUseCurrentLocation}
-                disabled={isLocating}
-                className="w-full py-3 bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-400/30 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center gap-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-all disabled:opacity-50"
-              >
-                {isLocating ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin className="w-5 h-5" />}
-                {isLocating ? "Locating..." : "Use My GPS Location"}
-              </button>
-
               {/* Mobile Interactive Map */}
               <div className="rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-neutral-700 shadow-xl">
                 <div className="px-4 py-3 bg-white dark:bg-neutral-900 border-b-2 border-gray-100 dark:border-neutral-800">
@@ -680,6 +668,7 @@ export function AddStation() {
                 </div>
                 <div className="h-56 relative">
                   <MapContainer
+                    ref={mapRef}
                     center={mapCenter}
                     zoom={14}
                     zoomControl={false}
@@ -691,15 +680,31 @@ export function AddStation() {
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
-                    {stationLat && stationLng && (
-                      <Marker
-                        position={[stationLat, stationLng]}
-                        icon={placementIcon}
-                        draggable={true}
-                        eventHandlers={{ dragend: handleMarkerDragEnd }}
-                      />
-                    )}
                   </MapContainer>
+                  {/* Fixed Center Pin Overlay */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[400] pointer-events-none drop-shadow-xl transition-transform duration-200" style={{ transformOrigin: 'bottom center' }}>
+                    <div style={{
+                      width: "36px", height: "36px",
+                      background: "linear-gradient(135deg, #10b981, #0d9488)",
+                      borderRadius: "50% 50% 50% 0",
+                      transform: "rotate(-45deg)",
+                      border: "3px solid white",
+                      boxShadow: "0 4px 12px rgba(16,185,129,0.5)"
+                    }}></div>
+                  </div>
+                  {/* Location Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleUseCurrentLocation();
+                    }}
+                    className="absolute bottom-4 right-4 z-[1000] w-10 h-10 bg-white dark:bg-neutral-800 rounded-full shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                    title="Go to my location"
+                  >
+                    <LocateFixed className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </button>
                   {!stationLat && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                       <div className="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm rounded-xl px-4 py-3 text-center shadow-lg border border-emerald-400/20">
