@@ -35,16 +35,45 @@ export function VerificationRequest() {
           // Get the most recent request
           const latest = requests[0];
           setExistingRequest(latest);
-          
-          if (latest.status === "needs_correction") {
-            setFormData({
-              full_name: latest.full_name,
-              id_type: latest.id_type,
-              id_number: latest.id_number,
-              id_front_url: latest.id_front_url,
-              id_back_url: latest.id_back_url,
-            });
-          }
+
+          // Normalize existing URLs to signed preview URLs when possible
+          const getSignedPreview = async (url) => {
+            try {
+              if (!url) return url;
+              // If URL already looks like a storage URL, try to extract the file path after the bucket
+              const marker = '/verification-ids/';
+              const idx = url.indexOf(marker);
+              if (idx !== -1) {
+                const filePath = url.substring(idx + marker.length);
+                const { data, error } = await supabase.storage.from('verification-ids').createSignedUrl(filePath, 60 * 60);
+                if (!error && data) return data?.signedURL || data?.signedUrl || url;
+              }
+              // Fallback to returning the provided URL
+              return url;
+            } catch (e) {
+              return url;
+            }
+          };
+
+          const fill = async () => {
+            const front = await getSignedPreview(latest.id_front_url);
+            const back = await getSignedPreview(latest.id_back_url);
+
+            if (latest.status === "needs_correction" || latest.status === "rejected") {
+              setFormData({
+                full_name: latest.full_name,
+                id_type: latest.id_type,
+                id_number: latest.id_number,
+                id_front_url: front,
+                id_back_url: back,
+              });
+            } else {
+              // still set preview URLs so user can see their uploaded images, but keep fields readonly
+              setFormData((prev) => ({ ...prev, id_front_url: front, id_back_url: back }));
+            }
+          };
+
+          await fill();
         }
       } catch (error) {
         console.error("Failed to check existing requests:", error);
@@ -89,12 +118,21 @@ export function VerificationRequest() {
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
+      // Create a signed URL for preview (valid for 1 hour)
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('verification-ids')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60);
 
-      setFormData(prev => ({ ...prev, [`id_${type}_url`]: publicUrl }));
+      const previewUrl = signedData?.signedURL || signedData?.signedUrl || null;
+
+      // Fallback to public URL if needed
+      let finalUrl = previewUrl;
+      if (!finalUrl) {
+        const { data: { publicUrl } } = supabase.storage.from('verification-ids').getPublicUrl(fileName);
+        finalUrl = publicUrl;
+      }
+
+      setFormData(prev => ({ ...prev, [`id_${type}_url`]: finalUrl }));
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} side uploaded!`);
     } catch (error) {
       console.error("Upload failed:", error);
@@ -108,6 +146,12 @@ export function VerificationRequest() {
     e.preventDefault();
     if (!formData.id_front_url || !formData.id_back_url) {
       toast.error("Please upload both front and back photos of your ID.");
+      return;
+    }
+
+    // Prevent submitting if there is an existing pending/approved request
+    if (existingRequest && !(existingRequest.status === 'rejected' || existingRequest.status === 'needs_correction')) {
+      toast.error('You already have a verification request in progress. You can submit again only if it was rejected or needs correction.');
       return;
     }
 
@@ -241,10 +285,19 @@ export function VerificationRequest() {
                 >
                   {formData.id_front_url ? (
                     <>
-                      <img src={formData.id_front_url} alt="Front ID Preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <Camera className="w-8 h-8 text-white" />
-                      </div>
+                            <img src={formData.id_front_url} alt="Front ID Preview" className="w-full h-full object-cover" />
+                            <div className="absolute top-2 right-2 z-20">
+                              <button
+                                type="button"
+                                onClick={(ev) => { ev.stopPropagation(); fileInputRefFront.current?.click(); }}
+                                className="bg-white/80 dark:bg-neutral-800/80 text-xs px-3 py-1 rounded-full shadow-sm"
+                              >
+                                Change
+                              </button>
+                            </div>
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                              <Camera className="w-8 h-8 text-white" />
+                            </div>
                     </>
                   ) : (
                     <>
@@ -276,10 +329,19 @@ export function VerificationRequest() {
                 >
                   {formData.id_back_url ? (
                     <>
-                      <img src={formData.id_back_url} alt="Back ID Preview" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <Camera className="w-8 h-8 text-white" />
-                      </div>
+                          <img src={formData.id_back_url} alt="Back ID Preview" className="w-full h-full object-cover" />
+                          <div className="absolute top-2 right-2 z-20">
+                            <button
+                              type="button"
+                              onClick={(ev) => { ev.stopPropagation(); fileInputRefBack.current?.click(); }}
+                              className="bg-white/80 dark:bg-neutral-800/80 text-xs px-3 py-1 rounded-full shadow-sm"
+                            >
+                              Change
+                            </button>
+                          </div>
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <Camera className="w-8 h-8 text-white" />
+                          </div>
                     </>
                   ) : (
                     <>
@@ -308,12 +370,12 @@ export function VerificationRequest() {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-row gap-3 sm:gap-4 mt-8">
             <Button 
               type="button" 
               variant="outline" 
               fullWidth 
-              size="lg"
+              size="md"
               onClick={() => navigate(-1)}
             >
               Cancel
@@ -321,7 +383,7 @@ export function VerificationRequest() {
             <Button 
               type="submit" 
               fullWidth 
-              size="lg" 
+              size="md" 
               loading={isLoading}
               disabled={!!isUploading || !formData.id_front_url || !formData.id_back_url}
               icon={Shield}

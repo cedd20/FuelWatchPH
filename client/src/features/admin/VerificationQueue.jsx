@@ -79,11 +79,9 @@ export function VerificationQueue() {
   const filteredRequests = requests.filter((request) => {
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     const userName = request.user_profiles?.username || request.full_name || "";
-    const email = request.user_profiles?.email || "";
     const matchesSearch =
       searchQuery === "" ||
-      userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      email.toLowerCase().includes(searchQuery.toLowerCase());
+      userName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesIdType = idTypeFilter === "all" || request.id_type === idTypeFilter;
     return matchesStatus && matchesSearch && matchesIdType;
   });
@@ -307,7 +305,7 @@ export function VerificationQueue() {
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-foreground text-base mb-1">{request.user_profiles?.username || request.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{request.user_profiles?.email}</div>
+                    <div className="text-xs text-muted-foreground truncate">{request.full_name}</div>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border-2 flex-shrink-0 ${getStatusColor(
@@ -376,7 +374,7 @@ export function VerificationQueue() {
                   >
                     <td className="p-4">
                       <div className="font-bold text-foreground">{request.user_profiles?.username || request.full_name}</div>
-                      <div className="text-sm text-muted-foreground">{request.user_profiles?.email}</div>
+                      <div className="text-sm text-muted-foreground">{request.full_name}</div>
                     </td>
                     <td className="p-4">
                       <span className="px-3 py-1 bg-gray-100 dark:bg-neutral-800 text-foreground rounded-full text-xs font-bold">

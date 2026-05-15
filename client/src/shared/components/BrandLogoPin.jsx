@@ -13,6 +13,7 @@ export function BrandLogoPin({
 
   const logoPath = getBrandLogo(brandName);
   const acronym = getAcronym(brandName);
+  const hasValidPrice = isValidPrice(price);
 
   // Determine border color based on price level
   const getBorderColor = () => {
@@ -30,12 +31,12 @@ export function BrandLogoPin({
         onClick={onClick}
         className={`relative rounded-full bg-white dark:bg-neutral-800 shadow-lg transition-all duration-200 ${isSelected ? "scale-125 ring-4 ring-emerald-500/30" : "hover:scale-110"}`}
       >
-        <div className={`w-12 h-12 rounded-full p-0.5 ${borderColor} border-4`}>
+        <div className={`w-12 h-12 rounded-full p-0.5 ${borderColor} border-4 ${hasValidPrice ? "" : "opacity-75 saturate-75"}`}>
           <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
             {logoPath ? (
-              <img src={logoPath} alt={brandName} className="w-full h-full object-contain p-1" />
+              <img src={logoPath} alt={brandName} className={`w-full h-full object-contain p-1 ${hasValidPrice ? "" : "opacity-80"}`} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600">
+              <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600 ${hasValidPrice ? "" : "opacity-80"}`}>
                 <span className="text-[10px] font-black text-white tracking-tighter">
                   {acronym}
                 </span>
@@ -59,7 +60,7 @@ export function BrandLogoPin({
               : "bg-gray-50/90 dark:bg-neutral-900/90 text-gray-500 dark:text-neutral-400 border-gray-200 dark:border-neutral-800"
           }`}>
             <Info className="w-2.5 h-2.5 opacity-70" />
-            <span>No Data</span>
+            <span className="whitespace-nowrap">No Data</span>
           </div>
         )
       )}

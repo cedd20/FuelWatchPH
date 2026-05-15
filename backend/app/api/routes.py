@@ -907,7 +907,8 @@ async def submit_verification(
     token: str = Depends(get_jwt_token)
 ):
     try:
-        user_res = supabase.auth.get_user(token)
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         user_id = user_res.user.id
@@ -918,7 +919,7 @@ async def submit_verification(
         data["status"] = "pending"
         data["created_at"] = _now().isoformat()
         
-        result = supabase_admin.table("verification_requests").insert(data).execute()
+        result = client.table("verification_requests").insert(data).execute()
         
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to submit verification request")
@@ -934,12 +935,13 @@ async def get_my_verifications(
     token: str = Depends(get_jwt_token)
 ):
     try:
-        user_res = supabase.auth.get_user(token)
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         user_id = user_res.user.id
         
-        result = supabase_admin.table("verification_requests").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        result = client.table("verification_requests").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
         return result.data
     except Exception as e:
         if isinstance(e, HTTPException): raise e
@@ -961,7 +963,7 @@ async def list_verifications(
         if not profile.data or profile.data.get("user_type") != 0:
             raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
 
-        query = supabase_admin.table("verification_requests").select("*, user_profiles(username, email)")
+        query = supabase_admin.table("verification_requests").select("*, user_profiles(username)")
         if status and status != "all":
             query = query.eq("status", status)
         

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useTheme } from "@/app/providers/ThemeContext";
 
 // Fix Leaflet default marker icon for Vite builds
 delete L.Icon.Default.prototype._getIconUrl;
@@ -49,9 +50,13 @@ export function AddStation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { theme } = useTheme();
   const mapRef = useRef(null);
   const existingStation = location.state?.station ?? null;
   const isEditMode = Boolean(existingStation);
+  const tileLayerUrl = theme === "dark"
+    ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
 
   const queryClient = useQueryClient();
   const createStationMutation = useCreateStation();
@@ -247,9 +252,207 @@ export function AddStation() {
                 <div className="p-2 bg-emerald-500/10 rounded-xl">
                   <MapPin className="w-5 h-5 text-emerald-400" />
                 </div>
+<<<<<<< HEAD
                 <div>
                    <h3 className="font-black text-sm">Station Location</h3>
                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tap map to place pin</p>
+=======
+
+                {/* ── Interactive Map Pin Placement Card ── */}
+                <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 overflow-hidden">
+                  {/* Map Header */}
+                  <div className="px-8 py-5 border-b-2 border-gray-100 dark:border-neutral-800 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground tracking-tight">Pin Location</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {stationLat
+                          ? `📍 ${stationLat.toFixed(6)}, ${stationLng.toFixed(6)} — Drag pin to fine-tune`
+                          : "Click anywhere on the map to place a pin"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
+                      <Move className="w-3.5 h-3.5" />
+                      <span>Click or drag</span>
+                    </div>
+                  </div>
+                  {/* Map */}
+                  <div className="h-72 relative">
+                    <MapContainer
+                      ref={mapRef}
+                      center={mapCenter}
+                      zoom={14}
+                      zoomControl={true}
+                      className="w-full h-full"
+                      style={{ cursor: "crosshair" }}
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                      />
+                      {/* Click handler */}
+                      <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
+                          url={tileLayerUrl}
+                          key={tileLayerUrl}
+                      {osmSuggestions.map(s => (
+                        <Marker 
+                          key={s.id} 
+                          position={[s.lat, s.lng]} 
+                          icon={L.divIcon({
+                            className: "",
+                            html: `<div style="width: 12px; height: 12px; background: #9ca3af; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>`,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                          })}
+                          eventHandlers={{ click: () => handleOSMSuggestionClick(s) }}
+                        >
+                        </Marker>
+                      ))}
+                    </MapContainer>
+                    {/* Fixed Center Pin Overlay */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[400] pointer-events-none drop-shadow-xl transition-transform duration-200" style={{ transformOrigin: 'bottom center' }}>
+                      <div style={{
+                        width: "36px", height: "36px",
+                        background: "linear-gradient(135deg, #10b981, #0d9488)",
+                        borderRadius: "50% 50% 50% 0",
+                        transform: "rotate(-45deg)",
+                        border: "3px solid white",
+                        boxShadow: "0 4px 12px rgba(16,185,129,0.5)"
+                      }}></div>
+                    </div>
+                    {/* Location Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUseCurrentLocation();
+                      }}
+                      className="absolute bottom-4 right-4 z-[1000] w-10 h-10 bg-white dark:bg-neutral-800 rounded-full shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                      title="Go to my location"
+                    >
+                      <LocateFixed className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    </button>
+                    {/* Overlay hint when no pin placed */}
+                    {!stationLat && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        <div className="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm rounded-2xl px-6 py-4 shadow-xl border-2 border-emerald-400/30 text-center">
+                          <MapPin className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                          <p className="text-sm font-bold text-foreground">Click on the map to place pin</p>
+                          <p className="text-xs text-muted-foreground mt-1">Or use GPS button above</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fuel Prices Card */}
+                <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-8 shadow-2xl shadow-black/10">
+                  <h3 className="text-xl font-bold text-foreground mb-6 tracking-tight">
+                    Initial Fuel Prices <span className="text-muted-foreground font-medium text-base">(Optional)</span>
+                  </h3>
+                  <div className="grid grid-cols-2 gap-5">
+                    {[
+                      { key: "diesel", label: "DSL" },
+                      { key: "premiumdiesel", label: "PDSL" },
+                      { key: "unleaded91", label: "UL91" },
+                      { key: "unleaded95", label: "PR95" },
+                      { key: "unleaded98", label: "PR97" },
+                      { key: "kerosene", label: "Kerosene" },
+                    ].map((fuel) => (
+                      <div key={fuel.key}>
+                        <label className="block text-sm font-bold text-muted-foreground mb-2">{fuel.label}</label>
+                        <div className="relative">
+                          <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-muted-foreground text-base">₱</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={prices[fuel.key]}
+                            onChange={(e) => setPrices({ ...prices, [fuel.key]: e.target.value })}
+                            placeholder="0.00"
+                            className="w-full pl-10 pr-5 py-4 bg-white dark:bg-neutral-900 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 shadow-lg text-foreground font-medium text-base transition-all"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right 1/3 — Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="lg:sticky lg:top-6 space-y-6">
+
+                  {/* Pin Status Card */}
+                  <div className={`rounded-3xl border-2 p-6 shadow-2xl transition-all ${
+                    stationLat
+                      ? "bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-400/40 shadow-emerald-500/10"
+                      : "bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-700 shadow-black/10"
+                  }`}>
+                    <h4 className="text-lg font-bold text-foreground mb-3 tracking-tight">Pin Status</h4>
+                    {stationLat ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="font-bold text-sm">Location set!</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono bg-muted rounded-lg px-3 py-2">
+                          {stationLat.toFixed(6)}, {stationLng.toFixed(6)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Drag the pin on the map to fine-tune.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MapPin className="w-5 h-5" />
+                          <span className="font-medium text-sm">No pin placed yet</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Click on the map or use GPS to place a pin.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Guidelines Card */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 backdrop-blur-2xl border-2 border-emerald-400/30 rounded-3xl p-7 shadow-2xl shadow-emerald-500/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-200/20 dark:bg-emerald-400/10 rounded-full blur-3xl" />
+                    <div className="relative z-10">
+                      <h4 className="text-lg font-bold text-foreground mb-4 tracking-tight">Guidelines</h4>
+                      <ul className="space-y-3 text-sm text-muted-foreground font-medium">
+                        <li className="flex items-start gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
+                          <span>Click on the map to place the exact pin</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
+                          <span>Drag the pin to fine-tune position</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
+                          <span>Verify station name matches signage</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
+                          <span>Add prices only if currently at the station</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">•</span>
+                          <span>Duplicate locations within 20m will be blocked</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 p-6 shadow-2xl shadow-black/10">
+                    <Button type="submit" fullWidth disabled={!stationLat}>
+                      {stationLat ? (isEditMode ? "Save Changes" : "Add Station") : "Place pin first"}
+                    </Button>
+                    {!stationLat && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        A pin location is required to submit
+                      </p>
+                    )}
+                  </div>
+>>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
                 </div>
               </div>
               <button type="button" onClick={handleUseCurrentLocation} className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-xl">
@@ -295,7 +498,150 @@ export function AddStation() {
                   className="w-full bg-[#1A2E2A] border border-emerald-500/5 rounded-2xl px-6 py-4 font-bold text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-700 resize-none"
                   required
                 />
+<<<<<<< HEAD
                 {isGeocodingPin && <div className="absolute right-4 top-4"><Loader2 className="w-4 h-4 text-emerald-500 animate-spin" /></div>}
+=======
+              </div>
+
+              {showDuplicateWarning && (
+                <div className="bg-yellow-50 dark:bg-yellow-950/30 border-2 border-yellow-400/50 rounded-2xl p-5 flex items-start gap-3 shadow-xl shadow-yellow-500/10">
+                  <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold text-warning mb-1">Duplicate Location</div>
+                    <div className="text-sm text-warning/80">
+                      "{duplicateInfo?.name}" exists {duplicateInfo?.distance}m away. Drag the pin to move it.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mobile Interactive Map */}
+              <div className="rounded-2xl overflow-hidden border-2 border-gray-200 dark:border-neutral-700 shadow-xl">
+                <div className="px-4 py-3 bg-white dark:bg-neutral-900 border-b-2 border-gray-100 dark:border-neutral-800">
+                  <p className="text-sm font-bold text-foreground">
+                    {stationLat ? "📍 Pin placed — drag to adjust" : "Tap map to place pin"}
+                  </p>
+                  {stationLat && (
+                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                      {stationLat.toFixed(5)}, {stationLng.toFixed(5)}
+                    </p>
+                  )}
+                </div>
+                <div className="h-56 relative">
+                  <MapContainer
+                    ref={mapRef}
+                    center={mapCenter}
+                    zoom={14}
+                    zoomControl={false}
+                    className="w-full h-full"
+                    style={{ cursor: "crosshair" }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                      url={tileLayerUrl}
+                      key={tileLayerUrl}
+                    />
+                    <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
+                  </MapContainer>
+                  {/* Fixed Center Pin Overlay */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[400] pointer-events-none drop-shadow-xl transition-transform duration-200" style={{ transformOrigin: 'bottom center' }}>
+                    <div style={{
+                      width: "36px", height: "36px",
+                      background: "linear-gradient(135deg, #10b981, #0d9488)",
+                      borderRadius: "50% 50% 50% 0",
+                      transform: "rotate(-45deg)",
+                      border: "3px solid white",
+                      boxShadow: "0 4px 12px rgba(16,185,129,0.5)"
+                    }}></div>
+                  </div>
+                  {/* Location Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleUseCurrentLocation();
+                    }}
+                    className="absolute bottom-4 right-4 z-[1000] w-10 h-10 bg-white dark:bg-neutral-800 rounded-full shadow-lg border border-gray-200 dark:border-neutral-700 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-neutral-700 transition-colors"
+                    title="Go to my location"
+                  >
+                    <LocateFixed className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  </button>
+                  {!stationLat && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                      <div className="bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm rounded-xl px-4 py-3 text-center shadow-lg border border-emerald-400/20">
+                        <MapPin className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
+                        <p className="text-xs font-bold text-foreground">Tap to place pin</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Address Field */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Full Address *</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                  {isGeocodingPin && <Loader2 className="absolute right-3 top-3 w-5 h-5 text-emerald-500 animate-spin" />}
+                  <textarea
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Tap the map to auto-fill address"
+                    rows={3}
+                    className="w-full pl-11 pr-11 py-3 bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none shadow-lg text-foreground font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Fuel Prices */}
+              <div>
+                <h3 className="font-semibold text-foreground mb-3">Initial Fuel Prices (Optional)</h3>
+                <div className="space-y-3">
+                  {[
+                    { key: "diesel", label: "DSL" },
+                    { key: "premiumdiesel", label: "PDSL" },
+                    { key: "unleaded91", label: "UL91" },
+                    { key: "unleaded95", label: "PR95" },
+                    { key: "unleaded98", label: "PR97" },
+                    { key: "kerosene", label: "Kerosene" },
+                  ].map((fuel) => (
+                    <div key={fuel.key}>
+                      <label className="block text-sm text-muted-foreground mb-1">{fuel.label}</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-muted-foreground">₱</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={prices[fuel.key]}
+                          onChange={(e) => setPrices({ ...prices, [fuel.key]: e.target.value })}
+                          placeholder="0.00"
+                          className="w-full pl-9 pr-4 py-3 bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-lg text-foreground font-medium"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Guidelines */}
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-400/30 rounded-2xl p-5 shadow-xl shadow-emerald-500/10">
+                <h4 className="font-semibold text-foreground mb-2">Guidelines</h4>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>• Click or tap on the map to place the pin</li>
+                  <li>• Drag it to fine-tune the exact position</li>
+                  <li>• Verify station name matches signage</li>
+                  <li>• Duplicate locations within 20m will be blocked</li>
+                </ul>
+              </div>
+
+              {/* Submit */}
+              <div className="pt-4">
+                <Button type="submit" fullWidth disabled={!stationLat || isSubmitting} loading={isSubmitting}>
+                  {isSubmitting ? (isEditMode ? "Saving Changes..." : "Adding Station...") : stationLat ? (isEditMode ? "Save Changes" : "Add Station") : "Place pin on map first"}
+                </Button>
+>>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
               </div>
             </div>
 
