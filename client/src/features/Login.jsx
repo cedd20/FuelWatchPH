@@ -273,14 +273,6 @@ export function Login() {
           </button>
         </div>
 
-        <div className="text-center pt-6 border-t border-gray-200 dark:border-neutral-800 mt-6">
-          <button
-            onClick={() => navigate("/admin/login")}
-            className="text-sm lg:text-base text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 font-bold transition-colors"
-          >
-            Sign in as Admin
-          </button>
-        </div>
         </div>
       </div>
     </div>

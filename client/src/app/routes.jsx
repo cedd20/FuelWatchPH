@@ -25,8 +25,8 @@ import { ReportIssue } from "@/features/ReportIssue";
 import { Support } from "@/features/Support";
 import { Terms } from "@/features/Terms";
 import { EditProfile } from "@/features/EditProfile";
+import { VerificationRequest } from "@/features/VerificationRequest";
 import { AdminDashboard } from "@/features/admin/AdminDashboard";
-import { AdminLogin } from "@/features/admin/AdminLogin";
 import { VerificationQueue } from "@/features/admin/VerificationQueue";
 import { VerificationDetail } from "@/features/admin/VerificationDetail";
 import { VerifiedUsers } from "@/features/admin/VerifiedUsers";
@@ -96,6 +96,10 @@ export const router = createBrowserRouter([
         element: <EditProfile />,
       },
       {
+        path: "verify-identity",
+        element: <VerificationRequest />,
+      },
+      {
         path: "leaderboard",
         element: <Leaderboard />,
       },
@@ -137,10 +141,6 @@ export const router = createBrowserRouter([
         element: <Terms />,
       },
     ],
-  },
-  {
-    path: "/admin/login",
-    element: <AdminLogin />,
   },
   {
     path: "/admin",

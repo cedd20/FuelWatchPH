@@ -1,90 +1,35 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Search, Filter, CheckCircle, XCircle, Clock, AlertCircle, Eye } from "lucide-react";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
 
-const mockVerificationRequests = [
-  {
-    id: "1",
-    userName: "Juan Dela Cruz",
-    email: "juan.delacruz@email.com",
-    idType: "National ID",
-    submittedDate: "2024-05-07 14:30:00",
-    status: "pending",
-    reviewedBy: null,
-  },
-  {
-    id: "2",
-    userName: "Maria Santos",
-    email: "maria.santos@email.com",
-    idType: "Driver's License",
-    submittedDate: "2024-05-07 13:15:00",
-    status: "pending",
-    reviewedBy: null,
-  },
-  {
-    id: "3",
-    userName: "Pedro Reyes",
-    email: "pedro.reyes@email.com",
-    idType: "Passport",
-    submittedDate: "2024-05-07 10:45:00",
-    status: "approved",
-    reviewedBy: "Admin",
-  },
-  {
-    id: "4",
-    userName: "Ana Garcia",
-    email: "ana.garcia@email.com",
-    idType: "National ID",
-    submittedDate: "2024-05-07 09:20:00",
-    status: "rejected",
-    reviewedBy: "Admin",
-  },
-  {
-    id: "5",
-    userName: "Carlos Martinez",
-    email: "carlos.martinez@email.com",
-    idType: "Driver's License",
-    submittedDate: "2024-05-06 16:50:00",
-    status: "pending",
-    reviewedBy: null,
-  },
-  {
-    id: "6",
-    userName: "Sofia Rodriguez",
-    email: "sofia.rodriguez@email.com",
-    idType: "Passport",
-    submittedDate: "2024-05-06 14:30:00",
-    status: "needs_correction",
-    reviewedBy: "Admin",
-  },
-  {
-    id: "7",
-    userName: "Luis Fernandez",
-    email: "luis.fernandez@email.com",
-    idType: "National ID",
-    submittedDate: "2024-05-06 11:15:00",
-    status: "approved",
-    reviewedBy: "Admin",
-  },
-  {
-    id: "8",
-    userName: "Isabella Cruz",
-    email: "isabella.cruz@email.com",
-    idType: "Driver's License",
-    submittedDate: "2024-05-05 17:45:00",
-    status: "approved",
-    reviewedBy: "Admin",
-  },
-];
+import { api as apiClient } from "@/lib/apiClient";
+import { Loader2 } from "lucide-react";
 
 export function VerificationQueue() {
   const navigate = useNavigate();
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [idTypeFilter, setIdTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    async function fetchRequests() {
+      setIsLoading(true);
+      try {
+        const data = await apiClient.get("/admin/verifications", { status: statusFilter });
+        setRequests(data || []);
+      } catch (error) {
+        console.error("Failed to fetch verifications:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchRequests();
+  }, [statusFilter]);
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -131,13 +76,15 @@ export function VerificationQueue() {
     }
   };
 
-  const filteredRequests = mockVerificationRequests.filter((request) => {
+  const filteredRequests = requests.filter((request) => {
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
+    const userName = request.user_profiles?.username || request.full_name || "";
+    const email = request.user_profiles?.email || "";
     const matchesSearch =
       searchQuery === "" ||
-      request.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesIdType = idTypeFilter === "all" || request.idType === idTypeFilter;
+      userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesIdType = idTypeFilter === "all" || request.id_type === idTypeFilter;
     return matchesStatus && matchesSearch && matchesIdType;
   });
 
@@ -153,10 +100,10 @@ export function VerificationQueue() {
     setCurrentPage(1);
   };
 
-  const pendingCount = mockVerificationRequests.filter((r) => r.status === "pending").length;
-  const approvedCount = mockVerificationRequests.filter((r) => r.status === "approved").length;
-  const rejectedCount = mockVerificationRequests.filter((r) => r.status === "rejected").length;
-  const needsCorrectionCount = mockVerificationRequests.filter((r) => r.status === "needs_correction").length;
+  const pendingCount = requests.filter((r) => r.status === "pending").length;
+  const approvedCount = requests.filter((r) => r.status === "approved").length;
+  const rejectedCount = requests.filter((r) => r.status === "rejected").length;
+  const needsCorrectionCount = requests.filter((r) => r.status === "needs_correction").length;
 
   return (
     <div className="p-4 lg:p-8">
@@ -359,8 +306,8 @@ export function VerificationQueue() {
             >
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-foreground text-base mb-1">{request.userName}</div>
-                  <div className="text-xs text-muted-foreground truncate">{request.email}</div>
+                  <div className="font-bold text-foreground text-base mb-1">{request.user_profiles?.username || request.full_name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{request.user_profiles?.email}</div>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border-2 flex-shrink-0 ${getStatusColor(
@@ -376,16 +323,16 @@ export function VerificationQueue() {
                 <div>
                   <div className="text-muted-foreground font-semibold mb-0.5">ID Type</div>
                   <span className="inline-block px-2 py-1 bg-gray-100 dark:bg-neutral-800 text-foreground rounded text-xs font-bold">
-                    {request.idType}
+                    {request.id_type}
                   </span>
                 </div>
                 <div>
                   <div className="text-muted-foreground font-semibold mb-0.5">Submitted</div>
                   <div className="text-foreground font-bold">
-                    {new Date(request.submittedDate).toLocaleDateString()}
+                    {new Date(request.created_at).toLocaleDateString()}
                   </div>
                   <div className="text-muted-foreground text-xs">
-                    {new Date(request.submittedDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(request.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
@@ -428,20 +375,20 @@ export function VerificationQueue() {
                     className="border-b border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <td className="p-4">
-                      <div className="font-bold text-foreground">{request.userName}</div>
-                      <div className="text-sm text-muted-foreground">{request.email}</div>
+                      <div className="font-bold text-foreground">{request.user_profiles?.username || request.full_name}</div>
+                      <div className="text-sm text-muted-foreground">{request.user_profiles?.email}</div>
                     </td>
                     <td className="p-4">
                       <span className="px-3 py-1 bg-gray-100 dark:bg-neutral-800 text-foreground rounded-full text-xs font-bold">
-                        {request.idType}
+                        {request.id_type}
                       </span>
                     </td>
                     <td className="p-4">
                       <div className="text-sm text-foreground font-semibold">
-                        {new Date(request.submittedDate).toLocaleDateString()}
+                        {new Date(request.created_at).toLocaleDateString()}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(request.submittedDate).toLocaleTimeString()}
+                        {new Date(request.created_at).toLocaleTimeString()}
                       </div>
                     </td>
                     <td className="p-4">

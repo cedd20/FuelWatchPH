@@ -17,6 +17,7 @@ from app.models.schemas import (
     StationUpdate,
     UserProfileBase,
     UserProfileOut,
+    VerificationRequestIn,
 )
 from app.services import report_service
 from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client
@@ -898,3 +899,211 @@ async def update_my_profile(
         print(f"Error updating profile: {e}")
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail="Failed to update profile")
+
+
+@router.post("/me/verify")
+async def submit_verification(
+    request: VerificationRequestIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        user_id = user_res.user.id
+        
+        # Insert into verification_requests table
+        data = request.model_dump()
+        data["user_id"] = user_id
+        data["status"] = "pending"
+        data["created_at"] = _now().isoformat()
+        
+        result = supabase_admin.table("verification_requests").insert(data).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to submit verification request")
+            
+        return {"status": "pending", "message": "Verification request submitted successfully"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/me/verifications")
+async def get_my_verifications(
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        user_res = supabase.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        user_id = user_res.user.id
+        
+        result = supabase_admin.table("verification_requests").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return result.data
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN VERIFICATION ROUTES ---
+
+@router.get("/admin/verifications")
+async def list_verifications(
+    status: Optional[str] = None,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        query = supabase_admin.table("verification_requests").select("*, user_profiles(username, email)")
+        if status and status != "all":
+            query = query.eq("status", status)
+        
+        result = query.order("created_at", desc=True).execute()
+        return result.data
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/admin/verifications/{request_id}")
+async def get_verification_detail(
+    request_id: str,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        result = supabase_admin.table("verification_requests").select("*, user_profiles(*)").eq("id", request_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Request not found")
+            
+        return result.data
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/verifications/{request_id}/approve")
+async def approve_verification(
+    request_id: str,
+    admin_notes: Optional[str] = None,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        admin_user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        # Get the request to find the user_id
+        req_result = supabase_admin.table("verification_requests").select("user_id").eq("id", request_id).single().execute()
+        if not req_result.data:
+            raise HTTPException(status_code=404, detail="Request not found")
+        
+        target_user_id = req_result.data["user_id"]
+
+        # Update request status
+        supabase_admin.table("verification_requests").update({
+            "status": "approved",
+            "admin_notes": admin_notes,
+            "updated_at": _now().isoformat()
+        }).eq("id", request_id).execute()
+
+        # Update user profile verification status
+        supabase_admin.table("user_profiles").update({
+            "is_verified": True
+        }).eq("id", target_user_id).execute()
+
+        return {"message": "User verified successfully"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/verifications/{request_id}/reject")
+async def reject_verification(
+    request_id: str,
+    admin_notes: str,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        admin_user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        # Update request status
+        supabase_admin.table("verification_requests").update({
+            "status": "rejected",
+            "admin_notes": admin_notes,
+            "updated_at": _now().isoformat()
+        }).eq("id", request_id).execute()
+
+        return {"message": "Verification request rejected"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/verifications/{request_id}/correction")
+async def request_correction(
+    request_id: str,
+    admin_notes: str,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        admin_user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        # Update request status to needs_correction
+        supabase_admin.table("verification_requests").update({
+            "status": "needs_correction",
+            "admin_notes": admin_notes,
+            "updated_at": _now().isoformat()
+        }).eq("id", request_id).execute()
+
+        return {"message": "Correction requested successfully"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/admin/verifications/{request_id}")
+async def update_verification_request(
+    request_id: str,
+    admin_notes: Optional[str] = None,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        # Check admin role
+        user_res = supabase.auth.get_user(token)
+        admin_user_id = user_res.user.id
+        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
+        if not profile.data or profile.data.get("user_type") != 0:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+        update_data = {"updated_at": _now().isoformat()}
+        if admin_notes is not None:
+            update_data["admin_notes"] = admin_notes
+
+        supabase_admin.table("verification_requests").update(update_data).eq("id", request_id).execute()
+        return {"message": "Request updated successfully"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+

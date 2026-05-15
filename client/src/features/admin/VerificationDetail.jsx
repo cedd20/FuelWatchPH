@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -14,53 +15,101 @@ import {
   ZoomIn,
 } from "lucide-react";
 
-const mockVerificationDetail = {
-  id: "1",
-  userName: "Juan Dela Cruz",
-  email: "juan.delacruz@email.com",
-  phone: "+63 912 345 6789",
-  accountCreated: "2024-01-15",
-  idType: "National ID",
-  idNumber: "1234-5678-9012",
-  submittedDate: "2024-05-07 14:30:00",
-  status: "pending",
-  idFrontImage: "https://via.placeholder.com/800x500/10b981/ffffff?text=National+ID+Front",
-  idBackImage: "https://via.placeholder.com/800x500/10b981/ffffff?text=National+ID+Back",
-  selfieImage: "https://via.placeholder.com/800x500/10b981/ffffff?text=Selfie+with+ID",
-  userNotes: "Please verify my identity for fuel price contributor status. Thank you!",
-  adminNotes: "",
-  verificationHistory: [
-    { date: "2024-05-07", action: "Submitted verification", status: "pending" },
-  ],
-};
+import { api as apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 export function VerificationDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [request, setRequest] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [actionNote, setActionNote] = useState("");
   const [selectedImage, setSelectedImage] = useState("");
-  const [adminNotesText, setAdminNotesText] = useState(mockVerificationDetail.adminNotes);
+  const [adminNotesText, setAdminNotesText] = useState("");
 
-  const handleApprove = () => {
-    console.log("Approving verification:", id, actionNote);
-    setActiveModal(null);
-    setActionNote("");
-    navigate("/admin/verification-queue");
+  useEffect(() => {
+    async function fetchDetail() {
+      setIsLoading(true);
+      try {
+        const data = await apiClient.get(`/admin/verifications/${id}`);
+        setRequest(data);
+        setAdminNotesText(data.admin_notes || "");
+      } catch (error) {
+        console.error("Failed to fetch detail:", error);
+        toast.error("Failed to load verification request");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchDetail();
+  }, [id]);
+
+  const handleApprove = async () => {
+    setIsProcessing(true);
+    try {
+      await apiClient.post(`/admin/verifications/${id}/approve`, { admin_notes: actionNote });
+      toast.success("Verification request approved!");
+      navigate("/admin/verification-queue");
+    } catch (error) {
+      console.error("Approval failed:", error);
+      toast.error("Failed to approve verification");
+    } finally {
+      setIsProcessing(false);
+      setActiveModal(null);
+    }
   };
 
-  const handleReject = () => {
-    console.log("Rejecting verification:", id, actionNote);
-    setActiveModal(null);
-    setActionNote("");
-    navigate("/admin/verification-queue");
+  const handleReject = async () => {
+    if (!actionNote) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await apiClient.post(`/admin/verifications/${id}/reject`, { admin_notes: actionNote });
+      toast.success("Verification request rejected");
+      navigate("/admin/verification-queue");
+    } catch (error) {
+      console.error("Rejection failed:", error);
+      toast.error("Failed to reject verification");
+    } finally {
+      setIsProcessing(false);
+      setActiveModal(null);
+    }
   };
 
-  const handleRequestCorrection = () => {
-    console.log("Requesting correction:", id, actionNote);
-    setActiveModal(null);
-    setActionNote("");
-    navigate("/admin/verification-queue");
+  const handleRequestCorrection = async () => {
+    if (!actionNote) {
+      toast.error("Please provide correction details");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await apiClient.post(`/admin/verifications/${id}/correction`, { admin_notes: actionNote });
+      toast.success("Correction requested");
+      navigate("/admin/verification-queue");
+    } catch (error) {
+      console.error("Correction request failed:", error);
+      toast.error("Failed to request correction");
+    } finally {
+      setIsProcessing(false);
+      setActiveModal(null);
+    }
+  };
+
+  const handleSaveNotes = async () => {
+    setIsProcessing(true);
+    try {
+      await apiClient.patch(`/admin/verifications/${id}`, { admin_notes: adminNotesText });
+      toast.success("Notes saved");
+    } catch (error) {
+      console.error("Failed to save notes:", error);
+      toast.error("Failed to save notes");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleImageClick = (imageUrl) => {
@@ -96,15 +145,15 @@ export function VerificationDetail() {
               </button>
               <div className="min-w-0">
                 <h1 className="text-xl lg:text-3xl font-bold text-foreground truncate">Verification Request</h1>
-                <p className="text-xs lg:text-sm text-muted-foreground">Request ID: #{mockVerificationDetail.id}</p>
+                <p className="text-xs lg:text-sm text-muted-foreground">Request ID: #{id}</p>
               </div>
             </div>
             <span
               className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-full text-xs lg:text-sm font-bold border-2 capitalize self-start sm:self-center ${getStatusColor(
-                mockVerificationDetail.status
+                request?.status
               )}`}
             >
-              {mockVerificationDetail.status}
+              {request?.status}
             </span>
           </div>
 
@@ -122,7 +171,7 @@ export function VerificationDetail() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Full Name</div>
-                      <div className="font-bold text-foreground text-sm lg:text-lg break-words">{mockVerificationDetail.userName}</div>
+                      <div className="font-bold text-foreground text-sm lg:text-lg break-words">{request?.full_name}</div>
                     </div>
                   </div>
 
@@ -132,17 +181,7 @@ export function VerificationDetail() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Email Address</div>
-                      <div className="font-bold text-foreground text-sm lg:text-base break-all">{mockVerificationDetail.email}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2.5 lg:gap-3">
-                    <div className="w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Phone className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Phone Number</div>
-                      <div className="font-bold text-foreground text-sm lg:text-base">{mockVerificationDetail.phone}</div>
+                      <div className="font-bold text-foreground text-sm lg:text-base break-all">{request?.user_profiles?.email}</div>
                     </div>
                   </div>
 
@@ -152,7 +191,17 @@ export function VerificationDetail() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">ID Type</div>
-                      <div className="font-bold text-foreground text-sm lg:text-base">{mockVerificationDetail.idType}</div>
+                      <div className="font-bold text-foreground text-sm lg:text-base">{request?.id_type}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 lg:gap-3">
+                    <div className="w-9 h-9 lg:w-10 lg:h-10 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/50 dark:to-teal-950/50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">ID Number</div>
+                      <div className="font-bold text-foreground text-sm lg:text-base">{request?.id_number}</div>
                     </div>
                   </div>
 
@@ -163,7 +212,7 @@ export function VerificationDetail() {
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Submitted Date</div>
                       <div className="font-bold text-foreground text-sm lg:text-base">
-                        {new Date(mockVerificationDetail.submittedDate).toLocaleString()}
+                        {new Date(request?.created_at).toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -175,16 +224,16 @@ export function VerificationDetail() {
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-muted-foreground font-bold mb-0.5 lg:mb-1">Account Created</div>
                       <div className="font-bold text-foreground text-sm lg:text-base">
-                        {new Date(mockVerificationDetail.accountCreated).toLocaleDateString()}
+                        {new Date(request?.user_profiles?.created_at).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {mockVerificationDetail.userNotes && (
+                {request?.userNotes && (
                   <div className="sm:col-span-2 mt-1 lg:mt-2 p-3.5 lg:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border-2 border-blue-200 dark:border-blue-800">
                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2">User Notes</div>
-                    <p className="text-sm text-foreground leading-relaxed">{mockVerificationDetail.userNotes}</p>
+                    <p className="text-sm text-foreground leading-relaxed">{request.userNotes}</p>
                   </div>
                 )}
               </div>
@@ -192,13 +241,13 @@ export function VerificationDetail() {
               {/* Submitted Documents */}
               <div className="bg-white dark:bg-neutral-900 rounded-lg lg:rounded-xl p-5 lg:p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-lg">
                 <h2 className="text-lg lg:text-xl font-bold text-foreground mb-4 lg:mb-5">Submitted Documents</h2>
-                <div className="space-y-4 lg:space-y-5">
-                  {/* ID Front */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6">
+                  {/* Front Side */}
                   <div>
                     <div className="flex items-center justify-between mb-2.5 lg:mb-3">
-                      <h3 className="font-bold text-foreground text-base lg:text-lg">ID Front</h3>
+                      <h3 className="font-bold text-foreground text-sm lg:text-base">Front Side</h3>
                       <button
-                        onClick={() => handleImageClick(mockVerificationDetail.idFrontImage)}
+                        onClick={() => handleImageClick(request?.id_front_url)}
                         className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-gray-100 dark:bg-neutral-800 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-700 active:scale-95 transition-all"
                       >
                         <ZoomIn className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-foreground" />
@@ -206,22 +255,22 @@ export function VerificationDetail() {
                       </button>
                     </div>
                     <div className="rounded-lg lg:rounded-xl overflow-hidden border-2 border-gray-200 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800 cursor-pointer hover:border-emerald-500 active:scale-[0.99] transition-all"
-                      onClick={() => handleImageClick(mockVerificationDetail.idFrontImage)}
+                      onClick={() => handleImageClick(request?.id_front_url)}
                     >
                       <img
-                        src={mockVerificationDetail.idFrontImage}
+                        src={request?.id_front_url}
                         alt="ID Front"
-                        className="w-full h-auto"
+                        className="w-full h-auto min-h-[150px] object-cover"
                       />
                     </div>
                   </div>
 
-                  {/* ID Back */}
+                  {/* Back Side */}
                   <div>
                     <div className="flex items-center justify-between mb-2.5 lg:mb-3">
-                      <h3 className="font-bold text-foreground text-base lg:text-lg">ID Back</h3>
+                      <h3 className="font-bold text-foreground text-sm lg:text-base">Back Side</h3>
                       <button
-                        onClick={() => handleImageClick(mockVerificationDetail.idBackImage)}
+                        onClick={() => handleImageClick(request?.id_back_url)}
                         className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-gray-100 dark:bg-neutral-800 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-700 active:scale-95 transition-all"
                       >
                         <ZoomIn className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-foreground" />
@@ -229,35 +278,12 @@ export function VerificationDetail() {
                       </button>
                     </div>
                     <div className="rounded-lg lg:rounded-xl overflow-hidden border-2 border-gray-200 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800 cursor-pointer hover:border-emerald-500 active:scale-[0.99] transition-all"
-                      onClick={() => handleImageClick(mockVerificationDetail.idBackImage)}
+                      onClick={() => handleImageClick(request?.id_back_url)}
                     >
                       <img
-                        src={mockVerificationDetail.idBackImage}
+                        src={request?.id_back_url}
                         alt="ID Back"
-                        className="w-full h-auto"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Selfie */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5 lg:mb-3">
-                      <h3 className="font-bold text-foreground text-base lg:text-lg">Selfie with ID</h3>
-                      <button
-                        onClick={() => handleImageClick(mockVerificationDetail.selfieImage)}
-                        className="flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 bg-gray-100 dark:bg-neutral-800 rounded-lg hover:bg-gray-200 dark:hover:bg-neutral-700 active:scale-95 transition-all"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-foreground" />
-                        <span className="text-xs lg:text-sm font-bold text-foreground">Enlarge</span>
-                      </button>
-                    </div>
-                    <div className="rounded-lg lg:rounded-xl overflow-hidden border-2 border-gray-200 dark:border-neutral-700 bg-gray-100 dark:bg-neutral-800 cursor-pointer hover:border-emerald-500 active:scale-[0.99] transition-all"
-                      onClick={() => handleImageClick(mockVerificationDetail.selfieImage)}
-                    >
-                      <img
-                        src={mockVerificationDetail.selfieImage}
-                        alt="Selfie with ID"
-                        className="w-full h-auto"
+                        className="w-full h-auto min-h-[150px] object-cover"
                       />
                     </div>
                   </div>
@@ -306,8 +332,12 @@ export function VerificationDetail() {
                     className="w-full px-3.5 lg:px-4 py-2.5 lg:py-3 bg-gray-50 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all outline-none resize-none text-sm"
                     rows={5}
                   />
-                  <button className="w-full mt-3 px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg font-bold text-sm text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700 active:scale-[0.98] transition-all">
-                    Save Notes
+                  <button 
+                    onClick={handleSaveNotes}
+                    disabled={isProcessing}
+                    className="w-full mt-3 px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg font-bold text-sm text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700 active:scale-[0.98] transition-all disabled:opacity-50"
+                  >
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Save Notes"}
                   </button>
                 </div>
 
@@ -342,19 +372,30 @@ export function VerificationDetail() {
                 <div className="bg-white dark:bg-neutral-900 rounded-lg lg:rounded-xl p-5 lg:p-6 border-2 border-gray-200 dark:border-neutral-700 shadow-lg">
                   <h3 className="text-lg lg:text-xl font-bold text-foreground mb-4">Verification History</h3>
                   <div className="space-y-2.5 lg:space-y-3">
-                    {mockVerificationDetail.verificationHistory.map((entry, index) => (
-                      <div key={index} className="flex items-start gap-2.5 lg:gap-3 p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg">
+                    <div className="flex items-start gap-2.5 lg:gap-3 p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs lg:text-sm font-bold text-foreground">Submitted verification</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {request ? new Date(request.created_at).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-bold capitalize flex-shrink-0 ${getStatusColor(request?.status)}`}>
+                        {request?.status || "pending"}
+                      </span>
+                    </div>
+                    {request?.updated_at !== request?.created_at && (
+                      <div className="flex items-start gap-2.5 lg:gap-3 p-3 bg-gray-50 dark:bg-neutral-800 rounded-lg">
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs lg:text-sm font-bold text-foreground">{entry.action}</div>
+                          <div className="text-xs lg:text-sm font-bold text-foreground">Last updated</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {new Date(entry.date).toLocaleDateString()}
+                            {request ? new Date(request.updated_at).toLocaleDateString() : "—"}
                           </div>
                         </div>
-                        <span className={`px-2 py-1 rounded text-xs font-bold capitalize flex-shrink-0 ${getStatusColor(entry.status)}`}>
-                          {entry.status}
+                        <span className={`px-2 py-1 rounded text-xs font-bold capitalize flex-shrink-0 ${getStatusColor(request?.status)}`}>
+                          {request?.status}
                         </span>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -391,7 +432,7 @@ export function VerificationDetail() {
             </div>
             <p className="text-sm lg:text-base text-muted-foreground mb-5">
               Are you sure you want to approve this verification request for{" "}
-              <span className="font-bold text-foreground">{mockVerificationDetail.userName}</span>?
+              <span className="font-bold text-foreground">{request?.full_name}</span>?
             </p>
             <div className="mb-5">
               <label className="block text-sm font-bold text-foreground mb-2">Admin Note (Optional)</label>
@@ -412,9 +453,10 @@ export function VerificationDetail() {
               </button>
               <button
                 onClick={handleApprove}
-                className="flex-1 px-4 lg:px-5 py-2.5 lg:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all"
+                disabled={isProcessing}
+                className="flex-1 px-4 lg:px-5 py-2.5 lg:py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50"
               >
-                Approve
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Approve"}
               </button>
             </div>
           </div>
@@ -436,7 +478,7 @@ export function VerificationDetail() {
             </div>
             <p className="text-sm lg:text-base text-muted-foreground mb-5">
               Are you sure you want to reject this verification request for{" "}
-              <span className="font-bold text-foreground">{mockVerificationDetail.userName}</span>?
+              <span className="font-bold text-foreground">{request?.full_name}</span>?
             </p>
             <div className="mb-5">
               <label className="block text-sm font-bold text-foreground mb-2">Reason for Rejection (Required)</label>
@@ -457,10 +499,10 @@ export function VerificationDetail() {
               </button>
               <button
                 onClick={handleReject}
-                disabled={!actionNote}
-                className="flex-1 px-4 lg:px-5 py-2.5 lg:py-3 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!actionNote || isProcessing}
+                className="flex-1 px-4 lg:px-5 py-2.5 lg:py-3 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-95 transition-all disabled:opacity-50"
               >
-                Reject
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Reject"}
               </button>
             </div>
           </div>
@@ -481,7 +523,7 @@ export function VerificationDetail() {
               </button>
             </div>
             <p className="text-sm lg:text-base text-muted-foreground mb-5">
-              Request <span className="font-bold text-foreground">{mockVerificationDetail.userName}</span> to resubmit
+              Request <span className="font-bold text-foreground">{request?.full_name}</span> to resubmit
               documents with corrections.
             </p>
             <div className="mb-5">

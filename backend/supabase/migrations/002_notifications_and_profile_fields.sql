@@ -29,19 +29,19 @@ DECLARE
 BEGIN
   v_username := COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1));
   
+  -- Insert into user_profiles, handling both ID and username conflicts
+  -- If username exists, we fallback to a more unique username (id-based)
   INSERT INTO public.user_profiles (id, username, reputation)
   VALUES (new.id, v_username, 0)
   ON CONFLICT (id) DO NOTHING;
-
-  -- Create welcome notification
-  INSERT INTO public.notifications (user_id, type, title, message, metadata)
-  VALUES (
-    new.id,
-    'system',
-    'Welcome to FuelWatchPH! ⛽',
-    'Hi ' || v_username || '! Start exploring gas stations near you and help the community by reporting prices.',
-    '{"welcome": true}'::jsonb
-  );
+  
+  -- If the profile wasn't created (likely due to username conflict), 
+  -- try again with a guaranteed unique username
+  IF NOT EXISTS (SELECT 1 FROM public.user_profiles WHERE id = new.id) THEN
+    INSERT INTO public.user_profiles (id, username, reputation)
+    VALUES (new.id, v_username || '_' || substring(new.id::text, 1, 5), 0)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
 
   RETURN new;
 END;

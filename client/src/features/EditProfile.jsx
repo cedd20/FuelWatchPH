@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, User, Mail, Camera, Save, Loader2, Info } from "lucide-react";
+import { ArrowLeft, User, Mail, Camera, Save, Loader2, Info, Shield, CheckCircle } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { useAuth } from "@/app/providers/AuthContext";
 import { toast } from "sonner";
@@ -221,15 +221,37 @@ export function EditProfile() {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-muted-foreground ml-1">Avatar URL (Optional)</label>
-              <input
-                type="url"
-                value={formData.avatar_url}
-                onChange={(e) => setFormData({...formData, avatar_url: e.target.value})}
-                placeholder="https://example.com/avatar.jpg"
-                className="w-full px-4 py-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border-2 border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-neutral-800 transition-all outline-none font-medium"
-              />
+            {/* Verification Section */}
+            <div className="pt-4 border-t-2 border-gray-100 dark:border-neutral-800 space-y-4">
+              <label className="text-sm font-bold text-muted-foreground ml-1">Identity Verification</label>
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border-2 border-transparent">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white dark:bg-neutral-900 rounded-xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-neutral-800">
+                    <Shield className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-foreground text-sm lg:text-base">Status</div>
+                    <div className="text-xs lg:text-sm text-muted-foreground font-medium">
+                      {user?.is_verified ? "Verified Member" : "Not Verified"}
+                    </div>
+                  </div>
+                </div>
+                {!user?.is_verified && (
+                  <button 
+                    type="button" 
+                    onClick={() => navigate("/app/verify-identity")}
+                    className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                  >
+                    Get Verified
+                  </button>
+                )}
+                {user?.is_verified && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">
+                    <CheckCircle className="w-3.5 h-3.5" strokeWidth={3} />
+                    Verified
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

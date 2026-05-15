@@ -92,6 +92,15 @@ class UserProfileOut(UserProfileBase):
     points: Optional[int] = None
     contributionCount: Optional[int] = None
     verified_count: Optional[int] = None
+    is_verified: bool = False
     accuracy: Optional[int] = None
+
+
+class VerificationRequestIn(BaseModel):
+    full_name: str
+    id_type: str
+    id_number: str
+    id_front_url: str
+    id_back_url: str
 
 

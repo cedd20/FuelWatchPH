@@ -103,18 +103,3 @@ export function getMockAuthSession() {
 export function clearMockAuthSession() {
   clearStoredSessionValue(MOCK_AUTH_SESSION_KEY);
 }
-
-export function setMockAdminAuthSession(user, rememberMe) {
-  if (!user) return;
-  setStoredRememberMePreference(rememberMe);
-  // Safe placeholder admin session until backend role-based auth is integrated.
-  storeSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY, JSON.stringify(user), rememberMe);
-}
-
-export function getMockAdminAuthSession() {
-  return getParsedSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY);
-}
-
-export function clearMockAdminAuthSession() {
-  clearStoredSessionValue(MOCK_ADMIN_AUTH_SESSION_KEY);
-}

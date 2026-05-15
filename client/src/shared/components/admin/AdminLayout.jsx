@@ -33,7 +33,7 @@ const navItems = [
 export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { adminLogout, adminUser } = useAuth();
+  const { logout, user } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActiveRoute = (path) => {
@@ -45,7 +45,7 @@ export function AdminLayout() {
   };
 
   const handleLogout = async () => {
-    await adminLogout();
+    await logout();
     navigate("/login");
   };
 
@@ -147,8 +147,8 @@ export function AdminLayout() {
                 <User className="w-4 h-4 text-white" strokeWidth={2.5} />
               </div>
               <div className="hidden lg:block">
-                <div className="text-xs font-bold text-foreground">{adminUser?.name || "Admin"}</div>
-                <div className="text-xs text-muted-foreground">{adminUser?.role || "Super Admin"}</div>
+                <div className="text-xs font-bold text-foreground">{user?.username || user?.name || "Admin"}</div>
+                <div className="text-xs text-muted-foreground">{user?.user_type === 0 ? "Super Admin" : "User"}</div>
               </div>
             </div>
           </div>

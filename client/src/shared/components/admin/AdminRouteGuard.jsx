@@ -3,7 +3,7 @@ import { useAuth } from "@/app/providers/AuthContext";
 
 export function AdminRouteGuard() {
   const location = useLocation();
-  const { isAdminAuthenticated, loading } = useAuth();
+  const { isAdmin, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,8 +16,8 @@ export function AdminRouteGuard() {
     );
   }
 
-  if (!isAdminAuthenticated) {
-    return <Navigate to="/admin/login" replace state={{ returnTo: location.pathname }} />;
+  if (!isAdmin) {
+    return <Navigate to="/login" replace state={{ returnTo: location.pathname }} />;
   }
 
   return <Outlet />;

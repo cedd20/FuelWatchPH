@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useMemo } from "react";
-import { ArrowLeft, Award, Crown, MapPin, ShieldCheck, Star, Trophy, TrendingUp, Users } from "lucide-react";
+import { ArrowLeft, Award, Crown, MapPin, ShieldCheck, Star, Trophy, TrendingUp, Users, CheckCircle } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Skeleton } from "@/shared/components/Skeleton";
 
@@ -55,6 +55,7 @@ export function Leaderboard() {
     updates: entry.total_updates,
     trustScore: entry.accuracy || 0,
     karma: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
+    isVerified: !!entry.is_verified,
     badge: (entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0)) > 1000 ? "Fuel Guardian" : "Trusted Contributor",
     color: RANK_COLORS[index % RANK_COLORS.length],
   })).sort((a, b) => (b.karma || 0) - (a.karma || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
@@ -65,6 +66,7 @@ export function Leaderboard() {
     updates: myStats.total,
     trustScore: myStats.trustScore,
     karma: myStats.karma,
+    isVerified: !!user?.is_verified,
     badge: myStats.karma > 1000 ? "Fuel Guardian" : "Trusted Contributor"
   };
 
@@ -181,7 +183,14 @@ export function Leaderboard() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-foreground text-base lg:text-lg tracking-tight">{entry.name}</h3>
+                        <h3 className="font-bold text-foreground text-base lg:text-lg tracking-tight flex items-center gap-1.5">
+                          {entry.name}
+                          {entry.isVerified && (
+                            <div className="inline-flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full">
+                              <CheckCircle className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
+                            </div>
+                          )}
+                        </h3>
                         <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 px-2.5 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{entry.badge}</span>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground font-medium">
@@ -212,7 +221,14 @@ export function Leaderboard() {
                   <span className="text-xl font-black">{me?.rank}</span>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-foreground tracking-tight">{me?.name}</div>
+                  <div className="text-lg font-bold text-foreground tracking-tight flex items-center gap-1.5">
+                    {me?.name}
+                    {me?.isVerified && (
+                      <div className="inline-flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full">
+                        <CheckCircle className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
+                      </div>
+                    )}
+                  </div>
                   <div className="text-sm text-muted-foreground font-medium">{me?.badge}</div>
                 </div>
               </div>

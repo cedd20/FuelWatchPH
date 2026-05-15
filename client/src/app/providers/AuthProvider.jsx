@@ -2,29 +2,44 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { supabase, isValidUrl, setStoredRememberMePreference } from "../../lib/supabase";
 import { KarmaService } from "../../lib/karmaService";
 import {
-  clearMockAdminAuthSession,
   clearMockAuthSession,
-  getMockAdminAuthSession,
   getMockAuthSession,
-  setMockAdminAuthSession,
   setMockAuthSession,
+  getStoredRememberedCredentials,
 } from "@/shared/utils/authSession";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [adminUser, setAdminUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function getUser() {
       try {
         if (!isValidUrl) {
-          const mockSession = getMockAuthSession();
-          const mockAdminSession = getMockAdminAuthSession();
-          setUser(mockSession || null);
-          setAdminUser(mockAdminSession || null);
+          const mockSession = getStoredRememberedCredentials(); // Check if we have remembered mock credentials
+          if (mockSession?.email === "admin@fuelwatch.ph") {
+             setUser({
+                id: "demo-admin-id",
+                email: mockSession.email,
+                name: "FuelWatch Admin",
+                initials: "FA",
+                user_type: 0,
+                karma: 9999,
+                trustScore: 100,
+              });
+          } else if (mockSession?.email === "test@fuelwatch.ph") {
+             setUser({
+                id: "demo-user-id",
+                email: mockSession.email,
+                name: "FuelWatch Explorer",
+                initials: "FE",
+                user_type: 1,
+                karma: 100,
+                trustScore: 95,
+              });
+          }
           setLoading(false);
           return;
         }
@@ -39,33 +54,10 @@ export function AuthProvider({ children }) {
           setUser(basicUser);
 
           // Enrich asynchronously using backend API for calculated stats (accuracy, contributionCount)
-          (async () => {
-            try {
-              const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/me/profile`, {
-                headers: { 'Authorization': `Bearer ${session.access_token}` }
-              });
-              if (!res.ok) throw new Error("Failed to fetch profile from API");
-              const profile = await res.json();
-              
-              setUser(prev => ({
-                ...prev,
-                ...profile,
-                karma: (profile?.reputation || profile?.points || 0) + KarmaService.getContributions().reduce((acc, c) => acc + c.karmaImpact, 0),
-                trustScore: KarmaService.getTrustScore(), // Use the combined calculation
-                avatar_url: profile?.avatar_url || prev?.avatar_url,
-                bio: profile?.bio || "",
-                initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
-                name: profile?.username || prev?.name || 'User'
-              }));
-            } catch (e) {
-              console.warn("Initial enrichment failed:", e);
-            }
-          })();
+          refreshProfile();
         } else {
           setUser(null);
         }
-
-        setAdminUser(getMockAdminAuthSession() || null);
       } catch (error) {
         console.error("Auth initialization error:", error);
       } finally {
@@ -93,7 +85,6 @@ export function AuthProvider({ children }) {
         setUser(null);
       }
 
-      setAdminUser(getMockAdminAuthSession() || null);
       setLoading(false);
     });
     
@@ -157,9 +148,8 @@ export function AuthProvider({ children }) {
 
   const value = {
     user,
-    adminUser,
     isAuthenticated: !!user,
-    isAdminAuthenticated: !!adminUser,
+    isAdmin: user?.user_type === 0,
     loading,
     refreshProfile,
     login: async (email, password, options = {}) => {
@@ -168,6 +158,23 @@ export function AuthProvider({ children }) {
 
       if (!isValidUrl) {
         const normalizedEmail = email.trim().toLowerCase();
+        
+        // Mock Admin
+        if (normalizedEmail === "admin@fuelwatch.ph" && password === "Admin1234!") {
+          const mockAdmin = {
+            id: "demo-admin-id",
+            email: normalizedEmail,
+            name: "FuelWatch Admin",
+            initials: "FA",
+            user_type: 0,
+            karma: 9999,
+            trustScore: 100,
+          };
+          setStoredRememberMePreference(rememberMe);
+          setUser(mockAdmin);
+          return { user: mockAdmin };
+        }
+
         const isValidMockLogin =
           normalizedEmail === "test@fuelwatch.ph" && password === "Test1234!";
 
@@ -180,75 +187,46 @@ export function AuthProvider({ children }) {
           email: normalizedEmail,
           name: "FuelWatch Explorer",
           initials: "FE",
+          user_type: 1,
           contributionCount: 142 + KarmaService.getContributions().length,
           trustScore: KarmaService.getTrustScore(),
           karma: KarmaService.getKarma(),
           rank: "Gold Contributor",
         };
 
-        setMockAuthSession(mockUser, rememberMe);
+        setStoredRememberMePreference(rememberMe);
         setUser(mockUser);
         return { user: mockUser };
       }
 
-      // Real backend token/session persistence will continue to use Supabase,
-      // but the chosen storage is controlled by the Remember Me preference.
       setStoredRememberMePreference(rememberMe);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      console.log("Login response:", { data, error });
       if (error) throw error;
+      
+      // Refresh profile to get user_type immediately after login
+      await refreshProfile();
+      
       return data;
     },
     signUp: async (email, password, metadata) => {
       console.log("Attempting signup for:", email);
-      if (!isValidUrl) throw new Error("Supabase is not configured. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.");
+      if (!isValidUrl) throw new Error("Supabase is not configured.");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: metadata }
       });
-      console.log("Signup response:", { data, error });
       return { data, error };
     },
     logout: async () => {
       console.log("Attempting logout");
       if (!isValidUrl) {
-        clearMockAuthSession();
         setUser(null);
         return;
       }
       const { error } = await supabase.auth.signOut();
-      console.log("Logout response:", { error });
       if (error) throw error;
       setUser(null);
-    },
-    adminLogin: async (email, password, options = {}) => {
-      const rememberMe = options.rememberMe ?? false;
-      const normalizedEmail = email.trim().toLowerCase();
-
-      // Frontend-only placeholder until admin auth is connected to backend role checks.
-      const isValidMockAdminLogin =
-        normalizedEmail === "admin@fuelwatch.ph" && password === "Admin1234!";
-
-      if (!isValidMockAdminLogin) {
-        throw new Error("Invalid admin credentials. Use the mock admin account for now.");
-      }
-
-      const mockAdmin = {
-        id: "demo-admin-id",
-        email: normalizedEmail,
-        name: "FuelWatch Admin",
-        initials: "FA",
-        role: "Super Admin",
-      };
-
-      setMockAdminAuthSession(mockAdmin, rememberMe);
-      setAdminUser(mockAdmin);
-      return { user: mockAdmin };
-    },
-    adminLogout: async () => {
-      clearMockAdminAuthSession();
-      setAdminUser(null);
     },
     resendVerification: async (email) => {
       if (!isValidUrl) throw new Error("Supabase is not configured.");

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Bell, User, Layout, Shield, Save, CheckCircle } from "lucide-react";
+import { useAuth } from "@/app/providers/AuthContext";
 
 export function AdminSettings() {
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState({
-    name: "Admin User",
-    email: "admin@fuelwatchph.com",
-    role: "Super Admin",
+    name: user?.username || user?.name || "Admin User",
+    email: user?.email || "admin@fuelwatchph.com",
+    role: user?.user_type === 0 ? "Super Admin" : "User",
   });
 
 

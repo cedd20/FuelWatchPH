@@ -19,6 +19,8 @@ import {
   Compass,
   Sparkles,
   MapPinned,
+  CheckCircle,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
@@ -127,8 +129,15 @@ export function Profile() {
       subtitle: "Personalize your profile and account details",
     },
   ];
-
   const userMenuItems = [
+    {
+      icon: Shield,
+      label: "Admin Dashboard",
+      subtitle: "Manage platform & verifications",
+      onClick: () => navigate("/admin/dashboard"),
+      badge: null,
+      adminOnly: true,
+    },
     {
       icon: TrendingUp,
       label: "My Contributions",
@@ -173,6 +182,8 @@ export function Profile() {
       badge: null,
     },
   ];
+
+  const filteredUserMenuItems = userMenuItems.filter(item => !item.adminOnly || user?.user_type === 0);
 
   if (!isAuthenticated) {
     return (
@@ -326,23 +337,37 @@ export function Profile() {
 
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="flex items-start gap-4 lg:gap-6">
-            <div className="w-24 h-24 lg:w-28 lg:h-28 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 overflow-hidden shrink-0">
-              {user?.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 bg-clip-text text-transparent">
-                  {user?.initials || "U"}
-                </span>
+            <div className="relative shrink-0">
+              <div className="w-24 h-24 lg:w-28 lg:h-28 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-white/30 overflow-hidden">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl lg:text-4xl font-bold bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 bg-clip-text text-transparent">
+                    {user?.initials || "U"}
+                  </span>
+                )}
+              </div>
+              {user?.is_verified && (
+                <div className="absolute -bottom-1 -right-1 w-8 h-8 lg:w-10 lg:h-10 bg-white dark:bg-neutral-900 rounded-full flex items-center justify-center border-4 border-white dark:border-neutral-900 shadow-xl z-20">
+                  <div className="w-full h-full bg-blue-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-white" strokeWidth={3.5} />
+                  </div>
+                </div>
               )}
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-3xl lg:text-4xl font-bold text-white mb-1 drop-shadow-2xl tracking-tight">
+                <h2 className="text-3xl lg:text-4xl font-bold text-white mb-1 drop-shadow-2xl tracking-tight flex items-center gap-2">
                   {user?.username || user?.name || "User"}
+                  {user?.is_verified && (
+                    <div className="inline-flex items-center justify-center w-6 h-6 lg:w-7 lg:h-7 bg-blue-500 rounded-full shadow-lg shadow-blue-500/30">
+                      <CheckCircle className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-white" strokeWidth={3} />
+                    </div>
+                  )}
                 </h2>
                 <button
                   onClick={() => navigate("/app/edit-profile")}
@@ -404,7 +429,7 @@ export function Profile() {
       <div className="px-4 lg:px-8 mb-8">
         <div className="max-w-6xl mx-auto bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 overflow-hidden shadow-2xl shadow-black/10">
           <div className="lg:grid lg:grid-cols-2">
-            {userMenuItems.map((item, index) => (
+            {filteredUserMenuItems.map((item, index) => (
               <button
                 key={index}
                 onClick={item.onClick}
