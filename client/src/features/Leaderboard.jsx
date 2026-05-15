@@ -64,11 +64,7 @@ export function Leaderboard() {
     trustScore: myStats.trustScore,
     karma: myStats.karma,
     isVerified: !!user?.is_verified,
-<<<<<<< HEAD
-    badge: myStats.karma > 1000 ? "Fuel Guardian" : "Contributor"
-=======
-    badge: myStats.karma > 1000 ? "Fuel Guardian" : myStats.karma > 200 ? "Trusted Contributor" : null
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
+    badge: myStats.karma > 1000 ? "Fuel Guardian" : myStats.karma > 200 ? "Trusted Contributor" : "Contributor"
   };
 
   const containerVariants = {
@@ -118,7 +114,6 @@ export function Leaderboard() {
         </div>
       </div>
 
-<<<<<<< HEAD
       <div className="max-w-6xl mx-auto px-6 -mt-10 grid lg:grid-cols-[1fr_350px] gap-8">
         
         {/* Main List */}
@@ -129,85 +124,6 @@ export function Leaderboard() {
                 <Trophy className="w-3 h-3" />
                 Live Standings
              </div>
-=======
-      <div className="px-4 lg:px-8 -mt-6">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-[1.4fr_0.6fr] gap-6 lg:gap-8">
-          <div className="bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 overflow-hidden">
-            <div className="px-5 lg:px-6 pt-6 pb-4 border-b border-gray-200 dark:border-neutral-700 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl lg:text-2xl font-bold text-foreground tracking-tight">Community Rankings</h2>
-                <p className="text-sm text-muted-foreground font-medium">Ranked by karma, trust score, and verified updates</p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                <Trophy className="w-4 h-4" />
-                Weekly snapshot
-              </div>
-            </div>
-
-            <div className="p-4 lg:p-6 space-y-3">
-              {isLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-5 p-5 rounded-3xl border-2 border-gray-100 dark:border-neutral-800 shadow-sm">
-                      <Skeleton className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl flex-shrink-0" />
-                      <div className="flex-1 space-y-2.5">
-                        <Skeleton className="h-6 w-1/3 rounded-lg" />
-                        <Skeleton className="h-4 w-1/2 rounded-md" />
-                      </div>
-                      <div className="text-right space-y-2">
-                        <Skeleton className="h-8 w-16 ml-auto rounded-lg" />
-                        <Skeleton className="h-3 w-12 ml-auto rounded-md" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : leaderboard.map((entry) => (
-                <div
-                  key={entry.rank}
-                  className={`rounded-3xl border-2 p-4 lg:p-6 transition-all ${
-                    entry.id === user?.id
-                      ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/30 shadow-xl shadow-emerald-500/10 ring-2 ring-emerald-500/10"
-                      : "bg-white dark:bg-neutral-900 border-gray-100 dark:border-neutral-800 hover:border-emerald-400/30 hover:shadow-lg"
-                  }`}
-                >
-                  <div className="flex items-center gap-4 lg:gap-5">
-                    <div className={`w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br ${entry.color} flex items-center justify-center shadow-xl text-white`}>
-                      <RankMedal rank={entry.rank} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-foreground text-base lg:text-lg tracking-tight flex items-center gap-1.5">
-                          {entry.name}
-                          {entry.isVerified && (
-                            <div className="inline-flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full">
-                              <CheckCircle className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
-                            </div>
-                          )}
-                        </h3>
-                        {entry.badge && (
-                          <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-neutral-800 px-2.5 py-1 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{entry.badge}</span>
-                        )}
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <MapPin className="w-4 h-4" />
-                          {entry.city}
-                        </span>
-                        <span>{entry.updates} updates</span>
-                        <span>{entry.trustScore}% trust score</span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-2xl lg:text-3xl font-bold text-foreground tracking-tighter">{entry.karma}</div>
-                      <div className="text-xs lg:text-sm text-muted-foreground font-semibold uppercase tracking-widest">karma</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
           </div>
 
           {isLoading ? (
@@ -260,20 +176,8 @@ export function Leaderboard() {
                    <span className="text-2xl font-black">{me?.rank}</span>
                 </div>
                 <div>
-<<<<<<< HEAD
                    <div className="text-xl font-black mb-1">{me?.name}</div>
                    <div className="text-[10px] font-black text-emerald-500/70 uppercase tracking-widest">{me?.badge}</div>
-=======
-                  <div className="text-lg font-bold text-foreground tracking-tight flex items-center gap-1.5">
-                    {me?.name}
-                    {me?.isVerified && (
-                      <div className="inline-flex items-center justify-center w-4 h-4 bg-blue-500 rounded-full">
-                        <CheckCircle className="w-2.5 h-2.5 text-white" strokeWidth={3.5} />
-                      </div>
-                    )}
-                  </div>
-                  {me?.badge && <div className="text-sm text-muted-foreground font-medium">{me.badge}</div>}
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
                 </div>
              </div>
              <div className="grid grid-cols-2 gap-4">

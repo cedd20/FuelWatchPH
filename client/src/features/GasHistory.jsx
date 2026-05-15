@@ -7,7 +7,7 @@ import {
   Loader2, 
   TrendingDown, 
   TrendingUp, 
-  TrendingHorizontal,
+  Minus,
   MapPin,
   Calendar,
   Filter
@@ -220,7 +220,7 @@ export function GasHistory() {
               }`}>
                 {movement < 0 ? <TrendingDown className="w-3 h-3" /> : 
                  movement > 0 ? <TrendingUp className="w-3 h-3" /> : 
-                 <TrendingHorizontal className="w-3 h-3" />}
+                 <Minus className="w-3 h-3" />}
                 {movement === 0 ? "STEADY" : `₱${Math.abs(movement).toFixed(2)}`}
               </div>
             </div>

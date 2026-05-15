@@ -104,5 +104,3 @@ export function StationCard({
     </motion.div>
   );
 }
-  );
-}

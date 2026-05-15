@@ -249,44 +249,20 @@ export function EditProfile() {
                     </div>
                   </div>
                 </div>
-<<<<<<< HEAD
-                {!user?.is_verified ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate("/app/verify-identity")}
-                    className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-[10px] text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                  >
-                    Get Verified
-                  </button>
-                ) : (
+                {user?.is_verified ? (
                   <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-=======
-                {user?.is_verified ? (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">
-                    <CheckCircle className="w-3.5 h-3.5" strokeWidth={3} />
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
                     Verified
                   </div>
                 ) : (
                   // Show verification status based on existing request
                   (function(){
-                    if (typeof existingRequest === 'undefined') return (
-                      <button 
-                        type="button" 
-                        onClick={() => navigate("/app/verify-identity")}
-                        className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
-                      >
-                        Get Verified
-                      </button>
-                    );
-
-                    if (existingRequest === null) {
+                    if (typeof existingRequest === 'undefined' || existingRequest === null) {
                       return (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => navigate("/app/verify-identity")}
-                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                          className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-[10px] text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                         >
                           Get Verified
                         </button>
@@ -296,16 +272,16 @@ export function EditProfile() {
                     const status = existingRequest?.status;
                     if (status === 'pending') {
                       return (
-                        <div className="px-4 py-2 rounded-xl bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900 text-xs font-bold text-yellow-700">Pending</div>
+                        <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-400 uppercase tracking-widest">Pending</div>
                       );
                     }
 
                     if (status === 'needs_correction') {
                       return (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => navigate("/app/verify-identity")}
-                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-amber-500 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-amber-600 transition-all shadow-sm"
+                          className="px-5 py-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl font-black text-[10px] text-amber-400 uppercase tracking-widest hover:bg-amber-500/20 transition-all"
                         >
                           Edit Submission
                         </button>
@@ -314,10 +290,10 @@ export function EditProfile() {
 
                     if (status === 'rejected') {
                       return (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => navigate("/app/verify-identity")}
-                          className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-rose-500 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-rose-600 transition-all shadow-sm"
+                          className="px-5 py-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-[10px] text-rose-400 uppercase tracking-widest hover:bg-rose-500/20 transition-all"
                         >
                           Resubmit
                         </button>
@@ -326,10 +302,10 @@ export function EditProfile() {
 
                     // default fallback
                     return (
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => navigate("/app/verify-identity")}
-                        className="px-4 py-2 bg-white dark:bg-neutral-900 border-2 border-gray-200 dark:border-neutral-700 rounded-xl font-bold text-xs lg:text-sm text-foreground hover:border-emerald-500 transition-all shadow-sm"
+                        className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-[10px] text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                       >
                         Get Verified
                       </button>
@@ -340,39 +316,18 @@ export function EditProfile() {
             </div>
           </motion.div>
 
-<<<<<<< HEAD
-          {/* Actions */}
           <div className="flex gap-4">
             <button
               type="button"
-=======
-          {/* Submit Button */}
-          <div className="flex flex-row gap-3 sm:gap-4 mt-8">
-            <Button 
-              type="button" 
-              variant="outline" 
-              fullWidth 
-              size="md"
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
               onClick={() => navigate(-1)}
               className="flex-1 py-5 bg-[#0C1A17] border border-emerald-500/10 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:border-emerald-500/30 transition-all"
             >
               Cancel
-<<<<<<< HEAD
             </button>
             <button
               type="submit"
               disabled={isLoading}
               className="flex-1 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-=======
-            </Button>
-            <Button 
-              type="submit" 
-              fullWidth 
-              size="md" 
-              loading={isLoading}
-              icon={Save}
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
             >
               {isLoading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>

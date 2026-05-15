@@ -146,7 +146,6 @@ export function Profile() {
                 >
                   Sign In
                 </button>
-<<<<<<< HEAD
                 <button 
                   onClick={() => navigate("/signup")}
                   className="flex-1 bg-[#0C1A17] border border-emerald-500/20 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/5 transition-all"
@@ -155,37 +154,6 @@ export function Profile() {
                 </button>
              </motion.div>
            )}
-=======
-              </div>
-              <p className="text-white/95 text-sm lg:text-base font-medium mb-4 drop-shadow-lg">
-                {user?.email || ""}
-              </p>
-              <div className="flex flex-wrap items-center gap-3">
-                {hasTrustedContributorBadge && (
-                  <div className="px-4 py-1.5 lg:px-5 lg:py-2 bg-yellow-400/90 backdrop-blur-md rounded-full flex items-center gap-2 shadow-xl border border-yellow-300/50">
-                    <Award className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-900" strokeWidth={2.5} />
-                    <span className="text-xs lg:text-sm font-bold text-yellow-900">
-                      Trusted Contributor
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 p-5 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 max-w-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors" />
-            <div className="relative z-10">
-              <h4 className="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
-                <Info className="w-3 h-3" />
-                Bio
-              </h4>
-              <p className={`text-sm lg:text-base font-medium leading-relaxed ${user?.bio ? "text-white/90" : "text-white/40 italic"}`}>
-                {user?.bio || "No bio added yet. Click 'Edit Profile' to tell the community about yourself!"}
-              </p>
-            </div>
-          </div>
->>>>>>> ac377a1f9bae0a8d5c8145126303cd533e839c49
         </div>
       </div>
 
