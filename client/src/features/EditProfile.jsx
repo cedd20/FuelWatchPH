@@ -237,102 +237,104 @@ export function EditProfile() {
             {/* Verification Row */}
             <div className="pt-4 border-t border-emerald-500/5">
               <label className="block text-[10px] font-black text-gray-600 uppercase tracking-widest mb-4">Identity Verification</label>
-              <div className="flex items-center justify-between p-5 bg-[#050A09] rounded-2xl border border-emerald-500/5">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-emerald-400" />
+              {/* Simplified Verification Section */}
+              <div className="flex items-center justify-between p-5 bg-[#0C1A17] rounded-2xl border border-emerald-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
+                    <Shield className="w-5 h-5 text-emerald-500/40" />
                   </div>
                   <div>
-                    <div className="font-black text-sm">Verification Status</div>
-                    <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-                      {user?.is_verified ? "Verified Member" : "Not Yet Verified"}
+                    <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Verification</div>
+                    <div className="text-xs font-bold text-white mt-0.5">
+                      {user?.is_verified ? "Verified Member" : "Not Verified"}
                     </div>
                   </div>
                 </div>
-                {user?.is_verified ? (
-                  <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
-                    <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} />
-                    Verified
-                  </div>
-                ) : (
-                  // Show verification status based on existing request
-                  (function(){
-                    if (typeof existingRequest === 'undefined' || existingRequest === null) {
+
+                <div>
+                  {user?.is_verified ? (
+                    <div className="text-emerald-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Verified
+                    </div>
+                  ) : (
+                    (function(){
+                      const status = existingRequest?.status;
+                      if (!existingRequest) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => navigate("/app/verify-identity")}
+                            className="text-emerald-500 text-[10px] font-black uppercase tracking-widest hover:text-emerald-400 transition-colors"
+                          >
+                            Verify Now
+                          </button>
+                        );
+                      }
+
+                      if (status === 'pending') {
+                        return (
+                          <span className="text-amber-500/60 text-[10px] font-black uppercase tracking-widest">Pending</span>
+                        );
+                      }
+
+                      if (status === 'needs_correction') {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => navigate("/app/verify-identity")}
+                            className="text-amber-400 text-[10px] font-black uppercase tracking-widest hover:text-amber-300 transition-colors"
+                          >
+                            Fix Status
+                          </button>
+                        );
+                      }
+
+                      if (status === 'rejected') {
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => navigate("/app/verify-identity")}
+                            className="text-rose-400 text-[10px] font-black uppercase tracking-widest hover:text-rose-300 transition-colors"
+                          >
+                            Retry
+                          </button>
+                        );
+                      }
+
                       return (
                         <button
                           type="button"
                           onClick={() => navigate("/app/verify-identity")}
-                          className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-[10px] text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                          className="text-emerald-500 text-[10px] font-black uppercase tracking-widest hover:text-emerald-400 transition-colors"
                         >
-                          Get Verified
+                          Verify
                         </button>
                       );
-                    }
-
-                    const status = existingRequest?.status;
-                    if (status === 'pending') {
-                      return (
-                        <div className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-400 uppercase tracking-widest">Pending</div>
-                      );
-                    }
-
-                    if (status === 'needs_correction') {
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => navigate("/app/verify-identity")}
-                          className="px-5 py-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl font-black text-[10px] text-amber-400 uppercase tracking-widest hover:bg-amber-500/20 transition-all"
-                        >
-                          Edit Submission
-                        </button>
-                      );
-                    }
-
-                    if (status === 'rejected') {
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => navigate("/app/verify-identity")}
-                          className="px-5 py-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-[10px] text-rose-400 uppercase tracking-widest hover:bg-rose-500/20 transition-all"
-                        >
-                          Resubmit
-                        </button>
-                      );
-                    }
-
-                    // default fallback
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => navigate("/app/verify-identity")}
-                        className="px-5 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-[10px] text-emerald-400 uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
-                      >
-                        Get Verified
-                      </button>
-                    );
-                  })()
-                )}
+                    })()
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 py-5 bg-[#0C1A17] border border-emerald-500/10 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:border-emerald-500/30 transition-all"
+              className="flex-1 py-5 bg-[#0C1A17] border border-emerald-500/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] text-gray-500 hover:text-white transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="flex-1 py-5 bg-emerald-500 text-[#050A09] rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] shadow-lg shadow-emerald-500/10 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</>
               ) : (
-                <><Save className="w-4 h-4" /> Save Changes</>
+                <><Save className="w-4 h-4" strokeWidth={3} /> Save Profile</>
               )}
             </button>
           </div>

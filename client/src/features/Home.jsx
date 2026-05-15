@@ -175,7 +175,7 @@ export function Home() {
           className="flex items-center justify-between"
         >
           <h1 className="text-2xl font-bold tracking-tight">
-            {greeting}, <span className="text-emerald-400">{user ? (user.name || user.username || "Tankmate") : "Tankmate"}</span>
+            {greeting}, <span className="text-emerald-400">{user ? (user.name?.split(' ')[0] || user.username?.split(' ')[0] || "Tankmate") : "Tankmate"}</span>
           </h1>
         </motion.div>
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Settings,
+  UserPen,
   TrendingUp,
   Award,
   Trophy,
@@ -97,6 +98,18 @@ export function Profile() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
         
+        {/* Settings/Edit Action */}
+        {isAuthenticated && (
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={() => navigate("/app/edit-profile")}
+            className="absolute top-8 right-8 z-30 p-3 bg-[#0C1A17] border border-emerald-500/20 rounded-2xl text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all shadow-xl"
+          >
+            <UserPen className="w-5 h-5" />
+          </motion.button>
+        )}
+
         <div className="max-w-md mx-auto relative z-10 flex flex-col items-center text-center">
            <motion.div 
              initial={{ scale: 0.8, opacity: 0 }}
