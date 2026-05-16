@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router";
-import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move, LocateFixed, Zap, Sparkles } from "lucide-react";
+import { ArrowLeft, MapPin, AlertTriangle, CheckCircle, Loader2, Move, Navigation, Zap, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
@@ -257,12 +257,9 @@ export function AddStation() {
                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tap map to place pin</p>
                 </div>
               </div>
-              <button type="button" onClick={handleUseCurrentLocation} className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl hover:bg-emerald-500 hover:text-white transition-all shadow-xl">
-                <LocateFixed className="w-5 h-5" />
-              </button>
             </div>
             
-            <div className="h-64 relative">
+            <div className="h-80 relative">
                <MapContainer ref={mapRef} center={mapCenter} zoom={15} zoomControl={false} className="w-full h-full grayscale-[0.8] contrast-[1.2]">
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
@@ -270,11 +267,26 @@ export function AddStation() {
                     <Marker key={s.id} position={[s.lat, s.lng]} icon={L.divIcon({ className: "", html: `<div class="w-2 h-2 bg-gray-500 rounded-full border border-white"></div>` })} />
                   ))}
                </MapContainer>
-               {/* Fixed Center Pin */}
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-[400] pointer-events-none">
-                  <div className="w-8 h-8 bg-emerald-500 rounded-full border-4 border-[#0C1A17] shadow-2xl shadow-emerald-500/50 flex items-center justify-center">
-                     <div className="w-2 h-2 bg-white rounded-full"></div>
-                  </div>
+               
+               {/* Fixed Center Pin (Matches Map.jsx User Location style) */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none">
+                  <div className="w-6 h-6 bg-[#3b82f6] rounded-full border-[3px] border-white shadow-[0_0_15px_rgba(59,130,246,0.6)] ring-2 ring-[#3b82f6]/20" />
+               </div>
+
+               {/* GPS Button - Bottom Right Overlay */}
+               <div className="absolute bottom-6 right-6 z-[400]">
+                  <button 
+                    type="button" 
+                    onClick={handleUseCurrentLocation} 
+                    disabled={isLocating}
+                    className="w-12 h-12 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-xl rounded-2xl shadow-xl flex items-center justify-center border border-gray-200/90 dark:border-neutral-700/90 text-emerald-600 dark:text-emerald-400 hover:scale-105 transition-transform active:scale-95"
+                  >
+                    {isLocating ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Navigation className="w-5 h-5" strokeWidth={2.5} />
+                    )}
+                  </button>
                </div>
             </div>
           </div>

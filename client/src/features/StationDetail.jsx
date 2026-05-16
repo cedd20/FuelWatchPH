@@ -192,9 +192,9 @@ export function StationDetail() {
       <AuthPrompt isOpen={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} message={authPromptMessage} />
       
       {/* Dynamic Header */}
-      <div className="relative pt-12 pb-20 px-6 overflow-hidden">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[140px] -translate-y-1/2 translate-x-1/3" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-teal-500/5 rounded-full blur-[100px] translate-y-1/2 -translate-x-1/3" />
+      <div className="relative pt-8 pb-16 px-6 overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-teal-500/5 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/3" />
         
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex items-center justify-between mb-10">
@@ -216,19 +216,19 @@ export function StationDetail() {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-            <div className="flex items-start gap-6">
-              <div className="w-24 h-24 rounded-[2rem] bg-[#0C1A17] border border-emerald-500/20 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-xl bg-[#0C1A17] border border-emerald-500/20 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
                 <StationLogo name={station.name} size="lg" />
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-3 mb-2 flex-wrap">
-                   <h1 className="text-4xl md:text-5xl font-black tracking-tight truncate max-w-full">{station.name}</h1>
-                   {station.isVerified && <ShieldCheck className="w-8 h-8 text-emerald-400" />}
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                   <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate max-w-full">{station.name}</h1>
+                   {station.isVerified && <ShieldCheck className="w-5 h-5 text-emerald-400" />}
                 </div>
-                <div className="flex flex-wrap items-center gap-4 text-gray-500 font-bold text-sm uppercase tracking-widest">
-                  <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-emerald-500" /> {station.address}</div>
-                  <div className="flex items-center gap-2"><Navigation className="w-4 h-4 text-teal-500" /> {station.distance} km</div>
-                  <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-600" /> {station.lastUpdated}</div>
+                <div className="flex flex-wrap items-center gap-3 text-gray-500 font-semibold text-[10px] uppercase tracking-wider">
+                  <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-emerald-500" /> {station.address}</div>
+                  <div className="flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5 text-teal-500" /> {station.distance} km</div>
+                  <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-gray-600" /> {station.lastUpdated}</div>
                 </div>
               </div>
             </div>
@@ -259,7 +259,7 @@ export function StationDetail() {
                 <motion.div 
                   key={i} 
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                  className="bg-[#0C1A17] rounded-[2.5rem] p-8 border border-emerald-500/5 hover:border-emerald-500/20 transition-all shadow-2xl relative overflow-hidden group"
+                  className="bg-[#0C1A17] rounded-2xl p-5 border border-emerald-500/5 hover:border-emerald-500/20 transition-all relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><Zap className="w-16 h-16 text-emerald-500" /></div>
                   <div className="flex items-center justify-between mb-6">
@@ -273,9 +273,12 @@ export function StationDetail() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-end gap-2">
-                    <span className="text-5xl font-black text-white tracking-tighter">₱{formatPrice(fuel.price)}</span>
-                    <span className="text-xs font-bold text-gray-600 mb-2 uppercase">/ Liter</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-sm font-bold text-emerald-500/80">₱</span>
+                    <span className="text-2xl font-bold text-white tracking-tight">
+                      {formatPrice(fuel.price).replace("₱", "")}
+                    </span>
+                    <span className="text-[9px] font-medium text-gray-500 ml-1 uppercase tracking-wider">/ Liter</span>
                   </div>
                 </motion.div>
               ))}
@@ -283,7 +286,7 @@ export function StationDetail() {
           </section>
 
           {/* History Chart */}
-          <section className="bg-[#0C1A17] rounded-[2.5rem] p-8 border border-emerald-500/5 shadow-2xl">
+          <section className="bg-[#0C1A17] rounded-3xl p-6 border border-emerald-500/5 shadow-2xl">
              <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black">Price Analytics</h2>
                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
@@ -295,8 +298,8 @@ export function StationDetail() {
         </div>
 
         {/* Sidebar */}
-        <aside className="space-y-6">
-          <div className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl relative overflow-hidden">
+        <aside className="space-y-4">
+          <div className="bg-[#0C1A17] rounded-3xl p-6 border border-emerald-500/10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 p-6 opacity-5"><ShieldCheck className="w-24 h-24" /></div>
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
@@ -305,37 +308,35 @@ export function StationDetail() {
                  </div>
                  <div className="px-4 py-1.5 bg-emerald-500/10 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest">Verified Spot</div>
               </div>
-              <div className="text-4xl font-black mb-2 tracking-tight">{(station.trustScore || 100)}%</div>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-[0.15em] mb-8">Trust Reliability Score</p>
+              <div className="text-3xl font-bold mb-1 tracking-tight">{(station.trustScore || 100)}%</div>
+              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-6">Trust Reliability Score</p>
               
               <div className="space-y-3">
-                 <button onClick={() => navigate(`/app/update-price/${id}`)} className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                 <button onClick={() => navigate(`/app/update-price/${id}`)} className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all">
                     Update Prices
                  </button>
-                 <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")} className="w-full py-5 bg-[#050A09] border border-emerald-500/10 rounded-[2rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-emerald-500/5 transition-all">
+                 <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")} className="w-full py-4 bg-[#050A09] border border-emerald-500/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-500/5 transition-all">
                     Get Directions
                  </button>
               </div>
             </div>
           </div>
 
-          <button onClick={() => setShowReportIssueModal(true)} className="w-full p-6 bg-rose-500/5 border border-rose-500/10 rounded-[2rem] flex items-center justify-center gap-3 group hover:bg-rose-500/10 transition-all">
+          <button onClick={() => setShowReportIssueModal(true)} className="w-full p-4 bg-rose-500/5 border border-rose-500/10 rounded-2xl flex items-center justify-center gap-3 group hover:bg-rose-500/10 transition-all">
              <Flag className="w-4 h-4 text-rose-500 group-hover:scale-110 transition-transform" />
              <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Report Incorrect Info</span>
           </button>
         </aside>
       </div>
 
-      {/* Mobile Action Bar */}
-      <div className="lg:hidden fixed inset-x-0 bottom-24 z-50 px-6">
-         <div className="bg-[#0C1A17]/90 backdrop-blur-3xl border border-emerald-500/20 rounded-[2.5rem] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex gap-2">
-            <button onClick={() => navigate(`/app/update-price/${id}`)} className="flex-1 py-4 bg-emerald-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-emerald-500/20">
-               Update Price
-            </button>
-            <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")} className="p-4 bg-[#050A09] text-white rounded-2xl border border-emerald-500/10">
-               <Navigation className="w-5 h-5" />
-            </button>
-         </div>
+      {/* Floating Action Button (Mobile) */}
+      <div className="lg:hidden fixed bottom-28 right-6 z-50">
+        <button 
+          onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")}
+          className="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all border border-white/20"
+        >
+          <Navigation className="w-6 h-6" />
+        </button>
       </div>
 
       {/* Report Issue Modal */}

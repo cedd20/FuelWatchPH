@@ -18,10 +18,10 @@ const RANK_COLORS = [
 ];
 
 function RankMedal({ rank }) {
-  if (rank === 1) return <Crown className="w-8 h-8 text-white drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />;
-  if (rank === 2) return <Trophy className="w-7 h-7 text-white drop-shadow-[0_0_15px_rgba(148,163,184,0.5)]" />;
-  if (rank === 3) return <Award className="w-7 h-7 text-white drop-shadow-[0_0_15px_rgba(217,119,6,0.5)]" />;
-  return <span className="text-xl font-black text-white/50">{rank}</span>;
+  if (rank === 1) return <Crown className="w-6 h-6 text-white drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]" />;
+  if (rank === 2) return <Trophy className="w-5 h-5 text-white drop-shadow-[0_0_10px_rgba(148,163,184,0.4)]" />;
+  if (rank === 3) return <Award className="w-5 h-5 text-white drop-shadow-[0_0_10px_rgba(217,119,6,0.4)]" />;
+  return <span className="text-lg font-bold text-white/50">{rank}</span>;
 }
 
 export function Leaderboard() {
@@ -88,8 +88,8 @@ export function Leaderboard() {
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
-              <h1 className="text-5xl font-black tracking-tight mb-2">Hall of Fame</h1>
-              <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Community contributors of the month</p>
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">Hall of Fame</h1>
+              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Community contributors of the month</p>
             </div>
           </div>
 
@@ -100,14 +100,14 @@ export function Leaderboard() {
               { label: "Verified Rate", value: `${stats?.verified_rate || 98}%`, icon: ShieldCheck },
               { label: "Total Karma", value: stats?.total_updates ? `${((stats.total_updates * 10) / 1000).toFixed(1)}k` : "0k", icon: Star }
             ].map((stat, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-[#0C1A17] rounded-3xl p-6 border border-emerald-500/5 shadow-2xl">
-                 <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-emerald-500/10 rounded-xl">
-                       <stat.icon className="w-4 h-4 text-emerald-400" />
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-[#0C1A17] rounded-2xl p-5 border border-emerald-500/5 shadow-2xl">
+                 <div className="flex items-center gap-3 mb-3">
+                    <div className="p-1.5 bg-emerald-500/10 rounded-lg">
+                       <stat.icon className="w-3.5 h-3.5 text-emerald-400" />
                     </div>
-                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{stat.label}</span>
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">{stat.label}</span>
                  </div>
-                 <div className="text-3xl font-black">{stat.value}</div>
+                 <div className="text-2xl font-bold">{stat.value}</div>
               </motion.div>
             ))}
           </div>
@@ -119,8 +119,8 @@ export function Leaderboard() {
         {/* Main List */}
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-4">
           <div className="flex items-center justify-between mb-6 px-4">
-             <h2 className="text-xl font-black">Rankings</h2>
-             <div className="flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/5 px-4 py-2 rounded-full border border-emerald-500/10">
+             <h2 className="text-lg font-bold">Rankings</h2>
+             <div className="flex items-center gap-2 text-[9px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/5 px-4 py-2 rounded-full border border-emerald-500/10">
                 <Trophy className="w-3 h-3" />
                 Live Standings
              </div>
@@ -141,7 +141,7 @@ export function Leaderboard() {
                   : "bg-[#0C1A17] border-emerald-500/5 hover:border-emerald-500/20"
               }`}
             >
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${entry.color} flex items-center justify-center shadow-2xl shrink-0 group-hover:rotate-6 transition-transform`}>
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${entry.color} flex items-center justify-center shadow-2xl shrink-0 group-hover:rotate-6 transition-transform`}>
                 <RankMedal rank={entry.rank} />
               </div>
 

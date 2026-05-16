@@ -42,18 +42,19 @@ export function Home() {
   const [userLocation, setUserLocation] = useState(null);
   const [cityName, setCityName] = useState("Makati"); 
   const [isLocating, setIsLocating] = useState(true);
-  const [selectedFuelType, setSelectedFuelType] = useState("UL90");
+  const [selectedFuelType, setSelectedFuelType] = useState("UL91");
   const [currentMascot, setCurrentMascot] = useState(Mascot1);
+  const [globalStats, setGlobalStats] = useState(null);
 
   const fuelTypeMap = {
-    "UL90": "Unleaded 91",
-    "UL95": "Unleaded 95",
-    "UL97": "Unleaded 98",
+    "UL91": "Unleaded 91",
+    "PR95": "Unleaded 95",
+    "PR97": "Unleaded 98",
     "DSL": "Diesel",
     "PDSL": "Premium Diesel"
   };
 
-  const fuelTypes = ["UL90", "UL95", "UL97", "DSL", "PDSL"];
+  const fuelTypes = ["UL91", "PR95", "PR97", "DSL", "PDSL"];
 
   // Randomize Mascot on Mount
   useEffect(() => {
@@ -69,7 +70,14 @@ export function Home() {
     return "Goodevening";
   }, []);
 
-  // Get user location
+  // Fetch Global Stats for Coverage
+  useEffect(() => {
+    import("../lib/apiClient").then(({ api }) => {
+      api.get("/stats/summary").then(data => setGlobalStats(data)).catch(() => {});
+    });
+  }, []);
+
+  // Get user location and identify closest city
   useEffect(() => {
     if (!("geolocation" in navigator)) {
       setIsLocating(false);
@@ -80,22 +88,34 @@ export function Home() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
-        let closest = null;
-        let minDisk = Infinity;
-        PHILIPPINE_CITIES.forEach(city => {
-          const d = Math.sqrt(Math.pow(city.lat - latitude, 2) + Math.pow(city.lng - longitude, 2));
-          if (d < minDisk) {
-            minDisk = d;
-            closest = city;
-          }
+        
+        // 1. First try to find if any station is very close (< 2km) and use its city
+        const veryCloseStation = allStations.find(s => {
+          const d = Math.sqrt(Math.pow(s.lat - latitude, 2) + Math.pow(s.lng - longitude, 2)) * 111;
+          return d < 2;
         });
-        if (closest) setCityName(closest.city);
+
+        if (veryCloseStation) {
+          setCityName(veryCloseStation.city);
+        } else {
+          // 2. Fallback to closest predefined city
+          let closest = null;
+          let minDisk = Infinity;
+          PHILIPPINE_CITIES.forEach(city => {
+            const d = Math.sqrt(Math.pow(city.lat - latitude, 2) + Math.pow(city.lng - longitude, 2));
+            if (d < minDisk) {
+              minDisk = d;
+              closest = city;
+            }
+          });
+          if (closest) setCityName(closest.city);
+        }
         setIsLocating(false);
       },
       () => setIsLocating(false),
-      { timeout: 10000 }
+      { timeout: 10000, enableHighAccuracy: true }
     );
-  }, []);
+  }, [allStations]);
 
   // Data Calculations
   const stats = useMemo(() => {
@@ -105,18 +125,26 @@ export function Home() {
     const targetCityStations = cityStations.length > 0 ? cityStations : allStations;
 
     const avgPrices = fuelTypes.map(ft => {
-      const dbType = fuelTypeMap[ft];
-      const prices = targetCityStations
-        .map(s => s.latest_prices?.[dbType]?.price)
+      let prices = cityStations
+        .map(s => s.latest_prices?.[ft]?.price)
         .filter(isValidPrice)
         .map(Number);
-      return prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : (60 + Math.random() * 20);
+      
+      // If no data in city, use all stations (national average)
+      if (prices.length === 0) {
+        prices = allStations
+          .map(s => s.latest_prices?.[ft]?.price)
+          .filter(isValidPrice)
+          .map(Number);
+      }
+      
+      return prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
     });
 
     const chartData = fuelTypes.map((ft, i) => ({
       fuel: ft,
       price: avgPrices[i]
-    }));
+    })).filter(d => d.price > 0); // Only show fuels with data
 
     // Nearest Station
     let nearest = null;
@@ -130,23 +158,34 @@ export function Home() {
       nearest = allStations[0];
     }
 
-    const dbType = fuelTypeMap[selectedFuelType];
     const cheapest = [...allStations]
-      .filter(s => isValidPrice(s.latest_prices?.[dbType]?.price))
-      .sort((a, b) => Number(a.latest_prices[dbType].price) - Number(b.latest_prices[dbType].price))[0];
+      .filter(s => isValidPrice(s.latest_prices?.[selectedFuelType]?.price))
+      .sort((a, b) => Number(a.latest_prices[selectedFuelType].price) - Number(b.latest_prices[selectedFuelType].price))[0];
 
-    const contributors = new Set(allStations.map(s => s.created_by)).size;
+    // Contributors: Unique people who created stations OR reported prices
+    const uniqueCreators = new Set(allStations.map(s => s.created_by).filter(Boolean));
+    const uniqueReporters = new Set();
+    allStations.forEach(s => {
+      if (s.latest_prices) {
+        Object.values(s.latest_prices).forEach(p => {
+          if (p.reported_by) uniqueReporters.add(p.reported_by);
+        });
+      }
+    });
+    
+    // Combine sets for total contributors
+    const totalContributors = new Set([...uniqueCreators, ...uniqueReporters]).size;
     const citiesCount = new Set(allStations.map(s => s.city)).size;
 
     return {
       chartData,
       nearest,
       cheapest,
-      contributors: (contributors + 1200).toLocaleString(),
-      citiesCount: (citiesCount + 65).toLocaleString(),
-      stationsCount: (allStations.length + 600).toLocaleString()
+      contributors: (globalStats?.active_users || totalContributors).toLocaleString(),
+      citiesCount: citiesCount.toLocaleString(),
+      stationsCount: allStations.length.toLocaleString()
     };
-  }, [allStations, cityName, userLocation, selectedFuelType]);
+  }, [allStations, cityName, userLocation, selectedFuelType, globalStats]);
 
   const chartConfig = {
     price: {
@@ -174,7 +213,7 @@ export function Home() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center justify-between"
         >
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight">
             {greeting}, <span className="text-emerald-400">{user ? (user.name?.split(' ')[0] || user.username?.split(' ')[0] || "Tankmate") : "Tankmate"}</span>
           </h1>
         </motion.div>
@@ -210,12 +249,12 @@ export function Home() {
               Price trends per fuel type
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-0">
-            <ChartContainer config={chartConfig} className="h-48 w-full">
+          <CardContent className="px-1 pt-0">
+            <ChartContainer config={chartConfig} className="h-56 w-full -ml-4">
               <AreaChart
                 accessibilityLayer
                 data={stats?.chartData}
-                margin={{ top: 20, right: 10, bottom: 20, left: -15 }}
+                margin={{ top: 10, right: 10, bottom: 0, left: -20 }}
               >
                 <defs>
                   <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -231,40 +270,40 @@ export function Home() {
                     />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#ffffff10" />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#ffffff08" />
                 <XAxis
                   dataKey="fuel"
                   tickLine={false}
-                  axisLine={{ stroke: '#ffffff10' }}
-                  tickMargin={12}
-                  tick={{ fill: '#666', fontSize: 10, fontWeight: 700 }}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fill: '#888', fontSize: 10, fontWeight: 700 }}
                 />
                 <YAxis 
                   tickLine={false}
-                  axisLine={{ stroke: '#ffffff10' }}
-                  tickMargin={4}
+                  axisLine={false}
+                  tickMargin={0}
                   domain={['auto', 'auto']}
-                  tickFormatter={(val) => `₱${val}`}
-                  tick={{ fill: '#444', fontSize: 9, fontWeight: 600 }}
+                  tickFormatter={(val) => `${val}`}
+                  tick={{ fill: '#555', fontSize: 9, fontWeight: 600 }}
                 />
                 <ChartTooltip
-                  cursor={false}
+                  cursor={{ stroke: '#10b981', strokeWidth: 1 }}
                   content={
                     <ChartTooltipContent
                       indicator="dot"
-                      className="bg-[#1A2E2A] border-emerald-500/20 text-white"
+                      className="bg-[#0C1A17] border-emerald-500/20 text-white shadow-2xl"
                       labelFormatter={(value) => (
-                        <div className="border-emerald-500/20 mb-0.5 border-b pb-1">
-                          <span className="text-[10px] font-bold text-emerald-400">{value}</span>
+                        <div className="border-emerald-500/20 mb-1 border-b pb-1">
+                          <span className="text-[10px] font-bold text-emerald-400">{fuelTypeMap[value] || value}</span>
                         </div>
                       )}
                       formatter={(value, name) => (
                         <div className="flex w-full items-center justify-between gap-4">
                           <div className="flex items-center gap-1.5">
                             <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] text-gray-300">Price</span>
+                            <span className="text-[10px] text-gray-300">Avg Price</span>
                           </div>
-                          <span className="text-xs font-black text-white">₱{Number(value).toFixed(2)}</span>
+                          <span className="text-sm font-black text-white">₱{Number(value).toFixed(2)}</span>
                         </div>
                       )}
                     />
@@ -272,11 +311,12 @@ export function Home() {
                 />
                 <Area
                   dataKey="price"
-                  type="natural"
+                  type="monotone"
                   fill="url(#chart-gradient)"
                   stroke="#10b981"
                   strokeWidth={3}
-                  className="drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                  activeDot={{ r: 4, fill: '#10b981', strokeWidth: 0 }}
+                  className="drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
                 />
               </AreaChart>
             </ChartContainer>
@@ -287,7 +327,9 @@ export function Home() {
         <div className="grid grid-cols-2 gap-4">
           {/* Nearest Station */}
           <div className="bg-[#0C1A17] rounded-[2rem] p-5 border border-emerald-500/10 flex flex-col items-center text-center">
-            <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase tracking-widest">Nearest Station</h4>
+            <div className="flex items-center justify-center h-6 mb-4">
+              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nearest</h4>
+            </div>
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 p-3 shadow-lg">
               <img src={getBrandLogo(stats?.nearest?.brand || stats?.nearest?.name)} className="w-full h-full object-contain" />
             </div>
@@ -304,7 +346,7 @@ export function Home() {
 
           {/* Cheapest Station */}
           <div className="bg-[#0C1A17] rounded-[2rem] p-5 border border-emerald-500/10 flex flex-col items-center text-center">
-            <div className="flex items-center gap-1 mb-4">
+            <div className="flex items-center justify-center h-6 gap-1 mb-4">
                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cheapest</h4>
                <div className="relative group">
                  <button className="bg-emerald-500/20 text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5">

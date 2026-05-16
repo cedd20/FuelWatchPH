@@ -22,29 +22,29 @@ export function ConfirmationModal({
       />
       
       {/* Modal Card */}
-      <div className="relative w-full max-w-md bg-white dark:bg-neutral-900 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] border-2 border-white/20 dark:border-neutral-800 animate-in zoom-in-95 fade-in duration-300 overflow-hidden">
+      <div className="relative w-full max-w-sm bg-white dark:bg-neutral-900 rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] border-2 border-white/20 dark:border-neutral-800 animate-in zoom-in-95 fade-in duration-300 overflow-hidden">
         
         {/* Top Decorative Header */}
-        <div className={`h-32 flex items-center justify-center relative overflow-hidden bg-gradient-to-br ${
+        <div className={`h-24 flex items-center justify-center relative overflow-hidden bg-gradient-to-br ${
           type === 'warning' ? 'from-amber-400 via-orange-500 to-rose-600' : 'from-emerald-400 via-teal-500 to-cyan-600'
         }`}>
           <div className="absolute inset-0 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute inset-0 bg-black/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
           
-          <div className="relative z-10 w-16 h-16 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/30 shadow-2xl">
+          <div className="relative z-10 w-12 h-12 bg-white/20 backdrop-blur-xl rounded-xl flex items-center justify-center border border-white/30 shadow-2xl">
             {type === 'warning' ? (
-              <AlertTriangle className="w-8 h-8 text-white" strokeWidth={2.5} />
+              <AlertTriangle className="w-6 h-6 text-white" strokeWidth={2.5} />
             ) : (
-              <Info className="w-8 h-8 text-white" strokeWidth={2.5} />
+              <Info className="w-6 h-6 text-white" strokeWidth={2.5} />
             )}
           </div>
         </div>
 
-        <div className="p-8 lg:p-10 text-center">
-          <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4 tracking-tight leading-tight">
+        <div className="p-6 text-center">
+          <h3 className="text-xl font-bold text-foreground mb-3 tracking-tight leading-tight">
             {title}
           </h3>
-          <p className="text-muted-foreground font-medium mb-10 leading-relaxed">
+          <p className="text-xs text-muted-foreground font-medium mb-8 leading-relaxed">
             {message}
           </p>
 

@@ -97,22 +97,22 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
   const fuelTypes = useMemo(() => getStationPriceHistoryFuelTypes(historyEntries, selectedRange), [historyEntries, selectedRange]);
 
   return (
-    <section className={`bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-3xl border-2 border-gray-200 dark:border-neutral-700 shadow-2xl shadow-black/10 overflow-hidden ${compact ? "" : ""}`}>
-      <div className={`${compact ? "px-4 sm:px-5 pt-4 sm:pt-5 pb-3" : "px-5 sm:px-6 pt-5 sm:pt-6 pb-4"} border-b border-gray-200/70 dark:border-neutral-700/70`}>
+    <section className={`bg-[#0C1A17] backdrop-blur-2xl rounded-3xl border border-emerald-500/10 shadow-2xl shadow-black/10 overflow-hidden ${compact ? "" : ""}`}>
+      <div className={`${compact ? "px-4 pt-4 pb-3" : "px-5 pt-5 pb-4"} border-b border-white/5`}>
         <div className={`flex items-start justify-between gap-4 ${compact ? "mb-3" : "mb-4"}`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`${compact ? "w-10 h-10" : "w-11 h-11"} rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/40 dark:to-teal-950/20 flex items-center justify-center flex-shrink-0`}>
-              <Fuel className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+            <div className={`${compact ? "w-9 h-9" : "w-11 h-11"} rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0`}>
+              <Fuel className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
             </div>
             <div className="min-w-0">
-              <h3 className={`${compact ? "text-base sm:text-lg" : "text-lg sm:text-xl"} font-bold text-foreground tracking-tight`}>Price History</h3>
-              <p className={`${compact ? "text-[11px] sm:text-xs" : "text-xs sm:text-sm"} text-muted-foreground font-medium truncate`}>
-                Station-specific history for {stationName || "this station"}
+              <h3 className={`${compact ? "text-sm sm:text-lg" : "text-lg sm:text-xl"} font-bold text-white tracking-tight`}>Price History</h3>
+              <p className={`${compact ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"} text-gray-500 font-medium truncate`}>
+                Station trends for {stationName || "this station"}
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs font-semibold text-muted-foreground bg-gray-50 dark:bg-neutral-800 px-3 py-2 rounded-full">
-            <Clock3 className="w-3.5 h-3.5" />
+          <div className="hidden sm:flex items-center gap-2 text-[10px] font-semibold text-emerald-500/60 bg-emerald-500/5 px-3 py-2 rounded-full border border-emerald-500/10">
+            <Clock3 className="w-3 h-3" />
             Local history
           </div>
         </div>
@@ -123,10 +123,10 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
               key={range}
               type="button"
               onClick={() => setSelectedRange(range)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full ${compact ? "text-[11px] sm:text-xs" : "text-sm"} font-bold transition-all border ${
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full ${compact ? "text-[10px]" : "text-sm"} font-bold transition-all border ${
                 selectedRange === range
                   ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/30"
-                  : "bg-gray-50 dark:bg-neutral-800 text-muted-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:text-foreground"
+                  : "bg-[#050A09] text-gray-500 border-white/5 hover:border-emerald-500/20 hover:text-white"
               }`}
             >
               {range}
@@ -137,13 +137,13 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
 
       <div className={`${compact ? "p-4 sm:p-5" : "p-4 sm:p-6"}`}>
         {chartData.length === 0 ? (
-          <div className={`${compact ? "min-h-[160px] sm:min-h-[180px] px-5 py-8" : "min-h-[240px] sm:min-h-[280px] px-6 py-10"} flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed border-gray-200 dark:border-neutral-700 bg-gray-50/50 dark:bg-neutral-800/30`}>
-            <div className={`${compact ? "w-12 h-12 mb-3" : "w-14 h-14 mb-4"} rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center`}>
-              <AlertCircle className={`${compact ? "w-6 h-6" : "w-7 h-7"} text-emerald-600 dark:text-emerald-400`} />
+          <div className={`${compact ? "min-h-[140px] px-4 py-6" : "min-h-[200px] px-6 py-10"} flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed border-white/5 bg-[#050A09]/50`}>
+            <div className={`${compact ? "w-10 h-10 mb-2" : "w-14 h-14 mb-4"} rounded-full bg-emerald-500/10 flex items-center justify-center`}>
+              <AlertCircle className={`${compact ? "w-5 h-5" : "w-7 h-7"} text-emerald-400`} />
             </div>
-            <h4 className={`${compact ? "text-sm sm:text-base" : "text-base sm:text-lg"} font-bold text-foreground mb-2`}>No price history available for this station yet.</h4>
-            <p className={`${compact ? "text-xs sm:text-sm" : "text-sm sm:text-base"} text-muted-foreground max-w-md`}>
-              Updates from the Update Fuel Price flow will appear here and stay tied to this station only.
+            <h4 className={`${compact ? "text-xs" : "text-sm"} font-bold text-white mb-1`}>No local history yet.</h4>
+            <p className={`${compact ? "text-[10px]" : "text-xs"} text-gray-500 max-w-md`}>
+              Updates you make will appear here.
             </p>
           </div>
         ) : (

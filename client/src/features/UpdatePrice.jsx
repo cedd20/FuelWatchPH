@@ -60,8 +60,8 @@ function PriceUpdateConfirmationModal({
         {/* Header */}
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 px-5 py-6 sm:px-7 sm:py-7 text-white relative flex items-start justify-between">
           <div className="flex-1 pr-4">
-            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Review Price Updates</h3>
-            <p className="mt-2 text-sm sm:text-base text-white/90 font-medium">
+            <h3 className="text-lg sm:text-xl font-bold tracking-tight">Review Price Updates</h3>
+            <p className="mt-1 text-xs sm:text-sm text-white/90 font-medium">
               {error ? "An error occurred" : "Please review before confirming"}
             </p>
           </div>
@@ -428,16 +428,16 @@ export function UpdatePrice() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
 
           <div className="relative z-10 max-w-6xl mx-auto">
-            <div className="flex items-center gap-3 mb-3 lg:mb-4">
+            <div className="flex items-center gap-2 mb-2 lg:mb-3">
               <button
                 onClick={() => navigate(-1)}
-                className="w-12 h-12 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl shadow-black/20 hover:scale-110 transition-transform border-2 border-white/40"
+                className="w-10 h-10 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg shadow-black/10 hover:scale-105 transition-transform border border-white/20"
               >
-                <ArrowLeft className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+                <ArrowLeft className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
               </button>
-              <h1 className="text-3xl lg:text-4xl font-bold text-white drop-shadow-2xl tracking-tight">Update Fuel Prices</h1>
+              <h1 className="text-xl lg:text-2xl font-bold text-white drop-shadow-lg tracking-tight">Update Fuel Prices</h1>
             </div>
-            <p className="text-white/95 text-base lg:text-lg font-medium drop-shadow-lg pl-1 lg:pl-2">
+            <p className="text-white/90 text-sm lg:text-base font-medium drop-shadow-md pl-1">
               {station?.name || "Loading..."}
             </p>
             {selectedFuelType && (
@@ -470,32 +470,32 @@ export function UpdatePrice() {
             ) : (
               <>
             {/* Location Status */}
-            <div className="mb-8">
+            <div className="mb-6">
               {isNearStation ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-400/50 rounded-2xl p-5 flex items-start gap-3 lg:gap-4 shadow-xl shadow-emerald-500/10 transition-all hover:shadow-emerald-500/20">
-                  <div className="bg-emerald-100 dark:bg-emerald-900/50 p-2 rounded-xl flex-shrink-0">
-                    <MapPin className="w-5 h-5 lg:w-6 lg:h-6 text-emerald-600 dark:text-emerald-400" />
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-400/30 rounded-xl p-4 flex items-start gap-3 shadow-md shadow-emerald-500/5 transition-all">
+                  <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1.5 rounded-lg flex-shrink-0">
+                    <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <div className="font-bold text-emerald-600 dark:text-emerald-400 mb-1 lg:text-lg">
+                    <div className="font-bold text-emerald-600 dark:text-emerald-400 mb-0.5 text-sm lg:text-base">
                       Location Verified
                     </div>
-                    <div className="text-sm lg:text-base text-emerald-600/80 dark:text-emerald-400/80 font-medium">
-                      You are within range to update prices for this station
+                    <div className="text-xs lg:text-sm text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+                      You are within range to update prices
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="bg-yellow-50 dark:bg-yellow-950/30 border-2 border-yellow-400/50 rounded-2xl p-5 flex items-start gap-3 lg:gap-4 shadow-xl shadow-yellow-500/10">
-                  <div className="bg-yellow-100 dark:bg-yellow-900/50 p-2 rounded-xl flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600 dark:text-yellow-400" />
+                <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-400/30 rounded-xl p-4 flex items-start gap-3 shadow-md shadow-yellow-500/5">
+                  <div className="bg-yellow-100 dark:bg-yellow-900/50 p-1.5 rounded-lg flex-shrink-0">
+                    <AlertTriangle className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
                   <div>
-                    <div className="font-bold text-yellow-600 dark:text-yellow-400 mb-1 lg:text-lg">
-                      Too Far from Station
+                    <div className="font-bold text-yellow-600 dark:text-yellow-400 mb-0.5 text-sm lg:text-base">
+                      Too Far
                     </div>
-                    <div className="text-sm lg:text-base text-yellow-600/80 dark:text-yellow-400/80 font-medium">
-                      Please move closer to the station to update prices
+                    <div className="text-xs lg:text-sm text-yellow-600/80 dark:text-yellow-400/80 font-medium">
+                      Please move closer to the station
                     </div>
                   </div>
                 </div>
@@ -511,113 +511,35 @@ export function UpdatePrice() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Enter new prices for any fuel types you want to update. Leave fields blank if the price hasn't changed.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {fuelTypesList.map((fuel) => {
                     const currentEnteredPrice = prices[fuel.id];
                     const isEdited = currentEnteredPrice !== undefined && currentEnteredPrice !== "";
                     const hasCurrent = fuel.currentPrice != null;
                     
+                    const shortLabel = {
+                      'diesel': 'DSL',
+                      'premiumdiesel': 'PDSL',
+                      'unleaded91': 'UL91',
+                      'unleaded95': 'PR95',
+                      'unleaded98': 'PR97',
+                      'kerosene': 'KER'
+                    }[fuel.id] || fuel.id.substring(0, 4).toUpperCase();
+
                     return (
-                      <div
-                        key={fuel.id}
-                        className={`w-full p-5 lg:p-6 rounded-3xl border-2 transition-all shadow-xl flex flex-col gap-5 ${
-                          isEdited
-                            ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/20 ring-2 ring-emerald-500/10"
-                            : hasCurrent
-                              ? "border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900/50"
-                              : "border-dashed border-gray-200 dark:border-neutral-700 bg-gray-50/50 dark:bg-neutral-900/30"
-                        }`}
-                      >
-                        {/* Status Badge */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                            hasCurrent 
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" 
-                              : "bg-gray-200 text-gray-600 dark:bg-neutral-700 dark:text-neutral-400"
-                          }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${hasCurrent ? "bg-emerald-500 animate-pulse" : "bg-gray-400"}`} />
-                            {hasCurrent ? "Current Price Recorded" : "No Price Recorded Yet"}
-                          </div>
-                          
-                          {isEdited && (
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                              <CheckCircle className="w-3 h-3" />
-                              Editing
-                            </span>
-                          )}
+                      <div key={fuel.id} className="relative group">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-500 uppercase tracking-wider z-10 pointer-events-none">
+                          {shortLabel}
                         </div>
-
-                        <div className="flex flex-col flex-1 gap-4">
-                          {/* Fuel Info */}
-                          <div>
-                            <h4 className="font-black text-foreground text-xl lg:text-2xl tracking-tight mb-1">
-                              {fuel.label}
-                            </h4>
-                            
-                            <div className={`mt-3 p-3.5 rounded-2xl border ${
-                              hasCurrent 
-                                ? "bg-emerald-500/5 border-emerald-500/20" 
-                                : "bg-gray-100/50 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-700"
-                            }`}>
-                              <div className="text-[10px] uppercase tracking-widest font-black text-muted-foreground mb-1">
-                                {hasCurrent ? "Recorded Price" : "Entry Status"}
-                              </div>
-                              <div className={`text-lg lg:text-xl font-bold tracking-tight ${hasCurrent ? "text-foreground" : "text-muted-foreground/60"}`}>
-                                {hasCurrent ? (
-                                  <span className="flex items-baseline gap-1">
-                                    <span className="text-sm">₱</span>
-                                    {formatPrice(fuel.currentPrice).replace('₱', '')}
-                                  </span>
-                                ) : (
-                                  <span className="text-sm italic">Pending First Entry</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Input Field Area */}
-                          <div className="space-y-2 mt-auto">
-                            <label className="text-xs font-black uppercase tracking-widest text-muted-foreground/80 pl-1">
-                              New Price
-                            </label>
-                            <div className="relative w-full">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-muted-foreground pointer-events-none">
-                                ₱
-                              </span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={currentEnteredPrice || ""}
-                                onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
-                                placeholder={hasCurrent ? "Enter updated price..." : "Enter first-time price..."}
-                                className="w-full pl-10 pr-4 py-4 text-xl font-bold bg-white dark:bg-neutral-950 rounded-2xl border-2 border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 shadow-sm text-foreground transition-all placeholder:text-muted-foreground/30 placeholder:font-medium placeholder:text-sm"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Price Difference Indicator */}
-                        {isEdited && hasCurrent && (
-                          <div className="mt-2 pt-4 border-t border-gray-100 dark:border-neutral-800 flex items-center justify-between">
-                            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Price Change:</span>
-                            <div
-                              className={`flex items-center gap-1 font-black text-base ${
-                                parseFloat(currentEnteredPrice) < fuel.currentPrice
-                                  ? "text-emerald-600 dark:text-emerald-400"
-                                  : parseFloat(currentEnteredPrice) > fuel.currentPrice 
-                                    ? "text-rose-600 dark:text-rose-400"
-                                    : "text-foreground"
-                              }`}
-                            >
-                              {parseFloat(currentEnteredPrice) < fuel.currentPrice ? (
-                                <TrendingDown className="w-4 h-4" strokeWidth={3} />
-                              ) : parseFloat(currentEnteredPrice) > fuel.currentPrice ? (
-                                <TrendingUp className="w-4 h-4" strokeWidth={3} />
-                              ) : null}
-                              <span>{formatPrice(Math.abs(parseFloat(currentEnteredPrice) - fuel.currentPrice))}</span>
-                            </div>
-                          </div>
-                        )}
+                        
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={currentEnteredPrice || ""}
+                          onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
+                          placeholder={hasCurrent ? formatPrice(fuel.currentPrice).replace('₱', '') : "0.00"}
+                          className="w-full bg-[#0C1A17] border border-emerald-500/5 rounded-[20px] pl-16 pr-4 py-5 font-black text-white focus:outline-none focus:border-emerald-500/20 transition-all placeholder:text-gray-800 text-lg"
+                        />
                       </div>
                     );
                   })}
