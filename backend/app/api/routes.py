@@ -490,7 +490,7 @@ async def confirm_price(
                 .execute()
 
         if existing.data:
-            raise HTTPException(status_code=429, detail="Already confirmed recently.")
+            return {"status": "already_confirmed", "message": "Already confirmed recently."}
 
         # Insert verification record using admin client to bypass RLS
         insert_data = {
@@ -506,7 +506,7 @@ async def confirm_price(
             err_str = str(insert_err)
             # Unique constraint: already confirmed (race condition between pre-check and insert)
             if "23505" in err_str or "unique" in err_str.lower():
-                raise HTTPException(status_code=429, detail="Already confirmed recently.")
+                return {"status": "already_confirmed", "message": "Already confirmed recently."}
             # Foreign key violation: should not happen for real users, but surface it clearly
             if "23503" in err_str or "foreign key" in err_str.lower():
                 print(f"FK violation for user_id={user_id}: {insert_err}")
@@ -534,7 +534,41 @@ async def confirm_price(
     
     supabase_admin.table("price_reports").update({"confirmation_count": new_count}).eq("id", price_id).execute()
 
+    # Update reporter's bonus karma and trust
+    if reporter_id:
+        try:
+            profile_res = supabase_admin.table("user_profiles") \
+                .select("bonus_karma, bonus_trust") \
+                .eq("id", reporter_id) \
+                .single() \
+                .execute()
+            if profile_res.data:
+                curr_karma = profile_res.data.get("bonus_karma") or 0
+                curr_trust = profile_res.data.get("bonus_trust") or 0
+                supabase_admin.table("user_profiles").update({
+                    "bonus_karma": curr_karma + 10,
+                    "bonus_trust": curr_trust + 10
+                }).eq("id", reporter_id).execute()
+        except Exception as e:
+            print(f"Failed to update reporter profile: {e}")
 
+    # Update confirmer's bonus karma and trust
+    if user_id:
+        try:
+            profile_res = supabase_admin.table("user_profiles") \
+                .select("bonus_karma, bonus_trust") \
+                .eq("id", user_id) \
+                .single() \
+                .execute()
+            if profile_res.data:
+                curr_karma = profile_res.data.get("bonus_karma") or 0
+                curr_trust = profile_res.data.get("bonus_trust") or 0
+                supabase_admin.table("user_profiles").update({
+                    "bonus_karma": curr_karma + 10,
+                    "bonus_trust": curr_trust + 10
+                }).eq("id", user_id).execute()
+        except Exception as e:
+            print(f"Failed to update confirmer profile: {e}")
 
     return {"confirmation_count": new_count}
 
@@ -581,10 +615,10 @@ async def get_leaderboard(limit: int = 10):
                 .execute()
             received_confirmations = sum(r.get("confirmation_count", 0) for r in (received_conf_res.data or []))
             
-            # Calculate Points: 10 per report, 5 per confirmation made, 2 per confirmation received, 20 per station
-            points = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20)
+            # Calculate Points: 10 per report, 5 per confirmation made, 2 per confirmation received, 20 per station, plus bonus_karma
+            points = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20) + (p.get("bonus_karma") or 0)
             
-            # Calculate Accuracy: (Reports with 2+ confirmations) / Total Reports
+            # Calculate Accuracy: (Reports with 2+ confirmations) / Total Reports, plus bonus_trust
             accuracy = 0
             if total_reports > 0:
                 try:
@@ -593,9 +627,11 @@ async def get_leaderboard(limit: int = 10):
                         .eq("reported_by", user_id) \
                         .gte("confirmation_count", 1) \
                         .execute()
-                    accuracy = int((accurate_res.count or 0) / total_reports * 100)
+                    accuracy = min(100, int((accurate_res.count or 0) / total_reports * 100) + (p.get("bonus_trust") or 0))
                 except:
-                    pass
+                    accuracy = min(100, (p.get("bonus_trust") or 0))
+            else:
+                accuracy = min(100, (100 if total_confirmations > 0 else 0) + (p.get("bonus_trust") or 0))
             
             enriched_profiles.append({
                 **p,
@@ -840,9 +876,9 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
             
         # Total contributions = reports + confirmations + stations
         profile["contributionCount"] = total_reports + total_confirmations + total_stations
-        profile["points"] = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20)
+        profile["points"] = (total_reports * 10) + (total_confirmations * 5) + (received_confirmations * 2) + (total_stations * 20) + (profile.get("bonus_karma") or 0)
         
-        # Accuracy = (Reports with at least 2 confirmations) / Total Reports
+        # Accuracy = (Reports with at least 2 confirmations) / Total Reports, plus bonus_trust
         # Verified Count = Reports with at least 2 confirmations
         profile["verified_count"] = 0
         if total_reports > 0:
@@ -854,11 +890,11 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
                     .execute()
                 
                 profile["verified_count"] = accurate_reports.count or 0
-                profile["accuracy"] = int((accurate_reports.count or 0) / total_reports * 100)
+                profile["accuracy"] = min(100, int((accurate_reports.count or 0) / total_reports * 100) + (profile.get("bonus_trust") or 0))
             except:
-                profile["accuracy"] = 0
+                profile["accuracy"] = min(100, (profile.get("bonus_trust") or 0))
         else:
-            profile["accuracy"] = 100 if total_confirmations > 0 else 0
+            profile["accuracy"] = min(100, (100 if total_confirmations > 0 else 0) + (profile.get("bonus_trust") or 0))
             
         # Ensure permanent database sync for reputation
         try:

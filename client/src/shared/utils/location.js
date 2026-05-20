@@ -31,7 +31,7 @@ export function findCanonicalCityName(cityName, candidateCities = []) {
   return exactMatch || String(cityName).trim();
 }
 
-function getDistanceInKm(lat1, lng1, lat2, lng2) {
+export function getDistanceInKm(lat1, lng1, lat2, lng2) {
   const earthRadiusKm = 6371;
   const dLat = toRadians(lat2 - lat1);
   const dLng = toRadians(lng2 - lng1);

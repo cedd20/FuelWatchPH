@@ -49,14 +49,16 @@ export function ConfirmationModal({
           </p>
 
           <div className="flex flex-row gap-3 sm:gap-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              fullWidth
-              size="md"
-            >
-              {cancelText}
-            </Button>
+            {cancelText && (
+              <Button
+                variant="outline"
+                onClick={onClose}
+                fullWidth
+                size="md"
+              >
+                {cancelText}
+              </Button>
+            )}
             <Button
               onClick={onConfirm}
               variant={type === 'warning' ? 'primary' : 'primary'}

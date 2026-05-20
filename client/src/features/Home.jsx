@@ -18,6 +18,7 @@ import { useAuth } from "../app/providers/AuthContext";
 import { getBrandLogo } from "../shared/utils/brandMapping";
 import { isValidPrice } from "../shared/utils/priceUtils";
 import { PHILIPPINE_CITIES } from "../shared/utils/philippineCities";
+import { resolveCityFromCoordinates } from "../shared/utils/location";
 
 // shadcn UI Components (Relative)
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../shared/components/ui/card";
@@ -43,6 +44,7 @@ export function Home() {
   const [cityName, setCityName] = useState("Makati"); 
   const [isLocating, setIsLocating] = useState(true);
   const [selectedFuelType, setSelectedFuelType] = useState("UL91");
+  const [fuelDropdownOpen, setFuelDropdownOpen] = useState(false);
   const [currentMascot, setCurrentMascot] = useState(Mascot1);
   const [globalStats, setGlobalStats] = useState(null);
 
@@ -55,6 +57,18 @@ export function Home() {
   };
 
   const fuelTypes = ["UL91", "PR95", "PR97", "DSL", "PDSL"];
+
+  // Haversine formula for accurate distance calculation
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
 
   // Randomize Mascot on Mount
   useEffect(() => {
@@ -79,7 +93,29 @@ export function Home() {
 
   // Get user location and identify closest city
   useEffect(() => {
+    // 1. First check if a city filter is selected on the maps via localStorage
+    let mapCity = null;
+    try {
+      const storedFilters = JSON.parse(localStorage.getItem("fuelwatch_map_filters"));
+      if (storedFilters && storedFilters.location === "city" && storedFilters.selectedCity) {
+        mapCity = storedFilters.selectedCity;
+      } else {
+        const storedState = JSON.parse(localStorage.getItem("fuelwatch_map_state"));
+        if (storedState?.appliedFilters && storedState.appliedFilters.location === "city" && storedState.appliedFilters.selectedCity) {
+          mapCity = storedState.appliedFilters.selectedCity;
+        }
+      }
+    } catch (e) {
+      console.error('⚠️ Error reading map storage for city:', e);
+    }
+
+    if (mapCity) {
+      console.log('🗺️ Map selected city detected:', mapCity);
+      setCityName(mapCity);
+    }
+
     if (!("geolocation" in navigator)) {
+      console.warn('⚠️ Geolocation not available');
       setIsLocating(false);
       return;
     }
@@ -87,33 +123,75 @@ export function Home() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
+        const accuracy = position.coords.accuracy;
+        console.log('📍 GPS Detected:', { latitude, longitude, accuracy: accuracy.toFixed(0) + 'm' });
         setUserLocation({ lat: latitude, lng: longitude });
-        
-        // 1. First try to find if any station is very close (< 2km) and use its city
-        const veryCloseStation = allStations.find(s => {
-          const d = Math.sqrt(Math.pow(s.lat - latitude, 2) + Math.pow(s.lng - longitude, 2)) * 111;
-          return d < 2;
-        });
 
-        if (veryCloseStation) {
-          setCityName(veryCloseStation.city);
+        // If we already have a map-selected city, we don't overwrite it with the GPS resolved city
+        if (mapCity) {
+          setIsLocating(false);
+          return;
+        }
+
+        try {
+          // Resolve exact city using reverse geocoding
+          const resolved = await resolveCityFromCoordinates(latitude, longitude);
+          if (resolved?.city) {
+            console.log('🏙️ Reverse geocoded city:', resolved.city);
+            setCityName(resolved.city);
+            setIsLocating(false);
+            return;
+          }
+        } catch (err) {
+          console.error('⚠️ Reverse geocoding failed:', err);
+        }
+        
+        // Calculate distance to all stations and log nearby ones
+        const stationsWithDistance = allStations.map(s => ({
+          ...s,
+          dist: calculateDistance(latitude, longitude, s.lat, s.lng)
+        })).sort((a, b) => a.dist - b.dist);
+
+        // Log top 5 nearest stations for debugging
+        console.log('📊 Top 5 nearest stations:', stationsWithDistance.slice(0, 5).map(s => ({ name: s.name, city: s.city, dist: s.dist.toFixed(2) + 'km' })));
+        
+        // 1. First try to find if any station is within 50km and use its city
+        const closeStations = stationsWithDistance.filter(s => s.dist <= 50);
+
+        if (closeStations.length > 0) {
+          const closestStation = closeStations[0];
+          console.log('🏢 Closest station found:', closestStation.city, `(${closestStation.dist.toFixed(2)}km)`);
+          setCityName(closestStation.city);
         } else {
-          // 2. Fallback to closest predefined city
+          // 2. Fallback to closest predefined city using accurate calculation
           let closest = null;
-          let minDisk = Infinity;
+          let minDistance = Infinity;
           PHILIPPINE_CITIES.forEach(city => {
-            const d = Math.sqrt(Math.pow(city.lat - latitude, 2) + Math.pow(city.lng - longitude, 2));
-            if (d < minDisk) {
-              minDisk = d;
+            const d = calculateDistance(latitude, longitude, city.lat, city.lng);
+            if (d < minDistance) {
+              minDistance = d;
               closest = city;
             }
           });
+          console.log('🏙️ No stations within 50km. Nearest city:', closest?.city, `(${minDistance.toFixed(2)}km)`);
           if (closest) setCityName(closest.city);
         }
         setIsLocating(false);
       },
-      () => setIsLocating(false),
-      { timeout: 10000, enableHighAccuracy: true }
+      (error) => {
+        console.error('❌ Geolocation failed:', error.message);
+        // If we have a map-selected city, keep it. Otherwise fall back to Makati
+        if (!mapCity) {
+          console.log('ℹ️ Using default city: Makati');
+          setCityName("Makati");
+        }
+        setIsLocating(false);
+      },
+      { 
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
     );
   }, [allStations]);
 
@@ -121,16 +199,40 @@ export function Home() {
   const stats = useMemo(() => {
     if (!allStations.length) return null;
 
+    // Find predefined city coordinates as fallback reference
+    let referenceLocation = null;
+    if (cityName) {
+      const matchedCityObj = PHILIPPINE_CITIES.find(c => c.city.toLowerCase() === cityName.toLowerCase());
+      if (matchedCityObj) {
+        referenceLocation = { lat: matchedCityObj.lat, lng: matchedCityObj.lng };
+      }
+    }
+
+    const calcLoc = userLocation || referenceLocation;
+
+    // Get stations in user's city
     const cityStations = allStations.filter(s => s.city === cityName);
-    const targetCityStations = cityStations.length > 0 ? cityStations : allStations;
+    
+    // If no stations in city, also include nearby stations (within 15km radius)
+    let relevantStations = cityStations;
+    if (cityStations.length === 0 && calcLoc) {
+      relevantStations = allStations
+        .map(s => ({
+          ...s,
+          dist: calculateDistance(calcLoc.lat, calcLoc.lng, s.lat, s.lng)
+        }))
+        .filter(s => s.dist <= 15)
+        .map(({ dist, ...s }) => s);
+      console.log(`📊 No stations in ${cityName}, using ${relevantStations.length} nearby stations within 15km`);
+    }
 
     const avgPrices = fuelTypes.map(ft => {
-      let prices = cityStations
+      let prices = relevantStations
         .map(s => s.latest_prices?.[ft]?.price)
         .filter(isValidPrice)
         .map(Number);
       
-      // If no data in city, use all stations (national average)
+      // If still no data, use all stations (national average)
       if (prices.length === 0) {
         prices = allStations
           .map(s => s.latest_prices?.[ft]?.price)
@@ -148,19 +250,66 @@ export function Home() {
 
     // Nearest Station
     let nearest = null;
-    if (userLocation) {
+    if (calcLoc) {
       const stationsWithDist = allStations.map(s => ({
         ...s,
-        dist: Math.sqrt(Math.pow(s.lat - userLocation.lat, 2) + Math.pow(s.lng - userLocation.lng, 2)) * 111
+        dist: calculateDistance(calcLoc.lat, calcLoc.lng, s.lat, s.lng)
       })).sort((a, b) => a.dist - b.dist);
       nearest = stationsWithDist[0];
+      console.log('📍 Nearest Station:', { name: nearest?.name, dist: nearest?.dist?.toFixed(2) + 'km' });
     } else {
       nearest = allStations[0];
     }
 
-    const cheapest = [...allStations]
-      .filter(s => isValidPrice(s.latest_prices?.[selectedFuelType]?.price))
-      .sort((a, b) => Number(a.latest_prices[selectedFuelType].price) - Number(b.latest_prices[selectedFuelType].price))[0];
+    // Cheapest Station (Location-based - within 30km radius)
+    let cheapest = null;
+    if (calcLoc) {
+      // Only consider stations within 30km of calcLoc
+      const nearbyStations = allStations
+        .map(s => ({
+          ...s,
+          dist: calculateDistance(calcLoc.lat, calcLoc.lng, s.lat, s.lng)
+        }))
+        .filter(s => s.dist <= 30)
+        .filter(s => isValidPrice(s.latest_prices?.[selectedFuelType]?.price))
+        .sort((a, b) => Number(a.latest_prices[selectedFuelType].price) - Number(b.latest_prices[selectedFuelType].price));
+      
+      if (nearbyStations.length > 0) {
+        cheapest = nearbyStations[0];
+        console.log('💰 Cheapest Station (within 30km):', { 
+          name: cheapest?.name, 
+          fuelType: selectedFuelType, 
+          price: cheapest?.latest_prices?.[selectedFuelType]?.price, 
+          dist: cheapest?.dist?.toFixed(2) + 'km' 
+        });
+      } else {
+        // If no stations within 30km, find cheapest from entire list
+        const allValidCheapest = [...allStations]
+          .filter(s => isValidPrice(s.latest_prices?.[selectedFuelType]?.price))
+          .map(s => ({
+            ...s,
+            dist: calculateDistance(calcLoc.lat, calcLoc.lng, s.lat, s.lng)
+          }))
+          .sort((a, b) => Number(a.latest_prices[selectedFuelType].price) - Number(b.latest_prices[selectedFuelType].price));
+        
+        if (allValidCheapest.length > 0) {
+          cheapest = allValidCheapest[0];
+          console.log('⚠️ No stations within 30km, showing cheapest nationally:', { 
+            name: cheapest?.name, 
+            dist: cheapest?.dist?.toFixed(2) + 'km' 
+          });
+        }
+      }
+    } else {
+      // Fallback when no user location or reference location
+      const validCheapest = [...allStations]
+        .filter(s => isValidPrice(s.latest_prices?.[selectedFuelType]?.price))
+        .sort((a, b) => Number(a.latest_prices[selectedFuelType].price) - Number(b.latest_prices[selectedFuelType].price));
+      
+      if (validCheapest.length > 0) {
+        cheapest = validCheapest[0];
+      }
+    }
 
     // Contributors: Unique people who created stations OR reported prices
     const uniqueCreators = new Set(allStations.map(s => s.created_by).filter(Boolean));
@@ -239,7 +388,7 @@ export function Home() {
         <Card className="bg-[#0C1A17] border-emerald-500/10 rounded-[2rem] overflow-hidden shadow-2xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center justify-between text-white">
-              Avg Price in <span className="text-warning ml-1">{cityName}</span>
+              <div>Price in <span className="text-warning ml-1">{cityName}</span></div>
               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 border-none font-black text-[10px]">
                 <TrendingUpIcon className="w-3 h-3 mr-1" />
                 Live Trends
@@ -348,21 +497,33 @@ export function Home() {
           <div className="bg-[#0C1A17] rounded-[2rem] p-5 border border-emerald-500/10 flex flex-col items-center text-center">
             <div className="flex items-center justify-center h-6 gap-1 mb-4">
                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cheapest</h4>
-               <div className="relative group">
-                 <button className="bg-emerald-500/20 text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5">
+               <div className="relative">
+                 <button 
+                   onClick={() => setFuelDropdownOpen(!fuelDropdownOpen)}
+                   className="bg-emerald-500/20 text-emerald-400 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 hover:bg-emerald-500/30 transition-colors"
+                 >
                    {selectedFuelType} <ChevronDown className="w-2 h-2" />
                  </button>
-                 <div className="absolute right-0 mt-1 bg-[#1A2E2A] rounded-lg shadow-2xl border border-emerald-500/20 hidden group-hover:block z-20">
-                   {fuelTypes.map(ft => (
-                     <button 
-                       key={ft}
-                       onClick={() => setSelectedFuelType(ft)}
-                       className="block w-full text-left px-3 py-2 text-[10px] hover:bg-emerald-500/10"
-                     >
-                       {ft}
-                     </button>
-                   ))}
-                 </div>
+                 {fuelDropdownOpen && (
+                   <div className="absolute right-0 mt-1 bg-[#1A2E2A] rounded-lg shadow-2xl border border-emerald-500/20 z-20 min-w-fit">
+                     {fuelTypes.map(ft => (
+                       <button 
+                         key={ft}
+                         onClick={() => {
+                           setSelectedFuelType(ft);
+                           setFuelDropdownOpen(false);
+                         }}
+                         className={`block w-full text-left px-3 py-2 text-[10px] transition-colors ${
+                           selectedFuelType === ft 
+                             ? 'bg-emerald-500/20 text-emerald-400' 
+                             : 'hover:bg-emerald-500/10'
+                         }`}
+                       >
+                         {ft}
+                       </button>
+                     ))}
+                   </div>
+                 )}
                </div>
             </div>
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 p-3 shadow-lg">

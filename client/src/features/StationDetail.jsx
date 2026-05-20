@@ -29,6 +29,7 @@ import { StationPriceHistoryCard } from "@/shared/components/StationPriceHistory
 import { useAuth } from "@/app/providers/AuthContext";
 import { StationLogo } from "@/shared/components/StationLogo";
 import { toggleSaveStation, isStationSaved } from "@/shared/utils/favorites";
+import { getDistanceInKm } from "@/shared/utils/location";
 import { KarmaService } from "@/lib/karmaService";
 import { formatPrice } from "@/shared/utils/priceUtils";
 import { PageHeaderSkeleton, CardSkeleton, ChartSkeleton } from "@/shared/components/Skeleton";
@@ -81,6 +82,32 @@ export function StationDetail() {
   
   const [showBackModalStep, setShowBackModalStep] = useState(0);
   const [hasViewedMeaningfully, setHasViewedMeaningfully] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(true);
+
+  // Get user location on mount
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      console.warn("⚠️ Geolocation not available in StationDetail");
+      setIsLocating(false);
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setIsLocating(false);
+      },
+      (error) => {
+        console.warn("⚠️ Geolocation failed in StationDetail:", error.message);
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -120,9 +147,16 @@ export function StationDetail() {
       lastUpdated: rawStation.latest_prices && Object.keys(rawStation.latest_prices).length > 0 
         ? new Date(Math.max(...Object.values(rawStation.latest_prices).map(p => new Date(p.observed_at)))).toLocaleDateString()
         : 'No reports',
-      distance: rawStation.distance_km || 0
+      distance: (() => {
+        if (userLocation && rawStation.lat !== undefined && rawStation.lng !== undefined) {
+          return getDistanceInKm(userLocation.lat, userLocation.lng, rawStation.lat, rawStation.lng).toFixed(1);
+        }
+        return rawStation.distance_km !== null && rawStation.distance_km !== undefined
+          ? Number(rawStation.distance_km).toFixed(1)
+          : "0.0";
+      })()
     };
-  }, [rawStation, rawPrices]);
+  }, [rawStation, rawPrices, userLocation]);
 
   const userRole = (user?.role || user?.app_metadata?.role || user?.user_metadata?.role || "").toLowerCase();
   const canEditStation = isAuthenticated;
@@ -147,16 +181,46 @@ export function StationDetail() {
     navigate("/app/add-station", { state: { station } });
   };
 
-  const handleFinalConfirm = () => {
+  const confirmPriceMutation = useConfirmPrice();
+
+  const handleFinalConfirm = async () => {
     const confirmationData = { stationId: id, isAnonymous: !isAuthenticated, confirmedAt: new Date().toISOString() };
     localStorage.setItem(`station_confirmed_${id}`, JSON.stringify(confirmationData));
     setHasConfirmedStation(true);
     
-    if (isAuthenticated) {
-      KarmaService.addContribution('Confirmed Price', { stationName: station?.name });
-      toast.success("Price confirmed! Karma points added.");
+    // Call confirmation mutation for each price report
+    if (station?.prices && station.prices.length > 0) {
+      try {
+        const promises = station.prices.map(p => {
+          if (p.id) {
+            return confirmPriceMutation.mutateAsync(p.id).catch(err => {
+              if (err.status === 429 || err.message?.includes("Already confirmed recently")) {
+                return null; // Ignore duplicate confirmation
+              }
+              throw err; // Propagate actual errors
+            });
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(promises);
+        
+        if (isAuthenticated) {
+          KarmaService.addContribution('Confirmed Price', { stationName: station?.name });
+          toast.success("Price confirmed! Karma points added.");
+        } else {
+          toast.success("Price confirmed anonymously. Sign in to earn Karma!");
+        }
+      } catch (err) {
+        console.error("Failed to confirm prices:", err);
+        toast.error("Some prices could not be confirmed.");
+      }
     } else {
-      toast.success("Price confirmed anonymously. Sign in to earn Karma!");
+      if (isAuthenticated) {
+        KarmaService.addContribution('Confirmed Price', { stationName: station?.name });
+        toast.success("Price confirmed! Karma points added.");
+      } else {
+        toast.success("Price confirmed anonymously. Sign in to earn Karma!");
+      }
     }
 
     qc.invalidateQueries(["stations", id]);
@@ -170,8 +234,6 @@ export function StationDetail() {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation, historyAction }) =>
-      hasViewedMeaningfully && 
-      !hasConfirmedStation && 
       station?.prices?.length > 0 &&
       showBackModalStep === 0 &&
       currentLocation.pathname !== nextLocation.pathname &&
@@ -179,8 +241,12 @@ export function StationDetail() {
   );
 
   useEffect(() => {
-    if (blocker.state === "blocked") {
-      setShowBackModalStep(1);
+    if (blocker.state === "blocked" && showBackModalStep === 0) {
+      if (hasConfirmedStation) {
+        setShowBackModalStep(3);
+      } else {
+        setShowBackModalStep(1);
+      }
     }
   }, [blocker.state]);
 
@@ -227,7 +293,10 @@ export function StationDetail() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-gray-500 font-semibold text-[10px] uppercase tracking-wider">
                   <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-emerald-500" /> {station.address}</div>
-                  <div className="flex items-center gap-1.5"><Navigation className="w-3.5 h-3.5 text-teal-500" /> {station.distance} km</div>
+                  <div className="flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5 text-teal-500" /> 
+                    {isLocating && !userLocation ? "Locating..." : `${station.distance} km`}
+                  </div>
                   <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-gray-600" /> {station.lastUpdated}</div>
                 </div>
               </div>
@@ -387,11 +456,22 @@ export function StationDetail() {
       <ConfirmationModal
         isOpen={showBackModalStep === 1}
         onClose={() => { setShowBackModalStep(0); if (blocker.state === "blocked") blocker.proceed(); else navigate(-1); }}
-        onConfirm={() => setShowBackModalStep(2)}
+        onConfirm={handleFinalConfirm}
         title="Confirm Prices?"
         message="Quick check: are the prices displayed at the station still accurate? Confirming helps the community!"
         confirmText="They're Correct"
         cancelText="Skip for now"
+        type="info"
+      />
+
+      <ConfirmationModal
+        isOpen={showBackModalStep === 3}
+        onClose={() => { setShowBackModalStep(0); if (blocker.state === "blocked") blocker.proceed(); else navigate(-1); }}
+        onConfirm={() => { setShowBackModalStep(0); if (blocker.state === "blocked") blocker.proceed(); else navigate(-1); }}
+        title="Prices Already Confirmed"
+        message="You have already confirmed the prices at this station. Thank you for keeping the information accurate!"
+        confirmText="Done"
+        cancelText=""
         type="info"
       />
     </motion.div>

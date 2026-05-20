@@ -110,6 +110,8 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  useTranslate3d,
+  wrapperStyle,
   ...props
 }) {
   const { config } = useChart();

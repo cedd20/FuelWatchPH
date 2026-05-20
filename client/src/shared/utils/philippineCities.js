@@ -87,6 +87,8 @@ export const PHILIPPINE_CITIES = [
   { city: 'Lipa', province: 'Batangas', region: 'Region IV-A', lat: 13.9411, lng: 121.1640 },
   { city: 'Tanauan', province: 'Batangas', region: 'Region IV-A', lat: 14.0847, lng: 121.1517 },
   { city: 'Lucena', province: 'Quezon', region: 'Region IV-A', lat: 13.9373, lng: 121.6170 },
+  { city: 'Gumaca', province: 'Quezon', region: 'Region IV-A', lat: 14.6608, lng: 121.8078 },
+  { city: 'Tagkawayan', province: 'Quezon', region: 'Region IV-A', lat: 14.6925, lng: 121.8364 },
 
   // Region IV-B — MIMAROPA
   { city: 'Calapan', province: 'Oriental Mindoro', region: 'Region IV-B', lat: 13.4116, lng: 121.1794 },
