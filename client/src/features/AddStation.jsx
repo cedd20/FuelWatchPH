@@ -268,9 +268,15 @@ export function AddStation() {
                   ))}
                </MapContainer>
                
-               {/* Fixed Center Pin (Matches Map.jsx User Location style) */}
-               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none">
-                  <div className="w-6 h-6 bg-[#3b82f6] rounded-full border-[3px] border-white shadow-[0_0_15px_rgba(59,130,246,0.6)] ring-2 ring-[#3b82f6]/20" />
+               {/* Fixed Center Pin (Station Marker style) */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[48px] z-[400] pointer-events-none drop-shadow-[0_10px_15px_rgba(16,185,129,0.4)]">
+                  <div className="w-10 h-10 bg-emerald-500 rounded-tl-full rounded-tr-full rounded-bl-full rounded-br-[4px] rotate-45 flex items-center justify-center border-2 border-[#0C1A17]">
+                    <div className="w-3.5 h-3.5 bg-[#050A09] rounded-full shadow-inner" />
+                  </div>
+               </div>
+               {/* Exact Anchor Dot */}
+               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[399] pointer-events-none">
+                  <div className="w-1.5 h-1.5 bg-[#0C1A17] rounded-full ring-2 ring-emerald-500" />
                </div>
 
                {/* GPS Button - Bottom Right Overlay */}

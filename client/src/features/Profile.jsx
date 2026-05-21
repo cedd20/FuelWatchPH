@@ -23,13 +23,16 @@ import {
   MapPinned,
   CheckCircle,
   Shield,
+  ShieldCheck,
   CreditCard,
   History,
-  Zap
+  Zap,
+  Crown
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
 import { useMyContributions } from "@/hooks/usePrices";
+import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { ProfileSkeleton } from "@/shared/components/Skeleton";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
@@ -41,6 +44,14 @@ export function Profile() {
   const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions({
     enabled: isAuthenticated,
   });
+  const { data: leaderboardData = [] } = useLeaderboard();
+
+  const isTopContributor = useMemo(() => {
+    if (!isAuthenticated || !user || !leaderboardData?.length) return false;
+    const sorted = [...leaderboardData].sort((a, b) => (b.karma || 0) - (a.karma || 0));
+    const top10 = sorted.slice(0, 10);
+    return top10.some(c => c.id === user.id);
+  }, [leaderboardData, isAuthenticated, user]);
 
   const stats = useMemo(() => {
     if (!isAuthenticated) return { total: 0, verified: 0, karma: 0, trustScore: 0 };
@@ -136,7 +147,7 @@ export function Profile() {
              initial={{ opacity: 0, y: 10 }}
              animate={{ opacity: 1, y: 0 }}
              transition={{ delay: 0.2 }}
-             className="space-y-1"
+             className="space-y-1 flex flex-col items-center"
            >
               <h1 className="text-3xl font-black tracking-tight">
                 {isAuthenticated ? (user?.username || user?.name) : "Tankmate"}
@@ -144,6 +155,46 @@ export function Profile() {
               <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
                 {isAuthenticated ? user?.email : "Guest Session"}
               </p>
+
+              {isAuthenticated && (hasTrustedContributorBadge || isTopContributor) && (
+                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6 pt-2 w-full max-w-sm mx-auto px-4">
+                  {hasTrustedContributorBadge && (
+                    <div className="relative flex-1 flex items-center gap-3 rounded-full bg-[#0C1A17] border border-emerald-500/50 px-4 py-2.5 shadow-[0_0_20px_rgba(16,185,129,0.15)] overflow-hidden group">
+                      {/* Lens flare effect */}
+                      <div className="absolute top-0 left-6 w-8 h-[1px] bg-emerald-400 shadow-[0_0_10px_2px_#34d399]" />
+                      <div className="absolute -top-1 left-8 w-1 h-1 rounded-full bg-white shadow-[0_0_8px_2px_#34d399]" />
+                      
+                      <div className="flex-shrink-0">
+                        <ShieldCheck className="w-8 h-8 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" strokeWidth={1.5} />
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.3)]">Trusted Contributor</span>
+                        <span className="text-[9px] text-gray-300">Verified & reliable reporter</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {isTopContributor && (
+                    <div className="relative flex-1 flex items-center gap-3 rounded-full bg-[#0C1A17] border border-amber-500/50 px-4 py-2.5 shadow-[0_0_20px_rgba(245,158,11,0.15)] overflow-visible group mt-2 sm:mt-0">
+                      {/* Floating Crown */}
+                      <div className="absolute -top-4 right-1/4 translate-x-1/2">
+                        <Crown className="w-5 h-5 text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+                      </div>
+                      
+                      {/* Lens flare effect */}
+                      <div className="absolute top-0 right-1/4 w-8 h-[1px] bg-amber-400 shadow-[0_0_10px_2px_#fbbf24]" />
+                      
+                      <div className="flex-shrink-0">
+                        <Trophy className="w-8 h-8 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
+                      </div>
+                      <div className="flex flex-col text-left">
+                        <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_0_4px_rgba(245,158,11,0.3)]">Top Contributor</span>
+                        <span className="text-[9px] text-gray-300">Top 5% of community</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
            </motion.div>
 
            {!isAuthenticated && (

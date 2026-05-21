@@ -739,7 +739,7 @@ export function Map() {
         <div className="hidden lg:block absolute top-0 left-0 right-0 h-40 z-10 pointer-events-none bg-gradient-to-b from-black/28 via-black/10 to-transparent" />
 
         {/* Mobile Top Controls */}
-        <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3 bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
+        <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3 overflow-visible bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
           <div className="flex items-center gap-2.5">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
@@ -769,27 +769,31 @@ export function Map() {
             </button>
           </div>
 
-          <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
-            {fuelTypes.map((type) => (
-              <FuelTypeChip
-                key={type}
-                label={type}
-                active={
-                  fuelSelection.mode === "all"
-                    ? type === "All"
-                    : fuelSelection.mode === "single" && selectedFuelType === type
-                }
-                onClick={() => handleFuelChipSelect(type)}
-              />
-            ))}
-            {fuelSelection.mode === "multiple" && (
-              <button
-                onClick={() => setShowFilters(true)}
-                className="px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border-2 border-amber-300 shadow-lg hover:bg-amber-100 transition-all"
-              >
-                {fuelSelection.indicatorLabel}
-              </button>
-            )}
+          <div className="-mx-3 overflow-visible px-3 py-0.5">
+            <div className="overflow-x-auto scrollbar-hide px-2 py-2.5">
+              <div className="flex min-w-max items-center gap-2.5 pr-2">
+                {fuelTypes.map((type) => (
+                  <FuelTypeChip
+                    key={type}
+                    label={type}
+                    active={
+                      fuelSelection.mode === "all"
+                        ? type === "All"
+                        : fuelSelection.mode === "single" && selectedFuelType === type
+                    }
+                    onClick={() => handleFuelChipSelect(type)}
+                  />
+                ))}
+                {fuelSelection.mode === "multiple" && (
+                  <button
+                    onClick={() => setShowFilters(true)}
+                    className="shrink-0 rounded-full px-4 py-2.5 text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border border-amber-300/90 shadow-[0_6px_16px_rgba(120,53,15,0.1),0_1px_5px_rgba(120,53,15,0.07)] hover:-translate-y-0.5 hover:bg-amber-100 hover:shadow-[0_9px_20px_rgba(120,53,15,0.12),0_3px_8px_rgba(120,53,15,0.08)] transition-[transform,box-shadow,background-color]"
+                  >
+                    {fuelSelection.indicatorLabel}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -849,28 +853,30 @@ export function Map() {
                   )}
                 </button>
 
-                <div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
-                  <div className="flex items-center gap-2.5 min-w-max pr-1">
-                    {fuelTypes.map((type) => (
-                      <FuelTypeChip
-                        key={type}
-                        label={type}
-                        active={
-                          fuelSelection.mode === "all"
-                            ? type === "All"
-                            : fuelSelection.mode === "single" && selectedFuelType === type
-                        }
-                        onClick={() => handleFuelChipSelect(type)}
-                      />
-                    ))}
-                    {fuelSelection.mode === "multiple" && (
-                      <button
-                        onClick={() => setShowFilters(true)}
-                        className="px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border-2 border-amber-300 shadow-lg hover:bg-amber-100 transition-all"
-                      >
-                        {fuelSelection.indicatorLabel}
-                      </button>
-                    )}
+                <div className="min-w-0 flex-1 overflow-visible py-0.5">
+                  <div className="overflow-x-auto scrollbar-hide px-2 py-2.5">
+                    <div className="flex min-w-max items-center gap-2.5 pr-2">
+                      {fuelTypes.map((type) => (
+                        <FuelTypeChip
+                          key={type}
+                          label={type}
+                          active={
+                            fuelSelection.mode === "all"
+                              ? type === "All"
+                              : fuelSelection.mode === "single" && selectedFuelType === type
+                          }
+                          onClick={() => handleFuelChipSelect(type)}
+                        />
+                      ))}
+                      {fuelSelection.mode === "multiple" && (
+                        <button
+                          onClick={() => setShowFilters(true)}
+                          className="shrink-0 rounded-full px-4 py-2.5 text-sm font-bold whitespace-nowrap bg-amber-50 text-amber-900 border border-amber-300/90 shadow-[0_6px_16px_rgba(120,53,15,0.1),0_1px_5px_rgba(120,53,15,0.07)] hover:-translate-y-0.5 hover:bg-amber-100 hover:shadow-[0_9px_20px_rgba(120,53,15,0.12),0_3px_8px_rgba(120,53,15,0.08)] transition-[transform,box-shadow,background-color]"
+                        >
+                          {fuelSelection.indicatorLabel}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

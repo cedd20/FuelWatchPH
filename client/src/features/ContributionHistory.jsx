@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, TrendingDown, CheckCircle, Clock, Zap, Star } from "lucide-react";
+import { ArrowLeft, TrendingDown, CheckCircle, Clock, Zap, Star, Search, Filter, SortDesc, SortAsc, LayoutList, ChevronDown, Check } from "lucide-react";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
@@ -9,11 +9,91 @@ import { StationLogo } from "@/shared/components/StationLogo";
 import { useMyContributions } from "@/hooks/usePrices";
 import { KarmaService } from "@/lib/karmaService";
 
+const getRelativeTimeGroup = (date) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const diffTime = today.getTime() - targetDate.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 0) return "Today";
+  if (diffDays > 0 && diffDays <= 7) return "This Week";
+  if (date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) return "Earlier This Month";
+  return "Older Reports";
+};
+
+function CustomSelect({ icon: Icon, value, options, onChange, prefix }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, []);
+
+  const selectedOption = options.find((o) => o.value === value);
+
+  return (
+    <div className="relative flex-1" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between rounded-full border border-[#193834] bg-[#0C1A17] px-4 py-3.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-emerald-400 outline-none transition-all hover:bg-[#193834]/30 focus:border-emerald-500/50 shadow-md"
+      >
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-4 w-4" />}
+          <span>{prefix}: {selectedOption?.label}</span>
+        </div>
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute left-0 top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-2xl border border-[#193834] bg-[#0C1A17] shadow-2xl"
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`flex w-full items-center justify-between px-4 py-3.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all ${
+                value === opt.value
+                  ? "bg-[#193834] text-emerald-400"
+                  : "text-gray-400 hover:bg-[#193834]/50 hover:text-white"
+              }`}
+            >
+              {opt.label}
+              {value === opt.value && <Check className="h-4 w-4 text-emerald-500" />}
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 export function ContributionHistory() {
   const navigate = useNavigate();
   const { isAuthenticated, user, refreshProfile, loading } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
+  const [groupBy, setGroupBy] = useState("time");
+  const [visibleCount, setVisibleCount] = useState(15);
   const { data: rawContributions = [], isLoading } = useMyContributions();
 
   useEffect(() => {
@@ -24,36 +104,90 @@ export function ContributionHistory() {
     if (!loading && !isAuthenticated) setShowAuthPrompt(true);
   }, [isAuthenticated, loading]);
 
-  const localContributions = KarmaService.getContributions();
+  const contributions = useMemo(() => {
+    const localContributions = KarmaService.getContributions();
+    
+    return [
+      ...localContributions.map((c) => {
+        const rawDate = new Date(c.date);
+        return {
+          id: c.id,
+          type: c.type || "Update",
+          stationName: c.stationName,
+          fuelType: c.fuelType,
+          price: c.price,
+          rawDate,
+          timeStr: rawDate.toLocaleTimeString([], { timeStyle: "short" }),
+          status: c.status,
+          karmaImpact: c.karmaImpact,
+        };
+      }),
+      ...rawContributions.map((c) => {
+        const rawDate = new Date(c.observed_at);
+        return {
+          id: c.id,
+          type: c.type || "Updated Fuel Price",
+          stationName: c.stationName || "Unknown Station",
+          fuelType: c.fuel_type,
+          price: c.price != null ? parseFloat(c.price) : null,
+          rawDate,
+          timeStr: rawDate.toLocaleTimeString([], { timeStyle: "short" }),
+          status: c.status || "pending",
+          karmaImpact: 10,
+        };
+      }),
+    ];
+  }, [rawContributions]);
 
-  const contributions = [
-    ...localContributions.map((c) => ({
-      id: c.id,
-      type: c.type,
-      stationName: c.stationName,
-      fuelType: c.fuelType,
-      price: c.price,
-      date: new Date(c.date).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }),
-      status: c.status,
-      karmaImpact: c.karmaImpact,
-    })),
-    ...rawContributions.map((c) => ({
-      id: c.id,
-      type: c.type || "Updated Fuel Price",
-      stationName: c.stationName || "Unknown Station",
-      fuelType: c.fuel_type,
-      price: c.price != null ? parseFloat(c.price) : null,
-      date: new Date(c.observed_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }),
-      status: c.status || "pending",
-      karmaImpact: 10,
-    })),
-  ];
+  const filteredContributions = useMemo(() => {
+    let result = contributions.filter((c) => {
+      // Status Filter
+      if (statusFilter === "verified" && !["confirmed", "approved", "verified"].includes(c.status)) return false;
+      if (statusFilter === "pending" && c.status !== "pending") return false;
+      
+      // Search Query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchesStation = c.stationName?.toLowerCase().includes(q);
+        const matchesFuel = c.fuelType?.toLowerCase().includes(q);
+        const matchesType = c.type?.toLowerCase().includes(q);
+        if (!matchesStation && !matchesFuel && !matchesType) return false;
+      }
+      
+      return true;
+    });
 
-  const filteredContributions = contributions.filter((c) => {
-    if (statusFilter === "all") return true;
-    if (statusFilter === "verified") return c.status === "confirmed" || c.status === "approved";
-    return c.status === statusFilter;
-  });
+    // Sorting
+    result.sort((a, b) => {
+      if (sortBy === "newest") return b.rawDate - a.rawDate;
+      if (sortBy === "oldest") return a.rawDate - b.rawDate;
+      return 0;
+    });
+
+    return result;
+  }, [contributions, statusFilter, searchQuery, sortBy]);
+
+  const groupedContributions = useMemo(() => {
+    const paginated = filteredContributions.slice(0, visibleCount);
+    return paginated.reduce((groups, c) => {
+      let groupKey = "Other";
+      
+      if (groupBy === "time") {
+        groupKey = getRelativeTimeGroup(c.rawDate);
+      } else if (groupBy === "status") {
+        if (["confirmed", "approved", "verified"].includes(c.status)) groupKey = "Verified Reports";
+        else if (c.status === "rejected") groupKey = "Rejected Reports";
+        else groupKey = "Pending Reports";
+      } else if (groupBy === "type") {
+        groupKey = c.type || "Other Reports";
+      }
+
+      const group = groups[groupKey] || [];
+      group.push(c);
+      groups[groupKey] = group;
+      return groups;
+    }, {});
+  }, [filteredContributions, visibleCount, groupBy]);
 
   const verifiedCount = contributions.filter(
     (c) => c.status === "confirmed" || c.status === "approved" || c.status === "verified",
@@ -63,9 +197,9 @@ export function ContributionHistory() {
   const totalKarma = user?.karma || 0;
 
   const filters = [
-    { key: "all", label: "All", color: "bg-emerald-500" },
-    { key: "verified", label: "Verified", color: "bg-emerald-500" },
-    { key: "pending", label: "Pending", color: "bg-amber-500" },
+    { key: "all", label: "All" },
+    { key: "verified", label: "Verified" },
+    { key: "pending", label: "Pending" },
   ];
 
   return (
@@ -86,7 +220,7 @@ export function ContributionHistory() {
             <div className="mb-12 flex items-center gap-6">
               <button
                 onClick={() => navigate(-1)}
-                className="group rounded-full border border-emerald-500/10 bg-[#0C1A17] p-3 shadow-2xl transition-all hover:bg-emerald-500"
+                className="group rounded-full border border-[#193834] bg-[#0C1A17] p-3 shadow-2xl transition-all hover:bg-[#193834]"
               >
                 <ArrowLeft className="h-6 w-6 transition-transform group-hover:scale-110" />
               </button>
@@ -110,7 +244,7 @@ export function ContributionHistory() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="rounded-3xl border border-emerald-500/5 bg-[#0C1A17] p-6 shadow-2xl"
+                  className="rounded-3xl border border-[#193834] bg-[#0C1A17] p-6 shadow-2xl"
                 >
                   <div className={`mb-1 text-3xl font-black ${stat.color}`}>{stat.value}</div>
                   <div className="text-[10px] font-black uppercase tracking-widest text-gray-600">{stat.label}</div>
@@ -120,8 +254,8 @@ export function ContributionHistory() {
           </div>
         </div>
 
-        <div className="-mt-14 mx-auto max-w-4xl space-y-6 px-6">
-          <div className="flex items-center gap-4 rounded-[2.5rem] border border-emerald-500/20 bg-emerald-500/10 p-6">
+        <div className="-mt-14 mx-auto max-w-4xl space-y-8 px-6">
+          <div className="flex items-center gap-4 rounded-[2.5rem] border border-[#193834] bg-[#0C1A17] p-6 shadow-2xl">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10">
               <Star className="h-6 w-6 text-emerald-400" />
             </div>
@@ -137,96 +271,161 @@ export function ContributionHistory() {
             </div>
           </div>
 
-          <div className="flex gap-2 rounded-[2.5rem] border border-emerald-500/10 bg-[#0C1A17] p-2 shadow-2xl">
-            {filters.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => setStatusFilter(f.key)}
-                className={`flex-1 rounded-[2rem] py-3.5 text-[10px] font-black uppercase tracking-widest transition-all ${
-                  statusFilter === f.key ? `${f.color} text-white shadow-lg` : "text-gray-600 hover:text-gray-400"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="flex flex-col gap-5">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search by station, fuel, or report type..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-[2rem] border border-[#193834] bg-[#0C1A17] py-4 pl-12 pr-4 text-sm font-bold text-white placeholder-gray-600 shadow-2xl outline-none transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
+              />
+            </div>
+
+            {/* Sort & Group Options */}
+            <div className="flex gap-3">
+              <CustomSelect
+                icon={LayoutList}
+                value={groupBy}
+                onChange={setGroupBy}
+                prefix="Group"
+                options={[
+                  { value: "time", label: "Time" },
+                  { value: "status", label: "Status" },
+                  { value: "type", label: "Type" },
+                ]}
+              />
+
+              <CustomSelect
+                icon={sortBy === "newest" ? SortDesc : SortAsc}
+                value={sortBy}
+                onChange={setSortBy}
+                prefix="Sort"
+                options={[
+                  { value: "newest", label: "Newest" },
+                  { value: "oldest", label: "Oldest" },
+                ]}
+              />
+            </div>
+
+            {/* Status Filters */}
+            <div className="flex gap-1 rounded-full border border-[#193834] bg-[#0C1A17] p-1.5 shadow-2xl">
+              {filters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                  className={`flex-1 rounded-full py-3.5 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
+                    statusFilter === f.key
+                      ? "bg-[#193834] text-emerald-400 shadow-lg"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-[2.5rem] border border-emerald-500/5 bg-[#0C1A17]" />
+              <div key={i} className="h-28 animate-pulse rounded-[2.5rem] border border-[#193834] bg-[#0C1A17]" />
             ))
           ) : filteredContributions.length > 0 ? (
-            <div className="space-y-4">
-              {filteredContributions.map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
-                  className="overflow-hidden rounded-[2.5rem] border border-emerald-500/5 bg-[#0C1A17] shadow-2xl transition-all hover:border-emerald-500/20"
-                >
-                  <div className="flex items-center gap-5 p-6">
-                    <StationLogo name={c.stationName} size="md" />
-
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <h3 className="truncate text-sm font-black">{c.stationName}</h3>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${
-                            c.karmaImpact > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
-                          }`}
-                        >
-                          {c.karmaImpact > 0 ? `+${c.karmaImpact}` : c.karmaImpact} Karma
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-600">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> {c.date}
-                        </span>
-                        {c.fuelType && <span className="text-gray-700">·</span>}
-                        {c.fuelType && <span>{c.fuelType}</span>}
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 space-y-1.5 text-right">
-                      {c.price !== null ? (
-                        <div className="text-xl font-black">P{c.price.toFixed(2)}</div>
-                      ) : (
-                        <div className="text-xs font-black uppercase text-gray-600">N/A</div>
-                      )}
-                      <div
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${
-                          c.status === "confirmed" || c.status === "approved"
-                            ? "bg-emerald-500/10 text-emerald-400"
-                            : "bg-amber-500/10 text-amber-400"
-                        }`}
+            <div className="space-y-10 pt-2">
+              {Object.entries(groupedContributions).map(([groupKey, items], groupIndex) => (
+                <div key={groupKey} className="space-y-4">
+                  <h3 className="sticky top-0 z-10 py-3 text-xs font-black uppercase tracking-widest text-emerald-500/80 backdrop-blur-md">
+                    {groupKey}
+                  </h3>
+                  <div className="space-y-3">
+                    {items.map((c, i) => (
+                      <motion.div
+                        key={c.id}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: (groupIndex * 0.1) + (i * 0.05) }}
+                        className="overflow-hidden rounded-[1.5rem] border border-[#193834] bg-[#0C1A17] shadow-2xl transition-all hover:border-emerald-500/30"
                       >
-                        {c.status === "confirmed" || c.status === "approved" ? (
-                          <>
-                            <CheckCircle className="h-3 w-3" /> Verified
-                          </>
-                        ) : (
-                          <>
-                            <Clock className="h-3 w-3" /> Pending
-                          </>
-                        )}
-                      </div>
-                    </div>
+                        <div className="flex items-center gap-4 p-5">
+                          <StationLogo name={c.stationName} size="md" />
+
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              <h3 className="truncate text-sm font-black">{c.stationName}</h3>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                  c.karmaImpact > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                                }`}
+                              >
+                                {c.karmaImpact > 0 ? `+${c.karmaImpact}` : c.karmaImpact} Karma
+                              </span>
+                            </div>
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" /> {c.rawDate.toLocaleDateString([], { dateStyle: "short" })} {c.timeStr}
+                              </span>
+                              {c.fuelType && <span className="text-gray-700">·</span>}
+                              {c.fuelType && <span>{c.fuelType}</span>}
+                              {c.type && <span className="text-gray-700">·</span>}
+                              {c.type && <span className="text-emerald-500">{c.type}</span>}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 space-y-1.5 text-right">
+                            {c.price !== null ? (
+                              <div className="text-lg font-black">P{c.price.toFixed(2)}</div>
+                            ) : (
+                              <div className="text-xs font-black uppercase text-gray-600">N/A</div>
+                            )}
+                            <div
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
+                                c.status === "confirmed" || c.status === "approved" || c.status === "verified"
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : "bg-amber-500/10 text-amber-400"
+                              }`}
+                            >
+                              {c.status === "confirmed" || c.status === "approved" || c.status === "verified" ? (
+                                <>
+                                  <CheckCircle className="h-3 w-3" /> Verified
+                                </>
+                              ) : (
+                                <>
+                                  <Clock className="h-3 w-3" /> Pending
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
+                </div>
               ))}
+              
+              {visibleCount < filteredContributions.length && (
+                <div className="pt-6 pb-12 flex justify-center">
+                  <button
+                    onClick={() => setVisibleCount((prev) => prev + 15)}
+                    className="rounded-full bg-[#193834] px-8 py-4 text-xs font-black uppercase tracking-widest text-emerald-400 shadow-xl transition-all hover:bg-emerald-900 hover:text-emerald-300"
+                  >
+                    Load More
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
-            <div className="pt-6">
+            <div className="pt-8">
               <EmptyState
                 icon={TrendingDown}
-                title={`No ${statusFilter === "all" ? "" : statusFilter} contributions`}
+                title={`No reports found`}
                 description={
-                  statusFilter === "all"
-                    ? "Start updating fuel prices to help the community"
-                    : `You don't have any ${statusFilter} contributions yet`
+                  searchQuery 
+                    ? `We couldn't find any reports matching "${searchQuery}"`
+                    : "Start updating fuel prices to help the community"
                 }
-                action={statusFilter === "all" ? { label: "Find Stations", onClick: () => navigate("/app") } : undefined}
+                action={!searchQuery && statusFilter === "all" ? { label: "Find Stations", onClick: () => navigate("/app") } : undefined}
               />
             </div>
           )}
