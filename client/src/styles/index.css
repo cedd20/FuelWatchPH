@@ -11,3 +11,40 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.auth-success-toast {
+  width: min(100%, 24rem);
+  border: 1px solid rgba(107, 171, 152, 0.28);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(135deg, rgba(33, 70, 64, 0.96), rgba(25, 56, 52, 0.98)),
+    rgba(25, 56, 52, 0.98);
+  color: #f3fbf8;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(193, 242, 223, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.auth-success-toast__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #f8fffc;
+}
+
+.auth-success-toast__description {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: rgba(221, 245, 237, 0.82);
+}
+
+.auth-success-toast__icon {
+  color: #78d6b4;
+}
+
+.auth-success-toast__close {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(238, 250, 246, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

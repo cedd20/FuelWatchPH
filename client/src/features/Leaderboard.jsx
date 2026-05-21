@@ -39,33 +39,49 @@ export function Leaderboard() {
     return { total, karma, trustScore };
   }, [rawContributions, user]);
 
-  const leaderboard = rawLeaderboard.map((entry, index) => ({
-    rank: index + 1,
-    name: entry.username || "Anonymous",
-    id: entry.id,
-    city: "Philippines",
-    updates: entry.total_updates,
-    trustScore: entry.accuracy || 0,
-    karma: entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0),
-    isVerified: !!entry.is_verified,
-    badge: (() => {
-      const karma = entry.total_points !== undefined ? entry.total_points : (entry.points || entry.reputation || 0);
-      if (karma > 1000) return "Fuel Guardian";
-      if (karma > 200) return "Trusted Contributor";
-      return null;
-    })(),
-    color: RANK_COLORS[index % RANK_COLORS.length],
-  })).sort((a, b) => (b.karma || 0) - (a.karma || 0)).map((entry, index) => ({ ...entry, rank: index + 1 }));
+  const leaderboard = useMemo(() => {
+    return rawLeaderboard
+      .map((entry) => {
+        const karma = entry.total_points !== undefined 
+          ? entry.total_points 
+          : (entry.points || entry.reputation || 0);
+        return {
+          name: entry.username || "Anonymous",
+          id: entry.id,
+          city: "Philippines",
+          updates: entry.total_updates || 0,
+          trustScore: entry.accuracy || 0,
+          karma: typeof karma === "number" ? karma : parseInt(karma, 10) || 0,
+          isVerified: !!entry.is_verified,
+          badge: (() => {
+            if (karma > 1000) return "Fuel Guardian";
+            if (karma > 200) return "Trusted Contributor";
+            return null;
+          })(),
+        };
+      })
+      .filter((entry) => entry.karma >= 300)
+      .sort((a, b) => b.karma - a.karma)
+      .map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+        color: RANK_COLORS[index % RANK_COLORS.length] || "from-emerald-500 to-teal-500",
+      }));
+  }, [rawLeaderboard]);
 
-  const me = leaderboard.find((entry) => entry.id === user?.id) || {
-    rank: leaderboard.length + 1,
-    name: user?.username || "You",
-    updates: myStats.total,
-    trustScore: myStats.trustScore,
-    karma: myStats.karma,
-    isVerified: !!user?.is_verified,
-    badge: myStats.karma > 1000 ? "Fuel Guardian" : myStats.karma > 200 ? "Trusted Contributor" : "Contributor"
-  };
+  const me = useMemo(() => {
+    const found = leaderboard.find((entry) => entry.id === user?.id);
+    if (found) return found;
+    return {
+      rank: "—",
+      name: user?.username || "You",
+      updates: myStats.total,
+      trustScore: myStats.trustScore,
+      karma: myStats.karma,
+      isVerified: !!user?.is_verified,
+      badge: myStats.karma > 1000 ? "Fuel Guardian" : myStats.karma > 200 ? "Trusted Contributor" : "Contributor"
+    };
+  }, [leaderboard, user, myStats]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -130,39 +146,124 @@ export function Leaderboard() {
             Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-24 bg-[#0C1A17] rounded-3xl animate-pulse border border-emerald-500/5" />
             ))
-          ) : leaderboard.map((entry) => (
-            <motion.div
-              key={entry.rank}
-              variants={itemVariants}
-              whileHover={{ scale: 1.01, x: 5 }}
-              className={`group flex items-center gap-6 p-6 rounded-[2.5rem] border transition-all ${
-                entry.id === user?.id 
-                  ? "bg-[#1A2E2A] border-emerald-500/30 shadow-2xl shadow-emerald-500/10" 
-                  : "bg-[#0C1A17] border-emerald-500/5 hover:border-emerald-500/20"
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${entry.color} flex items-center justify-center shadow-2xl shrink-0 group-hover:rotate-6 transition-transform`}>
-                <RankMedal rank={entry.rank} />
+          ) : leaderboard.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center p-12 bg-[#0C1A17] rounded-[2.5rem] border border-emerald-500/10 shadow-2xl">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border border-emerald-500/20">
+                <Trophy className="w-8 h-8 text-emerald-500/60" />
               </div>
+              <h3 className="text-xl font-bold text-white mb-2">No eligible contributors yet</h3>
+              <p className="text-sm text-gray-400 max-w-sm">
+                Users need at least 300 Karma to appear in the Hall of Fame. Keep verifying and updating prices to reach the leaderboard!
+              </p>
+            </div>
+          ) : (
+            leaderboard.map((entry) => {
+              const isTop1 = entry.rank === 1;
+              const isTop2 = entry.rank === 2;
+              const isTop3 = entry.rank === 3;
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-1">
-                   <h3 className="text-lg font-black truncate">{entry.name}</h3>
-                   {entry.isVerified && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-                   <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest bg-[#050A09] px-2 py-1 rounded-md border border-emerald-500/5">{entry.badge}</span>
-                </div>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                   <div className="flex items-center gap-1.5"><Zap className="w-3 h-3 text-emerald-500" /> {entry.updates} Updates</div>
-                   <div className="flex items-center gap-1.5"><Sparkles className="w-3 h-3 text-emerald-400" /> {entry.trustScore}% Trust</div>
-                </div>
-              </div>
+              let cardClass = "";
+              let paddingClass = "";
+              let avatarSizeClass = "";
+              let iconSizeClass = "";
+              let nameClass = "";
+              let karmaClass = "";
+              let badgeClass = "";
 
-              <div className="text-right shrink-0">
-                <div className="text-2xl font-black text-emerald-400">{entry.karma.toLocaleString()}</div>
-                <div className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em]">Karma</div>
-              </div>
-            </motion.div>
-          ))}
+              if (isTop1) {
+                cardClass = "bg-gradient-to-br from-[#193834] via-[#112926] to-[#0a1e1b] border-emerald-400/40 shadow-[0_0_35px_rgba(16,185,129,0.2)] hover:border-emerald-400/60 ring-1 ring-emerald-400/10";
+                paddingClass = "p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem]";
+                avatarSizeClass = "w-14 h-14 md:w-18 md:h-18";
+                iconSizeClass = "w-7 h-7 md:w-9 md:h-9";
+                nameClass = "text-lg md:text-2xl font-black";
+                karmaClass = "text-2xl md:text-4xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]";
+                badgeClass = "bg-[#050A09]/80 border border-emerald-500/20 text-emerald-400";
+              } else if (isTop2) {
+                cardClass = "bg-gradient-to-br from-[#122b27] to-[#081a17] border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)] hover:border-emerald-500/35";
+                paddingClass = "p-5 md:p-7 rounded-[1.75rem] md:rounded-[2.25rem]";
+                avatarSizeClass = "w-12 h-12 md:w-15 md:h-15";
+                iconSizeClass = "w-6 h-6 md:w-7 md:h-7";
+                nameClass = "text-base md:text-xl font-black";
+                karmaClass = "text-xl md:text-3xl font-black text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.15)]";
+                badgeClass = "bg-[#050A09]/60 border border-emerald-500/10 text-slate-300";
+              } else if (isTop3) {
+                cardClass = "bg-gradient-to-br from-[#0e211e] to-[#061513] border-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.05)] hover:border-emerald-500/25";
+                paddingClass = "p-4.5 md:p-6 rounded-[1.5rem] md:rounded-[2rem]";
+                avatarSizeClass = "w-11 h-11 md:w-13 md:h-13";
+                iconSizeClass = "w-5.5 h-5.5 md:w-6 md:h-6";
+                nameClass = "text-sm md:text-lg font-black";
+                karmaClass = "text-lg md:text-2xl font-black text-amber-600 drop-shadow-[0_0_6px_rgba(217,119,6,0.1)]";
+                badgeClass = "bg-[#050A09]/50 border border-emerald-500/5 text-amber-600";
+              } else {
+                cardClass = entry.id === user?.id 
+                  ? "bg-[#1A2E2A] border-emerald-500/30 shadow-2xl shadow-emerald-500/10 hover:border-emerald-500/40" 
+                  : "bg-[#0C1A17] border-emerald-500/5 hover:border-emerald-500/25 hover:bg-[#0e221e]";
+                paddingClass = "p-3.5 md:p-4.5 rounded-[1.25rem] md:rounded-[1.75rem]";
+                avatarSizeClass = "w-9 h-9 md:w-11 md:h-11";
+                iconSizeClass = "w-4.5 h-4.5 md:w-5 md:h-5";
+                nameClass = "text-xs md:text-base font-bold";
+                karmaClass = "text-base md:text-xl font-bold text-emerald-400/90";
+                badgeClass = "bg-[#050A09]/40 border border-emerald-500/5 text-gray-500";
+              }
+
+              return (
+                <motion.div
+                  key={entry.id || entry.rank}
+                  variants={itemVariants}
+                  whileHover={{ scale: 1.005, x: 4 }}
+                  className={`group flex items-center gap-4 md:gap-6 border transition-all ${cardClass} ${paddingClass}`}
+                >
+                  <div className={`rounded-xl bg-gradient-to-br ${entry.color} flex items-center justify-center shadow-2xl shrink-0 group-hover:rotate-3 transition-transform ${avatarSizeClass}`}>
+                    {entry.rank === 1 ? (
+                      <Crown className={`text-white drop-shadow-[0_0_10px_rgba(234,179,8,0.5)] ${iconSizeClass}`} />
+                    ) : entry.rank === 2 ? (
+                      <Trophy className={`text-white drop-shadow-[0_0_8px_rgba(148,163,184,0.5)] ${iconSizeClass}`} />
+                    ) : entry.rank === 3 ? (
+                      <Award className={`text-white drop-shadow-[0_0_8px_rgba(217,119,6,0.5)] ${iconSizeClass}`} />
+                    ) : (
+                      <span className={`font-black text-white/50 ${entry.rank > 9 ? "text-xs md:text-sm" : "text-sm md:text-base"}`}>{entry.rank}</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2.5 mb-1">
+                      <h3 className={`${nameClass} font-black truncate text-white`}>{entry.name}</h3>
+                      {entry.isVerified && <CheckCircle className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-emerald-400 shrink-0" />}
+                      
+                      {isTop1 ? (
+                        <span className="text-[8px] md:text-[9.5px] font-black text-amber-400 uppercase tracking-widest bg-amber-400/10 px-2 md:px-2.5 py-0.5 md:py-1 rounded-full border border-amber-400/25 flex items-center gap-1 shrink-0">
+                          <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3" /> Top Contributor
+                        </span>
+                      ) : isTop2 ? (
+                        <span className="text-[7.5px] md:text-[8.5px] font-black text-slate-300 uppercase tracking-widest bg-slate-300/10 px-1.5 md:px-2 py-0.5 rounded-full border border-slate-300/20 shrink-0">
+                          Rank 2
+                        </span>
+                      ) : isTop3 ? (
+                        <span className="text-[7.5px] md:text-[8.5px] font-black text-amber-600 uppercase tracking-widest bg-amber-600/10 px-1.5 md:px-2 py-0.5 rounded-full border border-amber-600/20 shrink-0">
+                          Rank 3
+                        </span>
+                      ) : null}
+
+                      {entry.badge && (
+                        <span className={`text-[7.5px] md:text-[8.5px] font-black uppercase tracking-widest px-1.5 md:px-2 py-0.5 rounded-md shrink-0 ${badgeClass}`}>
+                          {entry.badge}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3.5 text-[8.5px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      <div className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 md:w-3 md:h-3 text-emerald-500" /> {entry.updates} Updates</div>
+                      <div className="flex items-center gap-1"><Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3 text-emerald-400" /> {entry.trustScore}% Trust</div>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className={karmaClass}>{entry.karma.toLocaleString()}</div>
+                    <div className="text-[7.5px] md:text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] mt-0.5">Karma</div>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
         </motion.div>
 
         {/* Sidebar */}
@@ -172,12 +273,22 @@ export function Leaderboard() {
              <div className="absolute top-0 right-0 p-4 opacity-10"><Crown className="w-20 h-20" /></div>
              <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-6">Your Standing</h3>
              <div className="flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 rounded-2xl bg-emerald-500 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl ${
+                  me?.rank === "—" 
+                    ? "bg-gray-800/40 text-gray-500 border border-gray-700/30" 
+                    : "bg-emerald-500 text-white shadow-emerald-500/20"
+                }`}>
                    <span className="text-2xl font-black">{me?.rank}</span>
                 </div>
                 <div>
                    <div className="text-xl font-black mb-1">{me?.name}</div>
-                   <div className="text-[10px] font-black text-emerald-500/70 uppercase tracking-widest">{me?.badge}</div>
+                   <div className="text-[10px] font-black uppercase tracking-widest">
+                     {me?.rank === "—" ? (
+                       <span className="text-rose-500/80">Unranked (&lt; 300 Karma)</span>
+                     ) : (
+                       <span className="text-emerald-500/70">{me?.badge}</span>
+                     )}
+                   </div>
                 </div>
              </div>
              <div className="grid grid-cols-2 gap-4">
