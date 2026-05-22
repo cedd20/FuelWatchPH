@@ -109,14 +109,14 @@ export function AuthProvider({ children }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       // No session means user just signed out — do nothing silently
-      if (!session) return;
+      if (!session) return null;
 
       const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'}/me/profile`, {
         headers: { 'Authorization': `Bearer ${session.access_token}` }
       });
 
       // Silently ignore auth errors during sign-out — expected behavior
-      if (res.status === 401 || res.status === 403) return;
+      if (res.status === 401 || res.status === 403) return null;
       if (!res.ok) throw new Error("Failed to fetch profile from API");
       const profile = await res.json();
       
@@ -134,6 +134,7 @@ export function AuthProvider({ children }) {
           name: profile?.username || prev?.name || 'User'
         };
       });
+      return profile;
     } catch (e) {
       // Only warn if it's not a sign-out-related abort
       if (!String(e).includes('Failed to fetch')) {
@@ -145,7 +146,8 @@ export function AuthProvider({ children }) {
   const value = {
     user,
     isAuthenticated: !!user,
-    isAdmin: user?.user_type === 0,
+    isAdmin: user?.role === 'admin' || user?.user_type === 0,
+    isAdminAuthenticated: user?.role === 'admin' || user?.user_type === 0,
     loading,
     refreshProfile,
     login: async (email, password, options = {}) => {
@@ -163,6 +165,7 @@ export function AuthProvider({ children }) {
             name: "FuelWatch Admin",
             initials: "FA",
             user_type: 0,
+            role: "admin",
             karma: 9999,
             trustScore: 100,
           };
@@ -184,6 +187,7 @@ export function AuthProvider({ children }) {
           name: "FuelWatch Explorer",
           initials: "FE",
           user_type: 1,
+          role: "user",
           contributionCount: 142 + KarmaService.getContributions().length,
           trustScore: KarmaService.getTrustScore(),
           karma: KarmaService.getKarma(),
@@ -200,9 +204,45 @@ export function AuthProvider({ children }) {
       if (error) throw error;
       
       // Refresh profile to get user_type immediately after login
-      await refreshProfile();
-      
-      return data;
+      const profile = await refreshProfile();
+      return { user: { ...data.user, ...profile } };
+    },
+    adminLogin: async (email, password, options = {}) => {
+      console.log("Attempting admin login for:", email);
+      const rememberMe = options.rememberMe ?? false;
+
+      if (!isValidUrl) {
+        const normalizedEmail = email.trim().toLowerCase();
+        if (normalizedEmail === "admin@fuelwatch.ph" && password === "Admin1234!") {
+          const mockAdmin = {
+            id: "demo-admin-id",
+            email: normalizedEmail,
+            name: "FuelWatch Admin",
+            initials: "FA",
+            user_type: 0,
+            role: "admin",
+            karma: 9999,
+            trustScore: 100,
+          };
+          setStoredRememberMePreference(rememberMe);
+          setUser(mockAdmin);
+          return { user: mockAdmin };
+        }
+
+        throw new Error("Admin access required. Use the FuelWatch admin credentials.");
+      }
+
+      setStoredRememberMePreference(rememberMe);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      const profile = await refreshProfile();
+      if (profile?.user_type !== 0) {
+        const { error: signOutError } = await supabase.auth.signOut();
+        if (signOutError) console.warn("Failed to sign out non-admin user after admin login attempt:", signOutError);
+        setUser(null);
+        throw new Error("Admin access required.");
+      }
+      return { user: { ...data.user, ...profile } };
     },
     signUp: async (email, password, metadata) => {
       console.log("Attempting signup for:", email);

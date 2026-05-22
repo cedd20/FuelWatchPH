@@ -36,7 +36,7 @@ import { UserManagement } from "@/features/admin/UserManagement";
 import { BannedUsers } from "@/features/admin/BannedUsers";
 import { AdminActivityLog } from "@/features/admin/AdminActivityLog";
 import { AdminSettings } from "@/features/admin/AdminSettings";
-
+import { AdminLogin } from "@/features/admin/AdminLogin";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +50,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+  },
+  {
+    path: "/admin/login",
+    element: <AdminLogin />,
   },
   {
     path: "/signup",

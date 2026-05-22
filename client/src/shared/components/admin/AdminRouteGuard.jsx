@@ -17,7 +17,7 @@ export function AdminRouteGuard() {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/login" replace state={{ returnTo: location.pathname }} />;
+    return <Navigate to="/admin/login" replace state={{ returnTo: location.pathname }} />;
   }
 
   return <Outlet />;
