@@ -49,18 +49,13 @@ export function Login() {
       } else {
         clearStoredRememberedCredentials();
       }
-<<<<<<< HEAD
       showAuthSuccessToast("Welcome back!", "You're now signed in.");
-      navigate(returnTo, { replace: true });
-=======
-      toast.success("Welcome back!");
-      const isAdminUser = result?.user?.role === 'admin' || result?.user?.user_type === 0;
+      const isAdminUser = result?.user?.role === "admin" || result?.user?.user_type === 0;
       if (isAdminUser) {
         navigate("/admin/dashboard", { replace: true });
       } else {
         navigate(returnTo, { replace: true });
       }
->>>>>>> ced-development
     } catch (error) {
       const message = error.message || "";
       const lowerMessage = message.toLowerCase();
