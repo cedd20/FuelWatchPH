@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
-  Fuel, 
   Info, 
   ChevronDown, 
   Loader2, 
@@ -10,7 +9,6 @@ import {
   Minus,
   MapPin,
   Calendar,
-  Filter
 } from "lucide-react";
 
 // Utilities & Hooks
@@ -35,13 +33,15 @@ const fuelTypeMap = {
 };
 
 const fuelTypeColors = {
-  DSL: "#F59E0B",
-  PDSL: "#EF4444",
-  UL91: "#3B82F6",
-  PR95: "#8B5CF6",
-  PR97: "#EC4899",
-  Kerosene: "#10B981",
+  UL91: "#16A34A",
+  PR95: "#F59E0B",
+  PR97: "#EF4444",
+  DSL: "#0EA5E9",
+  PDSL: "#0369A1",
+  Kerosene: "#8B5CF6",
 };
+
+const chartFuelOrder = ["UL91", "PR95", "PR97", "DSL", "PDSL", "Kerosene"];
 
 const getPriceChange = (data, currentIndex, fuelType) => {
   if (currentIndex >= data.length - 1) return 0;
@@ -81,6 +81,14 @@ export function GasHistory() {
   }, [historyData, timeRange]);
 
   const latestPoint = visibleHistoryData[0] || historyData[0];
+  const chartPoints = useMemo(() => [...visibleHistoryData].reverse(), [visibleHistoryData]);
+  const renderedFuels = useMemo(() => {
+    if (selectedFuelType !== "All") return [selectedFuelType];
+
+    return chartFuelOrder.filter((fuelType) =>
+      chartPoints.some((point) => isValidPrice(point.averages[fuelTypeMap[fuelType]]))
+    );
+  }, [chartPoints, selectedFuelType]);
 
   if (isLoading) {
     return (
@@ -136,34 +144,46 @@ export function GasHistory() {
         {/* Filters */}
         <Card className="bg-[#0C1A17] border-emerald-500/10 rounded-[2rem]">
           <CardContent className="p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 flex bg-[#1A2E2A] rounded-xl p-1">
-                {["Nationwide", "By City"].map(mode => (
-                  <button
-                    key={mode}
-                    onClick={() => setLocationMode(mode)}
-                    className={`flex-1 py-2 text-[10px] font-black tracking-widest uppercase transition-all rounded-lg ${
-                      locationMode === mode ? 'bg-emerald-500 text-white' : 'text-gray-500'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-              {locationMode === "By City" && (
-                <div className="flex-[1.5] relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-500" />
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full bg-[#1A2E2A] text-white text-[11px] font-bold pl-8 pr-4 py-2.5 rounded-xl border-none appearance-none"
-                  >
-                    <option value="">Select City</option>
-                    {sortedCities.map(c => (
-                      <option key={c.city} value={c.city}>{c.city}</option>
-                    ))}
-                  </select>
+            <div className="space-y-2.5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="inline-flex w-full rounded-2xl border border-emerald-500/10 bg-[#132520] p-1 sm:w-auto sm:min-w-[248px]">
+                  {["Nationwide", "By City"].map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setLocationMode(mode)}
+                      className={`min-h-[42px] flex-1 rounded-xl px-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
+                        locationMode === mode
+                          ? "bg-emerald-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.22)]"
+                          : "text-gray-500 hover:text-gray-300"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
                 </div>
+
+                {locationMode === "By City" && (
+                  <div className="relative min-w-0 flex-1 sm:max-w-[240px]">
+                    <MapPin className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-emerald-500" />
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => setSelectedCity(e.target.value)}
+                      className="min-h-[42px] w-full appearance-none rounded-2xl border border-emerald-500/10 bg-[#132520] pl-10 pr-9 text-[11px] font-bold text-white outline-none transition-colors hover:border-emerald-500/20 focus:border-emerald-500/35"
+                    >
+                      <option value="">Select City</option>
+                      {sortedCities.map(c => (
+                        <option key={c.city} value={c.city}>{c.city}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+                  </div>
+                )}
+              </div>
+
+              {locationMode === "By City" && !selectedCity && (
+                <p className="px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                  Select a city to focus the trend view.
+                </p>
               )}
             </div>
 
@@ -250,8 +270,7 @@ export function GasHistory() {
             <div className="h-64 w-full relative">
                <svg className="w-full h-full overflow-visible" viewBox="0 0 380 200">
                   {(() => {
-                    const chartPoints = [...visibleHistoryData].reverse();
-                    const activeFuels = selectedFuelType === "All" ? ["UL91", "DSL", "PR95"] : [selectedFuelType];
+                    const activeFuels = renderedFuels;
                     
                     let allPrices = [];
                     activeFuels.forEach(f => {
@@ -272,7 +291,7 @@ export function GasHistory() {
                           <line key={y} x1="30" y1={y} x2="380" y2={y} stroke="#1A2E2A" strokeWidth="1" />
                         ))}
 
-                        {activeFuels.map((fuel, fIdx) => {
+                        {activeFuels.map((fuel) => {
                           const points = chartPoints.map((d, i) => {
                             const p = d.averages[fuelTypeMap[fuel]];
                             if (!isValidPrice(p)) return null;
@@ -281,7 +300,7 @@ export function GasHistory() {
                             return { x, y };
                           }).filter(p => p !== null);
 
-                          const color = fIdx === 0 ? '#10B981' : fIdx === 1 ? '#3B82F6' : '#8B5CF6';
+                          const color = fuelTypeColors[fuel] || "#10B981";
 
                           return (
                             <g key={fuel}>
@@ -315,6 +334,22 @@ export function GasHistory() {
                  </>
                )}
             </div>
+            {selectedFuelType === "All" && renderedFuels.length > 0 && (
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5 px-2 sm:mt-4">
+                {renderedFuels.map((fuelType) => (
+                  <div
+                    key={fuelType}
+                    className="inline-flex min-h-[32px] items-center justify-center gap-1.5 rounded-full border border-emerald-500/10 bg-[#09100F] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[0_8px_20px_rgba(0,0,0,0.16)]"
+                  >
+                    <span
+                      className="h-2 w-2 rounded-full shrink-0"
+                      style={{ backgroundColor: fuelTypeColors[fuelType] }}
+                    />
+                    <span>{fuelType}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
 
