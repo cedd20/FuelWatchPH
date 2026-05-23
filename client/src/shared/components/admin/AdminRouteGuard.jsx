@@ -7,8 +7,8 @@ export function AdminRouteGuard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center px-6">
-        <div className="text-center">
+      <div className="admin-theme admin-shell min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center px-6">
+        <div className="admin-panel-strong text-center rounded-3xl border border-gray-200 dark:border-neutral-700 px-8 py-10">
           <div className="w-12 h-12 mx-auto rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin" />
           <p className="mt-4 text-sm font-medium text-muted-foreground">Preparing admin access...</p>
         </div>

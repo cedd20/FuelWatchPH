@@ -4,7 +4,7 @@ import { ArrowLeft, Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/providers/AuthContext";
 import { Button } from "@/shared/components/Button";
-import { Logo } from "@/shared/components/Logo";
+import { AdminLogo } from "@/shared/components/admin/AdminLogo";
 
 export function AdminLogin() {
   const navigate = useNavigate();
@@ -40,7 +40,7 @@ export function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex flex-col lg:flex-row">
+    <div className="admin-theme admin-shell min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex flex-col lg:flex-row">
       <div className="lg:hidden bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-8 px-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -55,7 +55,7 @@ export function AdminLogin() {
             <span>Back to User Sign In</span>
           </button>
           <div className="flex items-center gap-3 mb-4">
-            <Logo size="md" className="drop-shadow-2xl" />
+            <AdminLogo size="md" className="drop-shadow-2xl shrink-0" />
             <h1 className="text-3xl font-bold text-white drop-shadow-2xl tracking-tight">Admin Sign In</h1>
           </div>
           <p className="text-white/95 font-medium drop-shadow-lg">Access the FuelWatch PH admin dashboard</p>
@@ -71,7 +71,7 @@ export function AdminLogin() {
 
         <div className="relative z-10 max-w-xl">
           <div className="mb-8">
-            <Logo size="lg" className="drop-shadow-2xl mb-6" />
+            <AdminLogo size="lg" className="drop-shadow-2xl mb-6" />
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 backdrop-blur-md border border-white/20 mb-6">
               <Shield className="w-4 h-4 text-white" strokeWidth={2.5} />
               <span className="text-sm font-bold text-white">Admin Portal</span>
@@ -107,7 +107,7 @@ export function AdminLogin() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 py-8 lg:w-1/2 lg:min-h-screen lg:flex lg:flex-col lg:justify-center lg:px-16 lg:py-12">
+      <div className="admin-auth-panel flex-1 px-6 py-8 lg:w-1/2 lg:min-h-screen lg:flex lg:flex-col lg:justify-center lg:px-16 lg:py-12">
         <button
           onClick={() => navigate("/login")}
           className="hidden lg:flex items-center gap-2 text-muted-foreground hover:text-foreground font-bold mb-8 transition-all hover:gap-3"
@@ -122,7 +122,7 @@ export function AdminLogin() {
             <p className="text-lg text-muted-foreground font-medium">Access the FuelWatch PH admin dashboard</p>
           </div>
 
-          <form onSubmit={handleAdminLogin} className="space-y-5 lg:space-y-6 mb-6 lg:mb-8">
+          <form onSubmit={handleAdminLogin} className="admin-panel-strong space-y-5 lg:space-y-6 mb-6 lg:mb-8 rounded-[1.75rem] border border-gray-200 dark:border-neutral-700 p-5 lg:p-7">
             <div>
               <label className="block text-sm lg:text-base font-bold text-foreground mb-2 lg:mb-3">Admin Email</label>
               <div className="relative">

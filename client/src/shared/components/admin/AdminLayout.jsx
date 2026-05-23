@@ -12,12 +12,11 @@ import {
   Menu,
   X,
   LogOut,
-  Bell,
   Search,
   User,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
-import { Logo } from "@/shared/components/Logo";
+import { AdminLogo } from "@/shared/components/admin/AdminLogo";
 
 const navItems = [
   { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
@@ -50,13 +49,13 @@ export function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
+    <div className="admin-theme admin-shell min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-neutral-900 border-b-2 border-gray-200 dark:border-neutral-700 z-50 flex items-center justify-between px-4">
-        <Logo size="sm" />
+      <div className="admin-mobile-header lg:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-neutral-900 border-b-2 border-gray-200 dark:border-neutral-700 z-50 flex items-center justify-between px-4">
+        <AdminLogo size="sm" className="shrink-0" />
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-neutral-800 flex items-center justify-center"
+          className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-neutral-800 border border-transparent dark:border-white/5 flex items-center justify-center transition-colors"
         >
           {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -69,14 +68,14 @@ export function AdminLayout() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-neutral-900 border-r-2 border-gray-200 dark:border-neutral-700 z-50 transition-transform duration-300 ${
+        className={`admin-sidebar fixed top-0 left-0 h-full w-64 bg-white dark:bg-neutral-900 border-r-2 border-gray-200 dark:border-neutral-700 z-50 transition-transform duration-300 ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Sidebar Header */}
-        <div className="h-20 flex items-center justify-center border-b-2 border-gray-200 dark:border-neutral-700 px-4">
-          <Logo size="sm" />
-          <div className="ml-2 px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-full text-xs font-bold">
+        <div className="h-20 flex items-center justify-center gap-3 border-b-2 border-gray-200 dark:border-neutral-700 px-4">
+          <AdminLogo size="sm" className="shrink-0" />
+          <div className="px-3 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-full text-xs font-bold">
             Admin
           </div>
         </div>
@@ -93,9 +92,9 @@ export function AdminLayout() {
                   navigate(item.path);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                className={`admin-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
                   isActive
-                    ? "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/40"
+                    ? "admin-nav-item-active bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/40"
                     : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-neutral-800 hover:text-foreground"
                 }`}
               >
@@ -121,7 +120,7 @@ export function AdminLayout() {
       {/* Main Content */}
       <div className="lg:pl-64">
         {/* Top Header Bar */}
-        <div className="hidden lg:flex sticky top-0 z-30 h-16 bg-white dark:bg-neutral-900 border-b-2 border-gray-200 dark:border-neutral-700 px-4 lg:px-8 items-center justify-between">
+        <div className="admin-topbar hidden lg:flex sticky top-0 z-30 h-16 bg-white dark:bg-neutral-900 border-b-2 border-gray-200 dark:border-neutral-700 px-4 lg:px-8 items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-lg lg:text-xl font-bold text-foreground hidden md:block">
               FuelWatch PH Admin
@@ -142,7 +141,7 @@ export function AdminLayout() {
 
 
             {/* Admin Profile */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-neutral-800">
+            <div className="admin-surface flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-neutral-800 border border-transparent dark:border-white/5">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center">
                 <User className="w-4 h-4 text-white" strokeWidth={2.5} />
               </div>

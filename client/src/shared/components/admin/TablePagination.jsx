@@ -63,7 +63,7 @@ export function TablePagination({
   const pageNumbers = getPageNumbers();
 
   return (
-    <div className="border-t-2 border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 px-4 py-4">
+    <div className="admin-surface border-t-2 border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 px-4 py-4">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Left: Rows per page selector */}
         <div className="flex items-center gap-3">
