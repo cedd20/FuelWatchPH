@@ -55,7 +55,7 @@ function PriceUpdateConfirmationModal({
       {/* Modal */}
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl sm:max-h-[88vh] overflow-hidden rounded-t-3xl sm:rounded-3xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] my-auto"
+        className="app-panel-strong relative my-auto w-full max-w-2xl overflow-hidden rounded-t-3xl border-2 border-gray-200 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] sm:max-h-[88vh] sm:rounded-3xl dark:border-neutral-700"
       >
         {/* Header */}
         <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 px-5 py-6 sm:px-7 sm:py-7 text-white relative flex items-start justify-between">
@@ -121,7 +121,7 @@ function PriceUpdateConfirmationModal({
                   return (
                     <div
                       key={change.fuelType}
-                      className="rounded-2xl border-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/50 p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow"
+                      className="app-panel rounded-2xl border-2 border-gray-200 p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5 dark:border-neutral-700"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                         <h4 className="text-base sm:text-lg font-bold text-foreground">{change.fuelType}</h4>
@@ -131,7 +131,7 @@ function PriceUpdateConfirmationModal({
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                        <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-900 p-3 sm:p-4">
+                        <div className="app-elevated rounded-xl border border-gray-200 p-3 sm:p-4 dark:border-neutral-700">
                           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current</p>
                           <p className="mt-2 text-sm sm:text-base font-bold text-foreground">
                             {formatPrice(change.previousPrice)}
@@ -419,38 +419,40 @@ export function UpdatePrice() {
         }}
         message="Sign in to report or update fuel prices."
       />
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-10">
-        {/* Header */}
-        <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-16 lg:pb-24 px-4 relative overflow-hidden">
-          {/* Enhanced radial glow background */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-teal-400/10 rounded-full blur-2xl" />
+      <div className="app-shell min-h-screen pb-10">
+        <div className="relative overflow-hidden px-4 pb-24 pt-12 lg:px-8">
+          <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-emerald-500/8 blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-teal-500/8 blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-          <div className="relative z-10 max-w-6xl mx-auto">
-            <div className="flex items-center gap-2 mb-2 lg:mb-3">
-              <button
-                onClick={() => navigate(-1)}
-                className="w-10 h-10 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full flex items-center justify-center shadow-lg shadow-black/10 hover:scale-105 transition-transform border border-white/20"
-              >
-                <ArrowLeft className="w-5 h-5 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
-              </button>
-              <h1 className="text-xl lg:text-2xl font-bold text-white drop-shadow-lg tracking-tight">Update Fuel Prices</h1>
-            </div>
-            <p className="text-white/90 text-sm lg:text-base font-medium drop-shadow-md pl-1">
-              {station?.name || "Loading..."}
-            </p>
-            {selectedFuelType && (
-              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur-md">
-                Editing {selectedFuelType}
+          <div className="relative z-10 mx-auto max-w-6xl">
+            <div className="mb-10 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="mb-3 flex items-center gap-3">
+                  <button
+                    onClick={() => navigate(-1)}
+                    className="app-panel flex h-11 w-11 items-center justify-center rounded-full border border-emerald-500/10 shadow-lg transition-transform hover:scale-105 hover:bg-emerald-500 hover:text-white"
+                  >
+                    <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+                  </button>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600 dark:text-emerald-400">Fuel Update</p>
+                    <h1 className="text-2xl font-black tracking-tight text-foreground lg:text-3xl">Update Fuel Prices</h1>
+                  </div>
+                </div>
+                <p className="max-w-2xl text-sm font-medium text-muted-foreground lg:text-base">
+                  Submit a fresh report for <span className="font-bold text-foreground">{station?.name || "this station"}</span> and keep community pricing reliable.
+                </p>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Content Container */}
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 -mt-10 lg:-mt-16 relative z-20">
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl shadow-black/10 border-2 border-gray-100 dark:border-neutral-800 p-6 lg:p-8 backdrop-blur-2xl">
+              {selectedFuelType && (
+                <div className="app-panel-muted hidden rounded-full border border-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300 sm:inline-flex">
+                  Editing {selectedFuelType}
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+              <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl lg:p-8">
             {isKarmaBlocked ? (
               <div className="py-12 flex flex-col items-center justify-center text-center">
                 <div className="w-20 h-20 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mb-6 border-4 border-rose-200 dark:border-rose-800">
@@ -469,11 +471,26 @@ export function UpdatePrice() {
               </div>
             ) : (
               <>
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-foreground lg:text-2xl">Price Entry</h2>
+                <p className="mt-2 text-sm font-medium text-muted-foreground">
+                  Enter only the fuel prices that changed. Blank fields will be ignored.
+                </p>
+              </div>
+              {selectedFuelType && (
+                <div className="app-panel-muted inline-flex rounded-full border border-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 sm:hidden">
+                  {selectedFuelType}
+                </div>
+              )}
+            </div>
+
             {/* Location Status */}
             <div className="mb-6">
               {isNearStation ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-400/30 rounded-xl p-4 flex items-start gap-3 shadow-md shadow-emerald-500/5 transition-all">
-                  <div className="bg-emerald-100 dark:bg-emerald-900/50 p-1.5 rounded-lg flex-shrink-0">
+                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-50 p-4 shadow-md shadow-emerald-500/5 transition-all dark:bg-emerald-950/30">
+                  <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-emerald-100 p-1.5 flex-shrink-0 dark:bg-emerald-900/50">
                     <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
@@ -484,10 +501,12 @@ export function UpdatePrice() {
                       You are within range to update prices
                     </div>
                   </div>
+                  </div>
                 </div>
               ) : (
-                <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-400/30 rounded-xl p-4 flex items-start gap-3 shadow-md shadow-yellow-500/5">
-                  <div className="bg-yellow-100 dark:bg-yellow-900/50 p-1.5 rounded-lg flex-shrink-0">
+                <div className="rounded-2xl border border-yellow-400/30 bg-yellow-50 p-4 shadow-md shadow-yellow-500/5 dark:bg-yellow-950/30">
+                  <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-yellow-100 p-1.5 flex-shrink-0 dark:bg-yellow-900/50">
                     <AlertTriangle className="w-4 h-4 lg:w-5 lg:h-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
                   <div>
@@ -498,6 +517,7 @@ export function UpdatePrice() {
                       Please move closer to the station
                     </div>
                   </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -505,12 +525,6 @@ export function UpdatePrice() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-8">
               <div>
-                <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-4 tracking-tight">
-                  Update Prices
-                </h3>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Enter new prices for any fuel types you want to update. Leave fields blank if the price hasn't changed.
-                </p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {fuelTypesList.map((fuel) => {
                     const currentEnteredPrice = prices[fuel.id];
@@ -527,26 +541,44 @@ export function UpdatePrice() {
                     }[fuel.id] || fuel.id.substring(0, 4).toUpperCase();
 
                     return (
-                      <div key={fuel.id} className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-500 uppercase tracking-wider z-10 pointer-events-none">
-                          {shortLabel}
+                      <div key={fuel.id} className={`app-panel group rounded-[1.6rem] border p-4 shadow-lg transition-all ${isEdited ? "border-emerald-400/30 shadow-emerald-500/10" : "border-emerald-500/8"}`}>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">
+                              {shortLabel}
+                            </div>
+                            <div className="mt-1 text-sm font-bold text-foreground">{fuel.label}</div>
+                          </div>
+                          <div className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${fuel.isNew ? "bg-blue-500/10 text-blue-600 dark:text-blue-300" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"}`}>
+                            {fuel.isNew ? "New" : "Live"}
+                          </div>
                         </div>
-                        
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={currentEnteredPrice || ""}
-                          onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
-                          placeholder={hasCurrent ? formatPrice(fuel.currentPrice).replace('₱', '') : "0.00"}
-                          className="w-full bg-[#0C1A17] border border-emerald-500/5 rounded-[20px] pl-16 pr-4 py-5 font-black text-white focus:outline-none focus:border-emerald-500/20 transition-all placeholder:text-gray-800 text-lg"
-                        />
+
+                        <div className="mb-3 rounded-xl border border-emerald-500/8 bg-emerald-500/5 px-3 py-2">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Current Price</div>
+                          <div className="mt-1 text-sm font-bold text-foreground">
+                            {hasCurrent ? formatPrice(fuel.currentPrice) : "No report yet"}
+                          </div>
+                        </div>
+
+                        <div className="relative">
+                          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base font-black text-emerald-600 dark:text-emerald-400">₱</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={currentEnteredPrice || ""}
+                            onChange={(e) => handlePriceChange(fuel.id, e.target.value)}
+                            placeholder={hasCurrent ? formatPrice(fuel.currentPrice).replace('₱', '') : "0.00"}
+                            className="app-input w-full rounded-[1.1rem] border border-emerald-500/10 py-4 pl-9 pr-4 text-lg font-black focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-muted-foreground"
+                          />
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border-2 border-emerald-200/50 dark:border-emerald-800/30 rounded-2xl p-6 shadow-lg">
+              <div className="rounded-2xl border-2 border-emerald-200/50 bg-emerald-50/50 p-6 shadow-lg dark:border-emerald-800/30 dark:bg-emerald-950/20">
                 <h4 className="font-bold text-foreground text-base lg:text-lg mb-3 flex items-center gap-2">
                   <Info className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   Update Guidelines
@@ -581,6 +613,42 @@ export function UpdatePrice() {
             </form>
             </>
             )}
+              </div>
+
+              <aside className="space-y-6">
+                <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10">
+                      <MapPin className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Station</div>
+                      <div className="mt-1 text-lg font-black text-foreground">{station?.name}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-3 text-sm font-medium text-muted-foreground">
+                    <div>{station?.address}</div>
+                    <div className="rounded-xl border border-emerald-500/8 bg-emerald-500/5 px-4 py-3">
+                      Submitting updates here helps keep nearby drivers informed in real time.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl">
+                  <div className="mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">Report Summary</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="app-elevated rounded-2xl border border-emerald-500/8 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Editable Fuels</div>
+                      <div className="mt-2 text-2xl font-black text-foreground">{fuelTypesList.length}</div>
+                    </div>
+                    <div className="app-elevated rounded-2xl border border-emerald-500/8 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Changed Now</div>
+                      <div className="mt-2 text-2xl font-black text-foreground">{Object.keys(prices).length}</div>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
         </div>
       </div>

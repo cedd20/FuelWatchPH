@@ -26,6 +26,34 @@ export function VerificationRequest() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [existingRequest, setExistingRequest] = useState(null);
   const [isCheckingRequest, setIsCheckingRequest] = useState(true);
+  const canResubmit = !existingRequest || existingRequest.status === "rejected" || existingRequest.status === "needs_correction";
+  const statusToneMap = {
+    approved: {
+      label: "Verified",
+      container: "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100",
+      meta: "text-emerald-700 dark:text-emerald-200/80",
+      message: "Your identity has already been verified. You can return to your profile to view your badge.",
+    },
+    pending: {
+      label: "Under Review",
+      container: "border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100",
+      meta: "text-sky-700 dark:text-sky-200/80",
+      message: "Your verification request is already in review. We will update your profile once the review is complete.",
+    },
+    needs_correction: {
+      label: "Needs Correction",
+      container: "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100",
+      meta: "text-amber-700 dark:text-amber-200/80",
+      message: "Your previous submission needs corrections. Update the details below and upload clearer ID photos.",
+    },
+    rejected: {
+      label: "Resubmission Needed",
+      container: "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-100",
+      meta: "text-rose-700 dark:text-rose-200/80",
+      message: "Your previous verification request was rejected. Review the details below and submit a new request.",
+    },
+  };
+  const statusTone = existingRequest ? (statusToneMap[existingRequest.status] || statusToneMap.pending) : null;
 
   useEffect(() => {
     async function checkExistingRequest() {
@@ -150,7 +178,7 @@ export function VerificationRequest() {
     }
 
     // Prevent submitting if there is an existing pending/approved request
-    if (existingRequest && !(existingRequest.status === 'rejected' || existingRequest.status === 'needs_correction')) {
+    if (!canResubmit) {
       toast.error('You already have a verification request in progress. You can submit again only if it was rejected or needs correction.');
       return;
     }
@@ -170,8 +198,8 @@ export function VerificationRequest() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 flex items-center justify-center p-6 pb-24">
-        <div className="max-w-md w-full bg-white dark:bg-neutral-900 rounded-3xl p-10 shadow-2xl border-2 border-gray-100 dark:border-neutral-800 text-center space-y-8">
+      <div className="app-shell flex min-h-screen items-center justify-center p-6 pb-24">
+        <div className="app-panel-strong max-w-md w-full rounded-3xl border-2 border-gray-100 p-10 text-center shadow-2xl space-y-8 dark:border-neutral-800">
           <div className="relative mx-auto w-24 h-24">
             <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse" />
             <div className="relative w-full h-full bg-emerald-100 dark:bg-emerald-500/10 rounded-full flex items-center justify-center border-4 border-white dark:border-neutral-800 shadow-lg">
@@ -193,40 +221,62 @@ export function VerificationRequest() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-neutral-950 dark:to-neutral-900 pb-12">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-600 via-green-600 to-teal-700 pt-12 pb-20 px-4 lg:px-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-        
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => navigate(-1)}
-              className="w-10 h-10 lg:w-12 lg:h-12 bg-white/20 backdrop-blur-xl rounded-full flex items-center justify-center shadow-2xl border border-white/30 hover:scale-110 transition-transform"
-            >
-              <ArrowLeft className="w-5 h-5 lg:w-6 lg:h-6 text-white" strokeWidth={2.5} />
-            </button>
-            <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Identity Verification</h1>
-          </div>
-          <p className="text-emerald-50 font-medium max-w-xl">
-            Complete your profile verification to earn the blue checkmark badge and increase your community trust score.
-          </p>
-        </div>
-      </div>
+    <div className="app-shell min-h-screen pb-12">
+      <div className="relative overflow-hidden px-4 pb-20 pt-12 lg:px-8">
+        <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-emerald-500/8 blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-teal-500/8 blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-      <div className="max-w-4xl mx-auto px-4 -mt-12 relative z-10">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl p-8 shadow-2xl border-2 border-gray-100 dark:border-neutral-800 space-y-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-emerald-600" />
+        <div className="relative z-10 mx-auto max-w-6xl">
+          <div className="mb-10 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="mb-3 flex items-center gap-3">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="app-panel flex h-11 w-11 items-center justify-center rounded-full border border-emerald-500/10 shadow-lg transition-transform hover:scale-105 hover:bg-emerald-500 hover:text-white"
+                >
+                  <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+                </button>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-emerald-600 dark:text-emerald-400">Trust Upgrade</p>
+                  <h1 className="text-2xl font-black tracking-tight text-foreground lg:text-3xl">Identity Verification</h1>
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-foreground">Verification Details</h3>
+              <p className="max-w-2xl text-sm font-medium text-muted-foreground lg:text-base">
+                Confirm your identity to unlock your verified member badge and strengthen your reputation with the FuelWatch PH community.
+              </p>
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl lg:p-8">
+              {statusTone && (
+                <div className={`mb-6 rounded-3xl border px-5 py-4 ${statusTone.container}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 dark:bg-black/10">
+                      <Shield className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.22em] opacity-80">
+                        Verification Status
+                      </div>
+                      <div className="mt-1 text-lg font-black">{statusTone.label}</div>
+                      <p className={`mt-1 text-sm font-medium ${statusTone.meta}`}>{statusTone.message}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-8 flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-500/10">
+                  <Shield className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-foreground">Verification Details</h2>
+                  <p className="mt-1 text-sm font-medium text-muted-foreground">Provide the same information shown on your government-issued ID.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-bold text-muted-foreground ml-1">Full Legal Name</label>
                 <div className="relative">
@@ -236,7 +286,8 @@ export function VerificationRequest() {
                     value={formData.full_name}
                     onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                     placeholder="Enter your full name"
-                    className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border-2 border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-neutral-800 transition-all outline-none font-medium"
+                    className="app-input w-full rounded-2xl border border-emerald-500/10 py-4 pl-12 pr-4 font-medium transition-all outline-none focus:border-emerald-500"
+                    disabled={isCheckingRequest || !canResubmit}
                     required
                   />
                 </div>
@@ -247,7 +298,8 @@ export function VerificationRequest() {
                 <select
                   value={formData.id_type}
                   onChange={(e) => setFormData({...formData, id_type: e.target.value})}
-                  className="w-full px-4 py-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border-2 border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-neutral-800 transition-all outline-none font-medium appearance-none cursor-pointer"
+                  className="app-input w-full appearance-none rounded-2xl border border-emerald-500/10 px-4 py-4 font-medium transition-all outline-none cursor-pointer focus:border-emerald-500"
+                  disabled={isCheckingRequest || !canResubmit}
                   required
                 >
                   {idTypes.map(type => (
@@ -265,23 +317,24 @@ export function VerificationRequest() {
                     value={formData.id_number}
                     onChange={(e) => setFormData({...formData, id_number: e.target.value})}
                     placeholder="Enter ID number"
-                    className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-neutral-800/50 rounded-2xl border-2 border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-neutral-800 transition-all outline-none font-medium"
+                    className="app-input w-full rounded-2xl border border-emerald-500/10 py-4 pl-12 pr-4 font-medium transition-all outline-none focus:border-emerald-500"
+                    disabled={isCheckingRequest || !canResubmit}
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-3">
                 <label className="text-sm font-bold text-muted-foreground ml-1">Photo of Front ID</label>
                 <div 
-                  onClick={() => !isUploading && fileInputRefFront.current?.click()}
-                  className={`relative h-48 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-4 cursor-pointer overflow-hidden ${
+                  onClick={() => !isUploading && canResubmit && !isCheckingRequest && fileInputRefFront.current?.click()}
+                  className={`relative flex h-52 cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-3xl border-2 border-dashed transition-all ${
                     formData.id_front_url 
-                      ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5" 
-                      : "border-gray-200 dark:border-neutral-700 hover:border-emerald-500 bg-gray-50 dark:bg-neutral-800/50"
-                  }`}
+                      ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-500/5" 
+                      : "app-elevated border-gray-200 hover:border-emerald-500 dark:border-neutral-700"
+                  } ${!canResubmit || isCheckingRequest ? "cursor-not-allowed opacity-75" : ""}`}
                 >
                   {formData.id_front_url ? (
                     <>
@@ -289,11 +342,12 @@ export function VerificationRequest() {
                             <div className="absolute top-2 right-2 z-20">
                               <button
                                 type="button"
-                                onClick={(ev) => { ev.stopPropagation(); fileInputRefFront.current?.click(); }}
-                                className="bg-white/80 dark:bg-neutral-800/80 text-xs px-3 py-1 rounded-full shadow-sm"
-                              >
-                                Change
-                              </button>
+                              onClick={(ev) => { ev.stopPropagation(); if (canResubmit && !isCheckingRequest) fileInputRefFront.current?.click(); }}
+                              className="app-panel-muted rounded-full px-3 py-1 text-xs shadow-sm"
+                              disabled={!canResubmit || isCheckingRequest}
+                            >
+                              Change
+                            </button>
                             </div>
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
                               <Camera className="w-8 h-8 text-white" />
@@ -301,10 +355,11 @@ export function VerificationRequest() {
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 bg-white dark:bg-neutral-800 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="app-panel-muted flex h-12 w-12 items-center justify-center rounded-full shadow-lg">
                         {isUploading === 'front' ? <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" /> : <Upload className="w-6 h-6 text-emerald-600" />}
                       </div>
                       <p className="font-bold text-xs lg:text-sm text-foreground">Upload Front Side</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">Clear and readable, no glare</p>
                     </>
                   )}
                   <input
@@ -312,6 +367,7 @@ export function VerificationRequest() {
                     ref={fileInputRefFront}
                     onChange={(e) => handleImageUpload(e, 'front')}
                     accept="image/*"
+                    disabled={isCheckingRequest || !canResubmit}
                     className="hidden"
                   />
                 </div>
@@ -320,12 +376,12 @@ export function VerificationRequest() {
               <div className="space-y-3">
                 <label className="text-sm font-bold text-muted-foreground ml-1">Photo of Back ID</label>
                 <div 
-                  onClick={() => !isUploading && fileInputRefBack.current?.click()}
-                  className={`relative h-48 rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-4 cursor-pointer overflow-hidden ${
+                  onClick={() => !isUploading && canResubmit && !isCheckingRequest && fileInputRefBack.current?.click()}
+                  className={`relative flex h-52 cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-3xl border-2 border-dashed transition-all ${
                     formData.id_back_url 
-                      ? "border-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5" 
-                      : "border-gray-200 dark:border-neutral-700 hover:border-emerald-500 bg-gray-50 dark:bg-neutral-800/50"
-                  }`}
+                      ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-500/5" 
+                      : "app-elevated border-gray-200 hover:border-emerald-500 dark:border-neutral-700"
+                  } ${!canResubmit || isCheckingRequest ? "cursor-not-allowed opacity-75" : ""}`}
                 >
                   {formData.id_back_url ? (
                     <>
@@ -333,8 +389,9 @@ export function VerificationRequest() {
                           <div className="absolute top-2 right-2 z-20">
                             <button
                               type="button"
-                              onClick={(ev) => { ev.stopPropagation(); fileInputRefBack.current?.click(); }}
-                              className="bg-white/80 dark:bg-neutral-800/80 text-xs px-3 py-1 rounded-full shadow-sm"
+                              onClick={(ev) => { ev.stopPropagation(); if (canResubmit && !isCheckingRequest) fileInputRefBack.current?.click(); }}
+                              className="app-panel-muted rounded-full px-3 py-1 text-xs shadow-sm"
+                              disabled={!canResubmit || isCheckingRequest}
                             >
                               Change
                             </button>
@@ -345,10 +402,11 @@ export function VerificationRequest() {
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 bg-white dark:bg-neutral-800 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="app-panel-muted flex h-12 w-12 items-center justify-center rounded-full shadow-lg">
                         {isUploading === 'back' ? <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" /> : <Upload className="w-6 h-6 text-emerald-600" />}
                       </div>
                       <p className="font-bold text-xs lg:text-sm text-foreground">Upload Back Side</p>
+                      <p className="text-[11px] font-medium text-muted-foreground">Make sure the full card is visible</p>
                     </>
                   )}
                   <input
@@ -356,45 +414,90 @@ export function VerificationRequest() {
                     ref={fileInputRefBack}
                     onChange={(e) => handleImageUpload(e, 'back')}
                     accept="image/*"
+                    disabled={isCheckingRequest || !canResubmit}
                     className="hidden"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-amber-50 dark:bg-amber-500/5 rounded-2xl border-2 border-amber-100 dark:border-amber-500/20 flex gap-4">
+            <div className="mt-8 flex gap-4 rounded-2xl border-2 border-amber-100 bg-amber-50 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
               <Info className="w-6 h-6 text-amber-600 flex-shrink-0" />
               <div className="text-sm text-amber-900 dark:text-amber-200/80 font-medium">
                 Your ID photos are encrypted and only used for verification purposes. Both front and back are required for complete verification.
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="flex flex-row gap-3 sm:gap-4 mt-8">
-            <Button 
-              type="button" 
-              variant="outline" 
-              fullWidth 
-              size="md"
-              onClick={() => navigate(-1)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              fullWidth 
-              size="md" 
-              loading={isLoading}
-              disabled={!!isUploading || !formData.id_front_url || !formData.id_back_url}
-              icon={Shield}
-            >
-              Submit for Verification
-            </Button>
-          </div>
-        </form>
+            <aside className="space-y-6">
+              <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl">
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10">
+                    <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-[0.22em] text-muted-foreground">Verification Benefits</div>
+                    <div className="mt-1 text-lg font-black text-foreground">Build Community Trust</div>
+                  </div>
+                </div>
+                <ul className="space-y-3 text-sm font-medium text-muted-foreground">
+                  <li className="rounded-xl border border-emerald-500/8 bg-emerald-500/5 px-4 py-3">
+                    Earn the verified member badge on your profile.
+                  </li>
+                  <li className="rounded-xl border border-emerald-500/8 bg-emerald-500/5 px-4 py-3">
+                    Improve confidence in your future station reports.
+                  </li>
+                  <li className="rounded-xl border border-emerald-500/8 bg-emerald-500/5 px-4 py-3">
+                    Help other users trust the updates you submit.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 shadow-2xl">
+                <div className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600 dark:text-emerald-400">Submission Checklist</div>
+                <div className="mt-3 text-sm font-medium text-muted-foreground">
+                  {isCheckingRequest
+                    ? "Checking your latest verification status..."
+                    : canResubmit
+                      ? "Complete both uploads before sending your request."
+                      : "Your current verification request is already locked for review."}
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="app-elevated rounded-2xl border border-emerald-500/8 p-4 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Front ID</div>
+                    <div className="mt-2 text-xl font-black text-foreground">{formData.id_front_url ? "Ready" : "Needed"}</div>
+                  </div>
+                  <div className="app-elevated rounded-2xl border border-emerald-500/8 p-4 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Back ID</div>
+                    <div className="mt-2 text-xl font-black text-foreground">{formData.id_back_url ? "Ready" : "Needed"}</div>
+                  </div>
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    fullWidth 
+                    size="md"
+                    onClick={() => navigate(-1)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    fullWidth 
+                    size="md" 
+                    loading={isLoading}
+                    disabled={isCheckingRequest || !canResubmit || !!isUploading || !formData.id_front_url || !formData.id_back_url}
+                    icon={Shield}
+                  >
+                    Submit
+                  </Button>
+                </div>
+              </div>
+            </aside>
+          </form>
+        </div>
       </div>
     </div>
   );
 }
-
-

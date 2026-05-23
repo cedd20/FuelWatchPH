@@ -121,7 +121,7 @@ export function EditProfile() {
 
   if (isFetching) {
     return (
-      <div className="min-h-screen bg-[#050A09] flex flex-col items-center justify-center gap-4">
+      <div className="app-shell flex min-h-screen flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
         <p className="text-emerald-500/60 font-bold animate-pulse text-sm">Loading profile...</p>
       </div>
@@ -129,10 +129,10 @@ export function EditProfile() {
   }
 
   const inputClass =
-    "w-full bg-[#050A09] border border-emerald-500/10 rounded-2xl p-5 text-sm font-bold text-white placeholder:text-gray-700 focus:border-emerald-500/50 focus:outline-none transition-all";
+    "app-input w-full rounded-2xl border border-emerald-500/10 p-5 text-sm font-bold text-foreground placeholder:text-muted-foreground focus:border-emerald-500/50 focus:outline-none transition-all";
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-28">
+    <div className="app-shell min-h-screen pb-28 text-foreground">
       {/* Header */}
       <div className="relative pt-14 pb-24 px-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
@@ -140,13 +140,13 @@ export function EditProfile() {
           <div className="flex items-center gap-6 mb-10">
             <button
               onClick={() => navigate(-1)}
-              className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group"
+              className="app-panel group rounded-full border border-emerald-500/10 p-3 shadow-2xl transition-all hover:bg-emerald-500 hover:text-white"
             >
               <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
             </button>
             <div>
               <h1 className="text-4xl font-black tracking-tight">Edit Profile</h1>
-              <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">Update your public info</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">Update your public info</p>
             </div>
           </div>
         </div>
@@ -159,11 +159,11 @@ export function EditProfile() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#0C1A17] rounded-[3rem] p-10 border border-emerald-500/10 shadow-2xl flex flex-col items-center"
+            className="app-panel flex flex-col items-center rounded-[3rem] border border-emerald-500/10 p-10 shadow-2xl"
           >
             <div className="relative group mb-4">
               <div className="w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-1 shadow-2xl shadow-emerald-500/20">
-                <div className="w-full h-full rounded-[2.2rem] bg-[#050A09] flex items-center justify-center overflow-hidden border border-white/10">
+                <div className="app-panel-strong flex h-full w-full items-center justify-center overflow-hidden rounded-[2.2rem] border border-white/10">
                   {formData.avatar_url ? (
                     <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -177,7 +177,7 @@ export function EditProfile() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="absolute -bottom-2 -right-2 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-xl border-4 border-[#050A09] hover:scale-110 transition-transform disabled:opacity-50"
+                className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-full border-4 border-[var(--app-shell)] bg-emerald-500 shadow-xl transition-transform hover:scale-110 disabled:opacity-50"
               >
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
               </button>
@@ -189,7 +189,7 @@ export function EditProfile() {
                 className="hidden"
               />
             </div>
-            <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Tap the camera to update photo
             </p>
           </motion.div>
@@ -199,7 +199,7 @@ export function EditProfile() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-[#0C1A17] rounded-[3rem] p-8 border border-emerald-500/10 shadow-2xl space-y-6"
+            className="app-panel space-y-6 rounded-[3rem] border border-emerald-500/10 p-8 shadow-2xl"
           >
             <div className="flex items-center gap-4 mb-2">
               <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
@@ -209,9 +209,9 @@ export function EditProfile() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3">Username / Name</label>
+              <label className="mb-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Username / Name</label>
               <div className="relative">
-                <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                <User className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   value={formData.username}
@@ -224,7 +224,7 @@ export function EditProfile() {
             </div>
 
             <div>
-              <label className="block text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3">Bio</label>
+              <label className="mb-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Bio</label>
               <textarea
                 value={formData.bio}
                 onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
@@ -236,16 +236,16 @@ export function EditProfile() {
 
             {/* Verification Row */}
             <div className="pt-4 border-t border-emerald-500/5">
-              <label className="block text-[10px] font-black text-gray-600 uppercase tracking-widest mb-4">Identity Verification</label>
+              <label className="mb-4 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Identity Verification</label>
               {/* Simplified Verification Section */}
-              <div className="flex items-center justify-between p-5 bg-[#0C1A17] rounded-2xl border border-emerald-500/10">
+              <div className="app-elevated flex items-center justify-between rounded-2xl border border-emerald-500/10 p-5">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
                     <Shield className="w-5 h-5 text-emerald-500/40" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Verification</div>
-                    <div className="text-xs font-bold text-white mt-0.5">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verification</div>
+                    <div className="mt-0.5 text-xs font-bold text-foreground">
                       {user?.is_verified ? "Verified Member" : "Not Verified"}
                     </div>
                   </div>
@@ -322,7 +322,7 @@ export function EditProfile() {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 py-5 bg-[#0C1A17] border border-emerald-500/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.15em] text-gray-500 hover:text-white transition-all"
+              className="app-panel flex-1 rounded-2xl border border-emerald-500/10 py-5 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground transition-all hover:text-foreground"
             >
               Cancel
             </button>

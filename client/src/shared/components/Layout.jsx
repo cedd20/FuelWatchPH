@@ -34,8 +34,15 @@ export function Layout() {
   return (
     <div className="app-shell flex h-screen flex-col">
       {/* Desktop Top Navigation - Hidden on Mobile */}
-      <nav className="app-panel-strong hidden sticky top-0 z-50 border-b lg:block">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+      <nav
+        className="hidden sticky top-0 z-50 border-b lg:block"
+        style={{
+          background: "color-mix(in srgb, var(--app-shell) 72%, transparent)",
+          borderColor: "var(--app-border)",
+          backdropFilter: "blur(18px)",
+        }}
+      >
+        <div className="mx-auto max-w-[1520px] px-8 py-4">
           <div className="flex items-center justify-between">
             {/* Logo/Brand */}
             <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate("/app/home")}>
@@ -43,7 +50,7 @@ export function Layout() {
             </div>
 
             {/* Navigation Items */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.path);
@@ -52,9 +59,9 @@ export function Layout() {
                   <button
                     key={item.path}
                     onClick={() => navigate(item.path)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all relative ${
+                    className={`flex items-center gap-2 rounded-full px-6 py-3 text-base font-bold transition-all relative ${
                       active
-                        ? "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30"
+                        ? "bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-600 text-white shadow-[0_10px_28px_rgba(16,185,129,0.32)]"
                         : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                     }`}
                   >
