@@ -43,20 +43,39 @@ export function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password, { rememberMe });
+      const result = await login(email, password, { rememberMe });
       if (rememberMe) {
         setStoredRememberedCredentials(email, password);
       } else {
         clearStoredRememberedCredentials();
       }
+<<<<<<< HEAD
       showAuthSuccessToast("Welcome back!", "You're now signed in.");
       navigate(returnTo, { replace: true });
+=======
+      toast.success("Welcome back!");
+      const isAdminUser = result?.user?.role === 'admin' || result?.user?.user_type === 0;
+      if (isAdminUser) {
+        navigate("/admin/dashboard", { replace: true });
+      } else {
+        navigate(returnTo, { replace: true });
+      }
+>>>>>>> ced-development
     } catch (error) {
       const message = error.message || "";
-      if (message.toLowerCase().includes("email not confirmed")) {
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes("email not confirmed")) {
         toast.error("Email not confirmed. Please check your inbox.");
-      } else if (message.toLowerCase().includes("invalid login credentials")) {
-        toast.error("Invalid email or password. Please try again.");
+      } else if (
+        error.status === 400 ||
+        lowerMessage.includes("invalid login credentials") ||
+        lowerMessage.includes("invalid credentials") ||
+        lowerMessage.includes("invalid_grant") ||
+        lowerMessage.includes("invalid_credentials") ||
+        lowerMessage.includes("bad credentials")
+      ) {
+        alert("Incorrect email or password. Please try again.");
+        toast.error("Incorrect email or password. Please try again.");
       } else {
         toast.error(message || "An error occurred during login");
       }

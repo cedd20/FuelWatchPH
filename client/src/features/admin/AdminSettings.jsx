@@ -7,7 +7,7 @@ export function AdminSettings() {
   const [profileData, setProfileData] = useState({
     name: user?.username || user?.name || "Admin User",
     email: user?.email || "admin@fuelwatchph.com",
-    role: user?.user_type === 0 ? "Super Admin" : "User",
+    role: user?.role === 'admin' || user?.user_type === 0 ? "Super Admin" : "User",
   });
 
 

@@ -148,7 +148,7 @@ export function AdminLayout() {
               </div>
               <div className="hidden lg:block">
                 <div className="text-xs font-bold text-foreground">{user?.username || user?.name || "Admin"}</div>
-                <div className="text-xs text-muted-foreground">{user?.user_type === 0 ? "Super Admin" : "User"}</div>
+                <div className="text-xs text-muted-foreground">{user?.role === 'admin' || user?.user_type === 0 ? "Super Admin" : "User"}</div>
               </div>
             </div>
           </div>

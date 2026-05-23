@@ -88,7 +88,7 @@ export function Profile() {
     { icon: FileText, label: "Legal", sub: "Terms & Privacy", path: "/app/terms" },
   ];
 
-  const filteredMenu = menuItems.filter(item => !item.admin || user?.user_type === 0);
+  const filteredMenu = menuItems.filter(item => !item.admin || user?.role === 'admin' || user?.user_type === 0);
 
   const containerVariants = {
     hidden: { opacity: 0 },
