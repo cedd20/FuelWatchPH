@@ -179,7 +179,7 @@ export function Leaderboard() {
                 karmaClass = "text-2xl md:text-4xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]";
                 badgeClass = "border border-emerald-500/20 bg-white/80 text-emerald-700 dark:bg-[#050A09]/80 dark:text-emerald-400";
               } else if (isTop2) {
-                cardClass = "border-emerald-400/20 bg-gradient-to-br from-slate-50 via-white to-emerald-50 text-foreground shadow-[0_0_20px_rgba(16,185,129,0.06)] hover:border-emerald-500/30 dark:from-[#122b27] dark:to-[#081a17] dark:text-white dark:shadow-[0_0_20px_rgba(16,185,129,0.1)]";
+                cardClass = "border-emerald-400/20 bg-gradient-to-br from-slate-50 via-white to-emerald-50 text-foreground shadow-[0_0_20px_rgba(16,185,129,0.06)] hover:border-emerald-500/30 dark:border-emerald-500/18 dark:from-[#132f2b] dark:via-[#0f2622] dark:to-[#091816] dark:text-white dark:shadow-[0_0_20px_rgba(16,185,129,0.12)]";
                 paddingClass = "p-5 md:p-7 rounded-[1.75rem] md:rounded-[2.25rem]";
                 avatarSizeClass = "w-12 h-12 md:w-15 md:h-15";
                 iconSizeClass = "w-6 h-6 md:w-7 md:h-7";
@@ -187,13 +187,13 @@ export function Leaderboard() {
                 karmaClass = "text-xl md:text-3xl font-black text-slate-600 drop-shadow-[0_0_8px_rgba(203,213,225,0.15)] dark:text-slate-300";
                 badgeClass = "border border-emerald-500/10 bg-white/72 text-slate-600 dark:bg-[#050A09]/60 dark:text-slate-300";
               } else if (isTop3) {
-                cardClass = "border-amber-400/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-foreground shadow-[0_0_15px_rgba(16,185,129,0.04)] hover:border-amber-500/30 dark:from-[#0e211e] dark:to-[#061513] dark:text-white dark:shadow-[0_0_15px_rgba(16,185,129,0.05)]";
+                cardClass = "border-amber-400/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-foreground shadow-[0_0_15px_rgba(16,185,129,0.04)] hover:border-amber-500/30 dark:border-amber-500/18 dark:from-[#122824] dark:via-[#0d1d1a] dark:to-[#071210] dark:text-white dark:shadow-[0_0_15px_rgba(16,185,129,0.08)]";
                 paddingClass = "p-4.5 md:p-6 rounded-[1.5rem] md:rounded-[2rem]";
                 avatarSizeClass = "w-11 h-11 md:w-13 md:h-13";
                 iconSizeClass = "w-5.5 h-5.5 md:w-6 md:h-6";
                 nameClass = "text-sm md:text-lg font-black";
-                karmaClass = "text-lg md:text-2xl font-black text-amber-600 drop-shadow-[0_0_6px_rgba(217,119,6,0.1)]";
-                badgeClass = "border border-amber-400/20 bg-white/70 text-amber-700 dark:bg-[#050A09]/50 dark:text-amber-600";
+                karmaClass = "text-lg md:text-2xl font-black text-amber-600 drop-shadow-[0_0_6px_rgba(217,119,6,0.1)] dark:text-amber-300";
+                badgeClass = "border border-amber-400/20 bg-white/70 text-amber-700 dark:bg-[#050A09]/50 dark:text-amber-300";
               } else {
                 cardClass = entry.id === user?.id 
                   ? "app-panel border-emerald-500/30 shadow-2xl shadow-emerald-500/10 hover:border-emerald-500/40"
@@ -235,11 +235,11 @@ export function Leaderboard() {
                           <Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3" /> Top Contributor
                         </span>
                       ) : isTop2 ? (
-                        <span className="text-[7.5px] md:text-[8.5px] font-black text-slate-300 uppercase tracking-widest bg-slate-300/10 px-1.5 md:px-2 py-0.5 rounded-full border border-slate-300/20 shrink-0">
+                        <span className="text-[7.5px] md:text-[8.5px] font-black uppercase tracking-widest bg-slate-500/10 px-1.5 md:px-2 py-0.5 rounded-full border border-slate-400/20 text-slate-600 dark:bg-slate-200/10 dark:text-slate-200 shrink-0">
                           Rank 2
                         </span>
                       ) : isTop3 ? (
-                        <span className="text-[7.5px] md:text-[8.5px] font-black text-amber-600 uppercase tracking-widest bg-amber-600/10 px-1.5 md:px-2 py-0.5 rounded-full border border-amber-600/20 shrink-0">
+                        <span className="text-[7.5px] md:text-[8.5px] font-black uppercase tracking-widest bg-amber-500/10 px-1.5 md:px-2 py-0.5 rounded-full border border-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
                           Rank 3
                         </span>
                       ) : null}
