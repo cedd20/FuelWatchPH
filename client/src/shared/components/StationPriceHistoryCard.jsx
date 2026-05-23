@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, ChevronRight, Clock3, Fuel } from "lucide-react";
+import { AlertCircle, Clock3, Fuel } from "lucide-react";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -28,8 +27,8 @@ function PriceHistoryTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/10 min-w-[180px]">
-      <p className="text-sm font-bold text-foreground mb-2">{label}</p>
+    <div className="min-w-[180px] rounded-2xl border border-emerald-500/15 bg-[#050A09]/90 px-4 py-3 text-slate-50 shadow-2xl shadow-black/30 backdrop-blur-xl">
+      <p className="mb-2 text-sm font-bold text-slate-50">{label}</p>
       <div className="space-y-1.5">
         {payload
           .filter((item) => Number.isFinite(item.value))
@@ -40,9 +39,9 @@ function PriceHistoryTooltip({ active, payload, label }) {
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: item.stroke || item.color }}
                 />
-                <span className="font-medium text-muted-foreground truncate">{item.name}</span>
+                <span className="truncate font-medium text-slate-300">{item.name}</span>
               </div>
-              <span className="font-bold text-foreground whitespace-nowrap">{formatPeso(item.value)}</span>
+              <span className="whitespace-nowrap font-bold text-slate-50">{formatPeso(item.value)}</span>
             </div>
           ))}
       </div>
@@ -53,11 +52,24 @@ function PriceHistoryTooltip({ active, payload, label }) {
 function PriceHistoryLegend({ payload }) {
   if (!payload?.length) return null;
 
+  const chipStyle = {
+    color: "#f8fafc",
+    backgroundColor: "rgba(5, 10, 9, 0.88)",
+    borderColor: "rgba(16, 185, 129, 0.16)",
+  };
+
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       {payload.map((item) => (
-        <div key={item.value} className="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/80 px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+        <div
+          key={item.value}
+          className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none shadow-sm shadow-slate-950/5"
+          style={chipStyle}
+        >
+          <span
+            className="h-2 w-2 rounded-full shrink-0"
+            style={{ backgroundColor: item.color }}
+          />
           <span>{item.value}</span>
         </div>
       ))}
@@ -148,7 +160,7 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
           </div>
         ) : (
           <>
-            <div className={compact ? "h-[210px] sm:h-[250px]" : "h-[260px] sm:h-[320px]"}>
+            <div className={compact ? "h-[220px] sm:h-[260px]" : "h-[270px] sm:h-[330px]"}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 8, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" vertical={false} />
@@ -171,7 +183,6 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
                     domain={["auto", "auto"]}
                   />
                   <Tooltip content={<PriceHistoryTooltip />} />
-                  <Legend content={<PriceHistoryLegend />} verticalAlign="top" align="left" wrapperStyle={{ marginBottom: compact ? 8 : 12 }} />
                   {fuelTypes.map((fuelType) => (
                     <Line
                       key={fuelType}
@@ -189,12 +200,16 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
               </ResponsiveContainer>
             </div>
 
-            <div className={`${compact ? "mt-3" : "mt-4"} flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground font-medium`}>
-              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-3 py-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
-                <ChevronRight className="w-3.5 h-3.5" />
-                {fuelTypes.length} fuel type{fuelTypes.length === 1 ? "" : "s"} shown
-              </span>
-              <span>Only valid prices are plotted.</span>
+            <div className={compact ? "mt-3 space-y-2" : "mt-4 space-y-2.5"}>
+              <PriceHistoryLegend
+                payload={fuelTypes.map((fuelType) => ({
+                  value: fuelType,
+                  color: FUEL_HISTORY_COLORS[fuelType] || "#0f766e",
+                }))}
+              />
+              <p className="text-center text-[11px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">
+                Only valid prices are plotted.
+              </p>
             </div>
           </>
         )}
