@@ -87,14 +87,14 @@ export function SignUp() {
   };
 
   const inputClass =
-    "w-full h-14 rounded-[1.15rem] border border-white/8 bg-[#193834]/88 pl-12 pr-12 text-sm font-semibold text-white outline-none transition-all placeholder:text-[#6F8E88] focus:border-emerald-400/55 focus:bg-[#1D413B] focus:ring-4 focus:ring-emerald-500/10";
-  const sectionLabelClass = "mb-2.5 block text-[0.65rem] font-black uppercase tracking-[0.28em] text-[#6F8E88]";
-  const secondaryLinkClass = "text-sm font-semibold text-[#8EB3AB] transition-colors hover:text-white";
+    "app-auth-input w-full h-14 rounded-[1.15rem] pl-12 pr-12 text-sm font-semibold outline-none transition-all focus:border-emerald-400/55 focus:bg-[var(--app-auth-input-focus)] focus:ring-4 focus:ring-emerald-500/10";
+  const sectionLabelClass = "mb-2.5 block text-[0.65rem] font-black uppercase tracking-[0.28em] text-[var(--app-auth-subtle)]";
+  const secondaryLinkClass = "text-sm font-semibold text-[var(--app-auth-muted)] transition-colors hover:text-foreground dark:hover:text-white";
 
   // ── Email Sent Confirmation Screen ──────────────────────────────────────────
   if (isEmailSent) {
     return (
-      <div className="relative min-h-screen bg-[#050A09] px-5 text-center text-white">
+      <div className="app-auth-shell relative min-h-screen px-5 text-center text-foreground">
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute top-0 right-0 h-[500px] w-[500px] translate-x-1/3 -translate-y-1/2 rounded-full bg-emerald-500/8 blur-[120px]" />
           <div className="absolute bottom-[8%] left-[-10%] h-64 w-64 rounded-full bg-teal-500/8 blur-[120px]" />
@@ -103,13 +103,13 @@ export function SignUp() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/7 bg-[linear-gradient(180deg,rgba(25,56,52,0.96),rgba(10,21,18,0.98))] px-6 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.34)] backdrop-blur"
+            className="app-auth-panel relative z-10 w-full max-w-md rounded-[2rem] border border-white/7 px-6 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur"
           >
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-600 shadow-[0_18px_36px_rgba(16,185,129,0.22)]">
               <Mail className="h-10 w-10 text-white" strokeWidth={2.5} />
             </div>
             <h2 className="mb-3 text-3xl font-black tracking-[-0.04em]">Check your email</h2>
-            <p className="mb-8 text-sm font-medium leading-6 text-[#8AA8A1]">
+            <p className="mb-8 text-sm font-medium leading-6 text-[var(--app-auth-muted)]">
               We've sent a verification link to{" "}
               <span className="text-emerald-400">{email}</span>. Click the link to activate your account.
             </p>
@@ -123,13 +123,13 @@ export function SignUp() {
               <button
                 onClick={handleResend}
                 disabled={isResending}
-                className="flex h-[52px] w-full items-center justify-center rounded-[1.15rem] border border-white/8 bg-[#193834]/88 text-[0.72rem] font-black uppercase tracking-[0.24em] text-white transition-all hover:border-emerald-400/30 disabled:opacity-50"
+                className="app-auth-input flex h-[52px] w-full items-center justify-center rounded-[1.15rem] text-[0.72rem] font-black uppercase tracking-[0.24em] transition-all hover:border-emerald-400/30 disabled:opacity-50"
               >
                 {isResending ? "Resending..." : "Resend Email"}
               </button>
               <button
                 onClick={() => setIsEmailSent(false)}
-                className="pt-2 text-sm font-semibold text-[#8EB3AB] transition-colors hover:text-white"
+                className="pt-2 text-sm font-semibold text-[var(--app-auth-muted)] transition-colors hover:text-foreground dark:hover:text-white"
               >
                 Entered wrong email? Go back
               </button>
@@ -142,7 +142,7 @@ export function SignUp() {
 
   // ── Sign Up Form ─────────────────────────────────────────────────────────────
   return (
-    <div className="relative min-h-screen bg-[#050A09] text-white lg:flex lg:flex-row">
+    <div className="app-auth-shell relative min-h-screen lg:flex lg:flex-row">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_top,rgba(33,115,95,0.24),transparent_58%)]" />
         <div className="absolute right-[-10%] top-[12%] h-72 w-72 rounded-full bg-emerald-500/10 blur-[120px]" />
@@ -150,7 +150,7 @@ export function SignUp() {
       </div>
 
       {/* Left Panel — Branding (desktop only) */}
-      <div className="relative hidden overflow-hidden border-r border-white/6 bg-[#10211E] lg:flex lg:w-[52%] lg:flex-col lg:justify-between lg:px-16 lg:py-14">
+      <div className="app-auth-aside relative hidden overflow-hidden border-r border-white/6 lg:flex lg:w-[52%] lg:flex-col lg:justify-between lg:px-16 lg:py-14">
         <div className="absolute top-0 right-0 h-[600px] w-[600px] translate-x-1/3 -translate-y-1/2 rounded-full bg-emerald-500/5 blur-[120px]" />
         <div className="absolute bottom-0 left-0 h-[400px] w-[400px] -translate-x-1/4 translate-y-1/2 rounded-full bg-teal-500/5 blur-[100px]" />
 
@@ -160,7 +160,7 @@ export function SignUp() {
           <h1 className="mb-5 text-5xl font-black leading-[0.95] tracking-[-0.05em] xl:text-6xl">
             Join the<br /><span className="text-emerald-400">community.</span>
           </h1>
-          <p className="max-w-sm text-base font-semibold leading-7 text-[#7E9C95]">
+          <p className="max-w-sm text-base font-semibold leading-7 text-[var(--app-auth-muted)]">
             Help other Filipinos save money on fuel by contributing real price data from stations near you.
           </p>
 
@@ -192,10 +192,10 @@ export function SignUp() {
           animate={{ opacity: 1, y: 0 }}
           className="mx-auto w-full max-w-[27rem]"
         >
-          <div className="rounded-[2rem] border border-white/7 bg-[linear-gradient(180deg,rgba(25,56,52,0.96),rgba(10,21,18,0.98))] px-5 pb-6 pt-5 shadow-[0_24px_80px_rgba(0,0,0,0.34)] backdrop-blur xl:px-7 xl:pb-7 xl:pt-6">
+          <div className="app-auth-panel rounded-[2rem] border border-white/7 px-5 pb-6 pt-5 shadow-[0_24px_80px_rgba(0,0,0,0.24)] backdrop-blur xl:px-7 xl:pb-7 xl:pt-6">
             <button
               onClick={() => navigate(-1)}
-              className="group mb-6 flex items-center gap-2 text-sm font-semibold text-[#7F9B95] transition-colors hover:text-white"
+              className="group mb-6 flex items-center gap-2 text-sm font-semibold text-[var(--app-auth-muted)] transition-colors hover:text-foreground dark:hover:text-white"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-full border border-white/8 bg-white/[0.03] transition-colors group-hover:border-emerald-400/30 group-hover:bg-white/[0.05]">
                 <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
@@ -206,8 +206,8 @@ export function SignUp() {
             <AuthBrand compact className="mb-6 lg:hidden" />
 
             <div className="mb-7">
-              <h2 className="mb-2 text-[2rem] font-black tracking-[-0.04em] text-white sm:text-[2.15rem]">Create account.</h2>
-              <p className="max-w-sm text-sm font-medium leading-6 text-[#8AA8A1]">
+              <h2 className="mb-2 text-[2rem] font-black tracking-[-0.04em] text-foreground sm:text-[2.15rem]">Create account.</h2>
+              <p className="max-w-sm text-sm font-medium leading-6 text-[var(--app-auth-muted)]">
                 Join the community and start saving on fuel with faster price checks and trusted updates.
               </p>
             </div>
@@ -216,7 +216,7 @@ export function SignUp() {
               <div>
                 <label className={sectionLabelClass}>Full Name</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F8E88]" />
+                  <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type="text"
                     value={name}
@@ -231,7 +231,7 @@ export function SignUp() {
               <div>
                 <label className={sectionLabelClass}>Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F8E88]" />
+                  <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type="email"
                     value={email}
@@ -246,7 +246,7 @@ export function SignUp() {
               <div>
                 <label className={sectionLabelClass}>Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6F8E88]" />
+                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
@@ -259,14 +259,14 @@ export function SignUp() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[#7A9891] transition-colors hover:bg-white/[0.05] hover:text-white"
+                    className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[var(--app-auth-subtle)] transition-colors hover:bg-white/[0.05] hover:text-foreground dark:hover:text-white"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
-              <p className="text-[0.72rem] font-semibold leading-5 text-[#6E8A84]">
+              <p className="text-[0.72rem] font-semibold leading-5 text-[var(--app-auth-subtle)]">
                 By signing up, you agree to our{" "}
                 <button type="button" onClick={() => navigate("/app/terms")} className="font-semibold text-emerald-400 transition-colors hover:text-emerald-300">
                   Terms & Privacy Policy
@@ -275,7 +275,7 @@ export function SignUp() {
               </p>
 
               {formError && (
-                <div className="rounded-[1.15rem] border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-300">
+                <div className="rounded-[1.15rem] border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-300">
                   {formError}
                 </div>
               )}
@@ -296,7 +296,7 @@ export function SignUp() {
               >
                 Continue as Guest
               </button>
-              <div className="mt-3 text-sm font-medium text-[#73918A]">
+              <div className="mt-3 text-sm font-medium text-[var(--app-auth-subtle)]">
                 Already have an account?{" "}
                 <button onClick={() => navigate("/login")} className="font-semibold text-emerald-400 transition-colors hover:text-emerald-300">
                   Sign In

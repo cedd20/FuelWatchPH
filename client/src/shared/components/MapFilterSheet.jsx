@@ -26,6 +26,8 @@ const fuelTypes = FUEL_TYPES;
 
 export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [], initialFilters = null }) {
   const [filters, setFilters] = useState(DEFAULT_MAP_FILTERS);
+  const inputClass = "app-input w-full rounded-xl border border-border px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary";
+  const chipBaseClass = "app-panel-muted rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-700";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,7 +103,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
             <select
               value={filters.selectedCity}
               onChange={(e) => setFilters({ ...filters, selectedCity: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+              className={inputClass}
             >
               <option value="">Select city</option>
               {availableCities.map((city) => (
@@ -119,7 +121,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
           <select
             value={filters.radius}
             onChange={(e) => setFilters({ ...filters, radius: e.target.value })}
-            className="w-full px-4 py-3 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+            className={inputClass}
           >
             <option value="1">1 km</option>
             <option value="3">3 km</option>
@@ -141,7 +143,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               filters.fuelTypes.length === 0
                 ? "bg-primary text-white"
-                : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
+                : chipBaseClass
             }`}
           >
             All
@@ -153,7 +155,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 filters.fuelTypes.includes(fuel)
                   ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
+                  : chipBaseClass
               }`}
             >
               {fuel}
@@ -172,7 +174,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 filters.brands.includes(brand)
                   ? "bg-primary text-white"
-                  : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
+                  : chipBaseClass
               }`}
             >
               {brand}
@@ -186,7 +188,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
         <select
           value={filters.priceSort}
           onChange={(e) => setFilters({ ...filters, priceSort: e.target.value })}
-          className="w-full px-4 py-3 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+          className={inputClass}
         >
           <option value="lowest">Lowest price first</option>
           <option value="highest">Highest price first</option>
@@ -213,7 +215,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
             <select
               value={filters.recentlyUpdated}
               onChange={(e) => setFilters({ ...filters, recentlyUpdated: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
+              className={inputClass}
             >
               <option value="today">Today</option>
               <option value="1">Last 24 hours</option>
@@ -255,6 +257,7 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
       <button
         onClick={handleReset}
         className="flex-1 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl border-2 border-gray-200 dark:border-neutral-700 text-foreground font-bold bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
+        
       >
         Reset Filter
       </button>
@@ -281,9 +284,9 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
         {content}
       </MobileBottomSheet>
 
-      <div className="hidden lg:flex fixed inset-0 z-[100] items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="bg-card w-full max-w-lg max-h-[85vh] rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-          <div className="flex items-center justify-between p-4 lg:p-6 border-b-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
+      <div className="hidden fixed inset-0 z-[100] items-center justify-center bg-black/40 backdrop-blur-sm lg:flex">
+        <div className="app-panel-strong flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border p-4 lg:p-6">
             <h2 className="text-lg lg:text-xl font-bold text-foreground tracking-tight">Filter Stations</h2>
             <button
               onClick={onClose}
@@ -293,11 +296,11 @@ export function MapFilterSheet({ isOpen, onClose, onApply, availableCities = [],
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-white dark:bg-neutral-900">
+          <div className="flex-1 overflow-y-auto p-4 lg:p-6">
             {content}
           </div>
 
-          <div className="p-4 lg:p-6 border-t-2 border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
+          <div className="border-t border-border p-4 lg:p-6">
             {footer}
           </div>
         </div>

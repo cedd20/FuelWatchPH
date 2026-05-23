@@ -216,12 +216,12 @@ export function AddStation() {
 
   if (showSuccess) {
     return (
-      <div className="min-h-screen bg-[#050A09] flex flex-col items-center justify-center p-6 text-white text-center">
+      <div className="app-shell min-h-screen flex flex-col items-center justify-center p-6 text-center text-foreground">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-emerald-500/20">
           <CheckCircle className="w-12 h-12 text-white" />
         </motion.div>
         <h2 className="text-3xl font-black mb-2">{isEditMode ? "Updated!" : "Success!"}</h2>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Redirecting to Dashboard...</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Redirecting to Dashboard...</p>
       </div>
     );
   }
@@ -229,39 +229,39 @@ export function AddStation() {
   return (
     <>
       <AuthPrompt isOpen={showAuthPrompt} onClose={() => { setShowAuthPrompt(false); navigate(-1); }} message="Sign in to contribute." />
-      <div className="min-h-screen bg-[#050A09] text-white pb-24">
+      <div className="app-shell min-h-screen pb-24 text-foreground">
         
         {/* Header */}
         <div className="relative pt-12 pb-20 px-6 overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="max-w-4xl mx-auto relative z-10">
-            <button onClick={() => navigate(-1)} className="mb-6 p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 hover:text-white transition-all">
+            <button onClick={() => navigate(-1)} className="app-panel mb-6 rounded-full p-3 transition-all hover:bg-emerald-500 hover:text-white">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-4xl font-black tracking-tight mb-2">{isEditMode ? "Edit Station" : "New Station"}</h1>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Place pin to set location</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Place pin to set location</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="max-w-4xl mx-auto px-6 -mt-10 space-y-6">
           
           {/* Map Section */}
-          <div className="bg-[#0C1A17] rounded-[2.5rem] border border-emerald-500/10 overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-emerald-500/5 flex items-center justify-between">
+          <div className="app-panel overflow-hidden rounded-[2.5rem] border border-emerald-500/10 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-emerald-500/5 p-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-emerald-500/10 rounded-xl">
                   <MapPin className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
                    <h3 className="font-black text-sm">Station Location</h3>
-                   <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Tap map to place pin</p>
+                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Tap map to place pin</p>
                 </div>
               </div>
             </div>
             
             <div className="h-80 relative">
-               <MapContainer ref={mapRef} center={mapCenter} zoom={15} zoomControl={false} className="w-full h-full grayscale-[0.8] contrast-[1.2]">
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <MapContainer ref={mapRef} center={mapCenter} zoom={15} zoomControl={false} className="h-full w-full grayscale-[0.1] dark:grayscale-[0.8] contrast-[1.05] dark:contrast-[1.2]">
+                  <TileLayer url={tileLayerUrl} />
                   <MapInteractions onPinSet={handlePinSet} onMapMove={handleMapMove} />
                   {osmSuggestions.map(s => (
                     <Marker key={s.id} position={[s.lat, s.lng]} icon={L.divIcon({ className: "", html: `<div class="w-2 h-2 bg-gray-500 rounded-full border border-white"></div>` })} />
@@ -270,13 +270,13 @@ export function AddStation() {
                
                {/* Fixed Center Pin (Station Marker style) */}
                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[48px] z-[400] pointer-events-none drop-shadow-[0_10px_15px_rgba(16,185,129,0.4)]">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-tl-full rounded-tr-full rounded-bl-full rounded-br-[4px] rotate-45 flex items-center justify-center border-2 border-[#0C1A17]">
-                    <div className="w-3.5 h-3.5 bg-[#050A09] rounded-full shadow-inner" />
+                    <div className="flex h-10 w-10 rotate-45 items-center justify-center rounded-bl-full rounded-br-[4px] rounded-tl-full rounded-tr-full border-2 border-[var(--app-surface-strong)] bg-emerald-500">
+                    <div className="h-3.5 w-3.5 rounded-full bg-[var(--app-shell)] shadow-inner" />
                   </div>
                </div>
                {/* Exact Anchor Dot */}
                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[399] pointer-events-none">
-                  <div className="w-1.5 h-1.5 bg-[#0C1A17] rounded-full ring-2 ring-emerald-500" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[var(--app-surface-strong)] ring-2 ring-emerald-500" />
                </div>
 
                {/* GPS Button - Bottom Right Overlay */}
@@ -298,15 +298,15 @@ export function AddStation() {
           </div>
 
           {/* Details Card */}
-          <div className="bg-[#0C1A17] rounded-[2.5rem] border border-emerald-500/10 p-8 shadow-2xl space-y-6">
+          <div className="app-panel space-y-6 rounded-[2.5rem] border border-emerald-500/10 p-8 shadow-2xl">
             <div className="space-y-4">
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest">Station Details</label>
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Station Details</label>
               <input
                 type="text"
                 value={stationName}
                 onChange={(e) => setStationName(e.target.value)}
                 placeholder="Station Name (e.g. Petron EDSA)"
-                className="w-full bg-[#1A2E2A] border border-emerald-500/5 rounded-2xl px-6 py-4 font-bold text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-700"
+                className="app-input w-full rounded-2xl border border-emerald-500/5 px-6 py-4 font-bold focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-muted-foreground"
                 required
               />
               <div className="relative">
@@ -315,15 +315,15 @@ export function AddStation() {
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Street address will auto-fill from pin..."
                   rows={2}
-                  className="w-full bg-[#1A2E2A] border border-emerald-500/5 rounded-2xl px-6 py-4 font-bold text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-700 resize-none"
+                  className="app-input w-full resize-none rounded-2xl border border-emerald-500/5 px-6 py-4 font-bold focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-muted-foreground"
                   required
                 />
                 {isGeocodingPin && <div className="absolute right-4 top-4"><Loader2 className="w-4 h-4 text-emerald-500 animate-spin" /></div>}
               </div>
             </div>
 
-            <div className="space-y-4 pt-4 border-t border-emerald-500/5">
-              <label className="block text-xs font-black text-gray-500 uppercase tracking-widest">Initial Fuel Prices</label>
+            <div className="space-y-4 border-t border-emerald-500/5 pt-4">
+              <label className="block text-xs font-black uppercase tracking-widest text-muted-foreground">Initial Fuel Prices</label>
               <div className="grid grid-cols-2 gap-4">
                 {Object.keys(prices).map(k => (
                   <div key={k} className="relative">
@@ -334,7 +334,7 @@ export function AddStation() {
                       value={prices[k]}
                       onChange={(e) => setPrices({ ...prices, [k]: e.target.value })}
                       placeholder="0.00"
-                      className="w-full bg-[#1A2E2A] border border-emerald-500/5 rounded-2xl pl-12 pr-4 py-4 font-black text-white focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-gray-700 text-sm"
+                      className="app-input w-full rounded-2xl border border-emerald-500/5 py-4 pl-12 pr-4 text-sm font-black focus:outline-none focus:border-emerald-500/30 transition-all placeholder:text-muted-foreground"
                     />
                   </div>
                 ))}
@@ -353,12 +353,12 @@ export function AddStation() {
             </button>
           </motion.div>
 
-          <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-[2rem] p-6 text-center">
+          <div className="rounded-[2rem] border border-emerald-500/10 bg-emerald-500/5 p-6 text-center">
              <div className="flex items-center justify-center gap-2 mb-2">
                 <Sparkles className="w-4 h-4 text-emerald-500" />
                 <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Contributor Bonus</span>
              </div>
-             <p className="text-[10px] text-gray-500 font-bold">Earn <span className="text-emerald-400">+50 Karma</span> for adding verified locations.</p>
+             <p className="text-[10px] font-bold text-muted-foreground">Earn <span className="text-emerald-600 dark:text-emerald-400">+50 Karma</span> for adding verified locations.</p>
           </div>
 
         </form>

@@ -92,7 +92,7 @@ export function GasHistory() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#050A09] flex flex-col items-center justify-center">
+      <div className="app-shell min-h-screen flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
         <p className="text-emerald-500/60 font-bold animate-pulse">Fetching history...</p>
       </div>
@@ -121,7 +121,7 @@ export function GasHistory() {
   ) : 0;
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-24 overflow-x-hidden">
+    <div className="app-shell min-h-screen overflow-x-hidden pb-24 text-foreground">
       <div className="max-w-md mx-auto px-5 pt-8 space-y-6">
         
         {/* Header */}
@@ -136,17 +136,17 @@ export function GasHistory() {
              </div>
              <h1 className="text-2xl font-bold tracking-tight">Price History</h1>
           </div>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest pl-1">
+          <p className="pl-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
             Tracking verified trends {locationMode === "By City" ? `in ${selectedCity}` : "Nationwide"}
           </p>
         </motion.div>
 
         {/* Filters */}
-        <Card className="bg-[#0C1A17] border-emerald-500/10 rounded-[2rem]">
+        <Card className="app-panel rounded-[2rem] border-emerald-500/10">
           <CardContent className="p-4 space-y-4">
             <div className="space-y-2.5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="inline-flex w-full rounded-2xl border border-emerald-500/10 bg-[#132520] p-1 sm:w-auto sm:min-w-[248px]">
+                <div className="app-panel-muted inline-flex w-full rounded-2xl border border-emerald-500/10 p-1 sm:w-auto sm:min-w-[248px]">
                   {["Nationwide", "By City"].map(mode => (
                     <button
                       key={mode}
@@ -154,7 +154,7 @@ export function GasHistory() {
                       className={`min-h-[42px] flex-1 rounded-xl px-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${
                         locationMode === mode
                           ? "bg-emerald-500 text-white shadow-[0_10px_30px_rgba(16,185,129,0.22)]"
-                          : "text-gray-500 hover:text-gray-300"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       {mode}
@@ -168,20 +168,20 @@ export function GasHistory() {
                     <select
                       value={selectedCity}
                       onChange={(e) => setSelectedCity(e.target.value)}
-                      className="min-h-[42px] w-full appearance-none rounded-2xl border border-emerald-500/10 bg-[#132520] pl-10 pr-9 text-[11px] font-bold text-white outline-none transition-colors hover:border-emerald-500/20 focus:border-emerald-500/35"
+                      className="app-input min-h-[42px] w-full appearance-none rounded-2xl border border-emerald-500/10 pl-10 pr-9 text-[11px] font-bold outline-none transition-colors hover:border-emerald-500/20 focus:border-emerald-500/35"
                     >
                       <option value="">Select City</option>
                       {sortedCities.map(c => (
                         <option key={c.city} value={c.city}>{c.city}</option>
                       ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+                    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                   </div>
                 )}
               </div>
 
               {locationMode === "By City" && !selectedCity && (
-                <p className="px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
+                <p className="px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
                   Select a city to focus the trend view.
                 </p>
               )}
@@ -195,7 +195,7 @@ export function GasHistory() {
                   className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap border-2 ${
                     selectedFuelType === type
                       ? "bg-emerald-500 border-emerald-400 text-white"
-                      : "bg-[#1A2E2A] border-transparent text-gray-500"
+                      : "app-panel-muted border-transparent text-muted-foreground"
                   }`}
                 >
                   {type}
@@ -209,7 +209,7 @@ export function GasHistory() {
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-br from-[#0C1A17] to-[#142824] border border-emerald-500/20 rounded-[2.5rem] p-6 shadow-2xl relative overflow-hidden"
+          className="app-panel-strong relative overflow-hidden rounded-[2.5rem] border border-emerald-500/20 p-6 shadow-2xl"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="relative z-10 space-y-4">
@@ -217,7 +217,7 @@ export function GasHistory() {
               <Badge className="bg-emerald-500/10 text-emerald-400 border-none font-black text-[10px] px-3 py-1">
                 MARKET PULSE
               </Badge>
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground">
                 <Calendar className="w-3 h-3" />
                 {latestPoint?.week}, {latestPoint?.year}
               </div>
@@ -225,10 +225,10 @@ export function GasHistory() {
             
             <div className="flex items-end justify-between">
               <div className="space-y-1">
-                <div className="text-5xl font-black tracking-tighter text-white">
+                <div className="text-5xl font-black tracking-tighter text-foreground">
                   {formatPrice(overallAvg)}
                 </div>
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">
+                <div className="pl-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {selectedFuelType === "All" ? "Overall Avg" : `${selectedFuelType} Average`}
                 </div>
               </div>
@@ -250,14 +250,14 @@ export function GasHistory() {
         {/* Trend Chart */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em]">Price Trend</h3>
-            <div className="flex bg-[#0C1A17] rounded-lg p-0.5">
+            <h3 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Price Trend</h3>
+            <div className="app-panel flex rounded-lg p-0.5">
               {["7D", "1M", "3M"].map(r => (
                 <button
                   key={r}
                   onClick={() => setTimeRange(r)}
                   className={`px-3 py-1 text-[9px] font-black rounded-md transition-all ${
-                    timeRange === r ? 'bg-emerald-500 text-white shadow-lg' : 'text-gray-600'
+                    timeRange === r ? 'bg-emerald-500 text-white shadow-lg' : 'text-muted-foreground'
                   }`}
                 >
                   {r}
@@ -266,7 +266,7 @@ export function GasHistory() {
             </div>
           </div>
 
-          <Card className="bg-[#0C1A17] border-emerald-500/5 rounded-[2rem] p-4 overflow-hidden">
+          <Card className="app-panel rounded-[2rem] border-emerald-500/5 p-4 overflow-hidden">
             <div className="h-64 w-full relative">
                <svg className="w-full h-full overflow-visible" viewBox="0 0 380 200">
                   {(() => {
@@ -288,7 +288,7 @@ export function GasHistory() {
                       <g>
                         {/* Grid lines */}
                         {[0, 50, 100, 150, 200].map(y => (
-                          <line key={y} x1="30" y1={y} x2="380" y2={y} stroke="#1A2E2A" strokeWidth="1" />
+                          <line key={y} x1="30" y1={y} x2="380" y2={y} stroke="rgba(120, 145, 138, 0.24)" strokeWidth="1" />
                         ))}
 
                         {activeFuels.map((fuel) => {
@@ -316,7 +316,7 @@ export function GasHistory() {
                                 strokeLinejoin="round"
                               />
                               {points.map((p, i) => (
-                                <circle key={i} cx={p.x} cy={p.y} r="4" fill="#0C1A17" stroke={color} strokeWidth="2" />
+                                <circle key={i} cx={p.x} cy={p.y} r="4" fill="var(--app-surface-strong)" stroke={color} strokeWidth="2" />
                               ))}
                             </g>
                           );
@@ -329,8 +329,8 @@ export function GasHistory() {
             <div className="flex justify-between mt-4 px-4">
                {visibleHistoryData.length > 0 && (
                  <>
-                   <span className="text-[9px] font-bold text-gray-600">{visibleHistoryData[visibleHistoryData.length-1].date}</span>
-                   <span className="text-[9px] font-bold text-gray-600">Today</span>
+                   <span className="text-[9px] font-bold text-muted-foreground">{visibleHistoryData[visibleHistoryData.length-1].date}</span>
+                   <span className="text-[9px] font-bold text-muted-foreground">Today</span>
                  </>
                )}
             </div>
@@ -339,7 +339,7 @@ export function GasHistory() {
                 {renderedFuels.map((fuelType) => (
                   <div
                     key={fuelType}
-                    className="inline-flex min-h-[32px] items-center justify-center gap-1.5 rounded-full border border-emerald-500/10 bg-[#09100F] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[0_8px_20px_rgba(0,0,0,0.16)]"
+                    className="app-panel-muted inline-flex min-h-[32px] items-center justify-center gap-1.5 rounded-full border border-emerald-500/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-foreground shadow-[0_8px_20px_rgba(0,0,0,0.08)]"
                   >
                     <span
                       className="h-2 w-2 rounded-full shrink-0"
@@ -355,7 +355,7 @@ export function GasHistory() {
 
         {/* Detailed Weekly Breakdown */}
         <div className="space-y-4">
-          <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2">Weekly Logs</h3>
+          <h3 className="px-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Weekly Logs</h3>
           <Accordion.Root type="single" collapsible className="space-y-3">
             {historyData.map((week, idx) => {
               const weekMovement = idx < historyData.length - 1 ? (
@@ -371,20 +371,20 @@ export function GasHistory() {
               ) : 0;
 
               return (
-                <Accordion.Item key={idx} value={`week-${idx}`} className="bg-[#0C1A17] border border-emerald-500/5 rounded-[2rem] overflow-hidden">
+                <Accordion.Item key={idx} value={`week-${idx}`} className="app-panel overflow-hidden rounded-[2rem] border border-emerald-500/5">
                   <Accordion.Trigger className="w-full p-5 text-left group">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <h4 className="font-bold text-sm">{week.week}, {week.year}</h4>
-                        <p className="text-[10px] text-gray-500 font-bold">{week.date}</p>
+                        <p className="text-[10px] font-bold text-muted-foreground">{week.date}</p>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className={`text-[11px] font-black ${
-                          weekMovement < 0 ? 'text-emerald-500' : weekMovement > 0 ? 'text-rose-500' : 'text-gray-600'
+                          weekMovement < 0 ? 'text-emerald-500' : weekMovement > 0 ? 'text-rose-500' : 'text-muted-foreground'
                         }`}>
                           {weekMovement === 0 ? "—" : `${weekMovement < 0 ? '▼' : '▲'} ₱${Math.abs(weekMovement).toFixed(2)}`}
                         </div>
-                        <ChevronDown className="w-4 h-4 text-gray-700 transition-transform group-data-[state=open]:rotate-180" />
+                        <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
                       </div>
                     </div>
                   </Accordion.Trigger>
@@ -394,8 +394,8 @@ export function GasHistory() {
                         const name = Object.keys(fuelTypeMap).find(k => fuelTypeMap[k] === key);
                         if (!name || name === "All") return null;
                         return (
-                          <div key={key} className="bg-[#1A2E2A] p-3 rounded-2xl">
-                             <div className="text-[9px] font-black text-gray-500 uppercase mb-1">{name}</div>
+                          <div key={key} className="app-elevated rounded-2xl p-3">
+                             <div className="mb-1 text-[9px] font-black uppercase text-muted-foreground">{name}</div>
                              <div className="text-sm font-black">{formatPrice(val)}</div>
                           </div>
                         );
@@ -409,9 +409,9 @@ export function GasHistory() {
         </div>
 
         {/* Info Insight */}
-        <div className="bg-[#0C1A17] rounded-[2rem] p-6 border border-emerald-500/10 text-center">
+        <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6 text-center">
            <Info className="w-8 h-8 text-emerald-500/20 mx-auto mb-3" />
-           <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+           <p className="text-[11px] font-bold leading-relaxed text-muted-foreground">
              Trend analysis uses weighted averages of verified station reports within each specific week and region.
            </p>
         </div>

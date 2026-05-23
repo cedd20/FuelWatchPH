@@ -250,11 +250,11 @@ export function StationDetail() {
     }
   }, [blocker.state]);
 
-  if (isLoading) return <div className="min-h-screen bg-[#050A09]"><PageHeaderSkeleton /></div>;
-  if (!station) return <div className="min-h-screen bg-[#050A09] flex items-center justify-center"><SearchX className="w-20 h-20 text-white/10" /></div>;
+  if (isLoading) return <div className="app-shell min-h-screen"><PageHeaderSkeleton /></div>;
+  if (!station) return <div className="app-shell min-h-screen flex items-center justify-center"><SearchX className="w-20 h-20 text-foreground/10" /></div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#050A09] text-white pb-40">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="app-shell min-h-screen pb-40 text-foreground">
       <AuthPrompt isOpen={showAuthPrompt} onClose={() => setShowAuthPrompt(false)} message={authPromptMessage} />
       
       {/* Dynamic Header */}
@@ -264,7 +264,7 @@ export function StationDetail() {
         
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex items-center justify-between mb-10">
-            <button onClick={() => navigate(-1)} className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group">
+            <button onClick={() => navigate(-1)} className="app-panel group rounded-full p-3 transition-all hover:bg-emerald-500 hover:text-white shadow-2xl">
               <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
             </button>
             <div className="flex items-center gap-3">
@@ -272,18 +272,18 @@ export function StationDetail() {
                 if (navigator.share) {
                   navigator.share({ title: station.name, text: `Check prices at ${station.name}`, url: window.location.href });
                 }
-              }} className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:border-emerald-500/30 transition-all shadow-2xl">
-                <Share2 className="w-5 h-5 text-gray-400" />
+              }} className="app-panel rounded-full p-3 transition-all hover:border-emerald-500/30 shadow-2xl">
+                <Share2 className="w-5 h-5 text-muted-foreground" />
               </button>
-              <button onClick={handleToggleSave} className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:border-emerald-500/30 transition-all shadow-2xl">
-                <Heart className={`w-5 h-5 ${isSaved ? "fill-rose-500 text-rose-500" : "text-gray-400"}`} />
+              <button onClick={handleToggleSave} className="app-panel rounded-full p-3 transition-all hover:border-emerald-500/30 shadow-2xl">
+                <Heart className={`w-5 h-5 ${isSaved ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`} />
               </button>
             </div>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-xl bg-[#0C1A17] border border-emerald-500/20 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0">
+              <div className="app-panel-strong flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-emerald-500/20 p-1 shadow-2xl">
                 <StationLogo name={station.name} size="lg" />
               </div>
               <div className="min-w-0">
@@ -291,20 +291,20 @@ export function StationDetail() {
                    <h1 className="text-xl md:text-2xl font-bold tracking-tight truncate max-w-full">{station.name}</h1>
                    {station.isVerified && <ShieldCheck className="w-5 h-5 text-emerald-400" />}
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-gray-500 font-semibold text-[10px] uppercase tracking-wider">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-emerald-500" /> {station.address}</div>
                   <div className="flex items-center gap-1.5">
                     <Navigation className="w-3.5 h-3.5 text-teal-500" /> 
                     {isLocating && !userLocation ? "Locating..." : `${station.distance} km`}
                   </div>
-                  <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-gray-600" /> {station.lastUpdated}</div>
+                  <div className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-muted-foreground" /> {station.lastUpdated}</div>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
               {canEditStation && (
-                <button onClick={handleEditStation} className="flex items-center gap-2 px-6 py-3 bg-[#0C1A17] rounded-2xl border border-emerald-500/10 font-black text-xs uppercase tracking-widest hover:border-emerald-500/40 transition-all">
+                <button onClick={handleEditStation} className="app-panel flex items-center gap-2 rounded-2xl border border-emerald-500/10 px-6 py-3 text-xs font-black uppercase tracking-widest transition-all hover:border-emerald-500/40">
                   <Pencil className="w-4 h-4" /> Edit Station
                 </button>
               )}
@@ -328,11 +328,11 @@ export function StationDetail() {
                 <motion.div 
                   key={i} 
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                  className="bg-[#0C1A17] rounded-2xl p-5 border border-emerald-500/5 hover:border-emerald-500/20 transition-all relative overflow-hidden group"
+                  className="app-panel group relative overflow-hidden rounded-2xl border border-emerald-500/5 p-5 transition-all hover:border-emerald-500/20"
                 >
                   <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><Zap className="w-16 h-16 text-emerald-500" /></div>
                   <div className="flex items-center justify-between mb-6">
-                    <span className="text-sm font-black text-gray-500 uppercase tracking-[0.2em]">{fuel.type}</span>
+                    <span className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">{fuel.type}</span>
                     {fuel.change !== undefined && (
                       <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                         fuel.trend === "down" ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
@@ -344,10 +344,10 @@ export function StationDetail() {
                   </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-sm font-bold text-emerald-500/80">₱</span>
-                    <span className="text-2xl font-bold text-white tracking-tight">
+                    <span className="text-2xl font-bold tracking-tight text-foreground">
                       {formatPrice(fuel.price).replace("₱", "")}
                     </span>
-                    <span className="text-[9px] font-medium text-gray-500 ml-1 uppercase tracking-wider">/ Liter</span>
+                    <span className="ml-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">/ Liter</span>
                   </div>
                 </motion.div>
               ))}
@@ -355,10 +355,10 @@ export function StationDetail() {
           </section>
 
           {/* History Chart */}
-          <section className="bg-[#0C1A17] rounded-3xl p-6 border border-emerald-500/5 shadow-2xl">
+          <section className="app-panel rounded-3xl border border-emerald-500/5 p-6 shadow-2xl">
              <div className="flex items-center justify-between mb-8">
                 <h2 className="text-xl font-black">Price Analytics</h2>
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                    <TrendingUp className="w-3 h-3" /> 30-Day Outlook
                 </div>
              </div>
@@ -368,23 +368,23 @@ export function StationDetail() {
 
         {/* Sidebar */}
         <aside className="space-y-4">
-          <div className="bg-[#0C1A17] rounded-3xl p-6 border border-emerald-500/10 shadow-2xl relative overflow-hidden">
+          <div className="app-panel relative overflow-hidden rounded-3xl border border-emerald-500/10 p-6 shadow-2xl">
             <div className="absolute top-0 right-0 p-6 opacity-5"><ShieldCheck className="w-24 h-24" /></div>
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                  <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center">
                     <ShieldCheck className="w-6 h-6 text-emerald-400" />
                  </div>
-                 <div className="px-4 py-1.5 bg-emerald-500/10 rounded-full text-[10px] font-black text-emerald-400 uppercase tracking-widest">Verified Spot</div>
+                 <div className="rounded-full bg-emerald-500/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Verified Spot</div>
               </div>
               <div className="text-3xl font-bold mb-1 tracking-tight">{(station.trustScore || 100)}%</div>
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-6">Trust Reliability Score</p>
+              <p className="mb-6 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Trust Reliability Score</p>
               
               <div className="space-y-3">
                  <button onClick={() => navigate(`/app/update-price/${id}`)} className="w-full py-4 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-[1.02] active:scale-[0.98] transition-all">
                     Update Prices
                  </button>
-                 <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")} className="w-full py-4 bg-[#050A09] border border-emerald-500/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-emerald-500/5 transition-all">
+                 <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${station.lat},${station.lng}`, "_blank")} className="app-panel-muted w-full rounded-2xl border border-emerald-500/10 py-4 text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:bg-emerald-500/5">
                     Get Directions
                  </button>
               </div>
@@ -413,7 +413,7 @@ export function StationDetail() {
         {showReportIssueModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowReportIssueModal(false)} className="absolute inset-0 bg-[#050A09]/90 backdrop-blur-xl" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-xl bg-[#0C1A17] rounded-[3rem] border border-emerald-500/10 overflow-hidden shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="app-panel-strong relative w-full max-w-xl overflow-hidden rounded-[3rem] border border-emerald-500/10 shadow-2xl">
               <div className="p-10">
                 <div className="flex items-start justify-between mb-8">
                   <div>
@@ -422,22 +422,22 @@ export function StationDetail() {
                     </div>
                     <h3 className="text-3xl font-black tracking-tight">Help improve accuracy</h3>
                   </div>
-                  <button onClick={() => setShowReportIssueModal(false)} className="p-3 bg-[#050A09] rounded-full text-gray-500 hover:text-white transition-colors">
+                  <button onClick={() => setShowReportIssueModal(false)} className="app-panel-muted rounded-full p-3 text-muted-foreground transition-colors hover:text-foreground">
                     <X className="w-6 h-6" />
                   </button>
                 </div>
 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Issue Type</label>
-                    <select value={issueType} onChange={(e) => setIssueType(e.target.value)} className="w-full bg-[#050A09] border border-emerald-500/10 rounded-2xl p-5 text-sm font-bold focus:border-emerald-500 outline-none transition-all">
+                    <label className="mb-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Issue Type</label>
+                    <select value={issueType} onChange={(e) => setIssueType(e.target.value)} className="app-input w-full rounded-2xl border border-emerald-500/10 p-5 text-sm font-bold focus:border-emerald-500 outline-none transition-all">
                       <option value="">Select Category</option>
                       {stationIssueTypes.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-3">Description</label>
-                    <textarea value={issueDetails} onChange={(e) => setIssueDetails(e.target.value)} rows={4} placeholder="Tell us what's wrong..." className="w-full bg-[#050A09] border border-emerald-500/10 rounded-2xl p-5 text-sm font-bold focus:border-emerald-500 outline-none transition-all resize-none" />
+                    <label className="mb-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</label>
+                    <textarea value={issueDetails} onChange={(e) => setIssueDetails(e.target.value)} rows={4} placeholder="Tell us what's wrong..." className="app-input w-full resize-none rounded-2xl border border-emerald-500/10 p-5 text-sm font-bold focus:border-emerald-500 outline-none transition-all" />
                   </div>
                   <button onClick={() => {
                     if (!issueType) return toast.error("Please select an issue type");

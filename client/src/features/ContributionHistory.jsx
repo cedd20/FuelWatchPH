@@ -47,7 +47,7 @@ function CustomSelect({ icon: Icon, value, options, onChange, prefix }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between rounded-full border border-[#193834] bg-[#0C1A17] px-4 py-3.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-emerald-400 outline-none transition-all hover:bg-[#193834]/30 focus:border-emerald-500/50 shadow-md"
+        className="app-panel flex w-full items-center justify-between rounded-full border border-emerald-500/10 px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 shadow-md outline-none transition-all hover:bg-emerald-500/8 focus:border-emerald-500/50 dark:text-emerald-300 sm:text-xs"
       >
         <div className="flex items-center gap-2">
           {Icon && <Icon className="h-4 w-4" />}
@@ -60,7 +60,7 @@ function CustomSelect({ icon: Icon, value, options, onChange, prefix }) {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute left-0 top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-2xl border border-[#193834] bg-[#0C1A17] shadow-2xl"
+          className="app-panel-strong absolute left-0 top-[calc(100%+8px)] z-50 w-full overflow-hidden rounded-2xl border border-emerald-500/10 shadow-2xl"
         >
           {options.map((opt) => (
             <button
@@ -71,8 +71,8 @@ function CustomSelect({ icon: Icon, value, options, onChange, prefix }) {
               }}
               className={`flex w-full items-center justify-between px-4 py-3.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all ${
                 value === opt.value
-                  ? "bg-[#193834] text-emerald-400"
-                  : "text-gray-400 hover:bg-[#193834]/50 hover:text-white"
+                  ? "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300"
+                  : "text-muted-foreground hover:bg-emerald-500/10 hover:text-foreground"
               }`}
             >
               {opt.label}
@@ -213,20 +213,20 @@ export function ContributionHistory() {
         message="Sign in to view your contribution history and track your updates."
       />
 
-      <div className="min-h-screen bg-[#050A09] pb-28 text-white">
+        <div className="app-shell min-h-screen pb-28 text-foreground">
         <div className="relative overflow-hidden px-6 pb-28 pt-14">
           <div className="absolute top-0 right-0 h-[600px] w-[600px] translate-x-1/3 -translate-y-1/2 rounded-full bg-emerald-500/5 blur-[140px]" />
           <div className="relative z-10 mx-auto max-w-4xl">
             <div className="mb-12 flex items-center gap-6">
               <button
                 onClick={() => navigate(-1)}
-                className="group rounded-full border border-[#193834] bg-[#0C1A17] p-3 shadow-2xl transition-all hover:bg-[#193834]"
+                className="app-panel group rounded-full border p-3 shadow-2xl transition-all hover:bg-emerald-500 hover:text-white"
               >
                 <ArrowLeft className="h-6 w-6 transition-transform group-hover:scale-110" />
               </button>
               <div>
                 <h1 className="text-4xl font-black tracking-tight lg:text-5xl">My Reports</h1>
-                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-gray-600">
+                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   {contributions.length} total contributions
                 </p>
               </div>
@@ -244,10 +244,10 @@ export function ContributionHistory() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.08 }}
-                  className="rounded-3xl border border-[#193834] bg-[#0C1A17] p-6 shadow-2xl"
+                  className="app-panel rounded-3xl border p-6 shadow-2xl"
                 >
                   <div className={`mb-1 text-3xl font-black ${stat.color}`}>{stat.value}</div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-600">{stat.label}</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{stat.label}</div>
                 </motion.div>
               ))}
             </div>
@@ -255,32 +255,32 @@ export function ContributionHistory() {
         </div>
 
         <div className="-mt-14 mx-auto max-w-4xl space-y-8 px-6">
-          <div className="flex items-center gap-4 rounded-[2.5rem] border border-[#193834] bg-[#0C1A17] p-6 shadow-2xl">
+          <div className="app-panel flex items-center gap-4 rounded-[2.5rem] border p-6 shadow-2xl">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10">
               <Star className="h-6 w-6 text-emerald-400" />
             </div>
             <div className="flex-1">
               <div className="mb-0.5 text-sm font-black text-emerald-400">Your Impact This Month</div>
-              <p className="text-xs font-bold text-gray-500">
+              <p className="text-xs font-bold text-muted-foreground">
                 Helping {Math.max(1, contributions.length * 15)}+ drivers save on fuel. Trust Score: {trustScore}%
               </p>
             </div>
             <div className="text-2xl font-black text-emerald-400">
               {totalKarma}
-              <span className="ml-1 text-xs text-gray-600">pts</span>
+              <span className="ml-1 text-xs text-muted-foreground">pts</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-5">
             {/* Search Bar */}
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-500" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search by station, fuel, or report type..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-[2rem] border border-[#193834] bg-[#0C1A17] py-4 pl-12 pr-4 text-sm font-bold text-white placeholder-gray-600 shadow-2xl outline-none transition-all focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
+                className="app-panel w-full rounded-[2rem] border border-emerald-500/10 py-4 pl-12 pr-4 text-sm font-bold text-foreground shadow-2xl outline-none transition-all placeholder:text-muted-foreground focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
               />
             </div>
 
@@ -311,15 +311,15 @@ export function ContributionHistory() {
             </div>
 
             {/* Status Filters */}
-            <div className="flex gap-1 rounded-full border border-[#193834] bg-[#0C1A17] p-1.5 shadow-2xl">
+            <div className="app-panel flex gap-1 rounded-full border border-emerald-500/10 p-1.5 shadow-2xl">
               {filters.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setStatusFilter(f.key)}
                   className={`flex-1 rounded-full py-3.5 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
                     statusFilter === f.key
-                      ? "bg-[#193834] text-emerald-400 shadow-lg"
-                      : "text-gray-500 hover:text-gray-300"
+                      ? "bg-emerald-500/14 text-emerald-600 shadow-lg dark:text-emerald-300"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {f.label}
@@ -330,7 +330,7 @@ export function ContributionHistory() {
 
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-[2.5rem] border border-[#193834] bg-[#0C1A17]" />
+              <div key={i} className="app-panel h-28 animate-pulse rounded-[2.5rem] border border-emerald-500/10" />
             ))
           ) : filteredContributions.length > 0 ? (
             <div className="space-y-10 pt-2">
@@ -346,7 +346,7 @@ export function ContributionHistory() {
                         initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: (groupIndex * 0.1) + (i * 0.05) }}
-                        className="overflow-hidden rounded-[1.5rem] border border-[#193834] bg-[#0C1A17] shadow-2xl transition-all hover:border-emerald-500/30"
+                        className="app-panel overflow-hidden rounded-[1.5rem] border border-emerald-500/10 shadow-2xl transition-all hover:border-emerald-500/30"
                       >
                         <div className="flex items-center gap-4 p-5">
                           <StationLogo name={c.stationName} size="md" />
@@ -362,13 +362,13 @@ export function ContributionHistory() {
                                 {c.karmaImpact > 0 ? `+${c.karmaImpact}` : c.karmaImpact} Karma
                               </span>
                             </div>
-                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" /> {c.rawDate.toLocaleDateString([], { dateStyle: "short" })} {c.timeStr}
                               </span>
-                              {c.fuelType && <span className="text-gray-700">·</span>}
+                              {c.fuelType && <span className="text-muted-foreground/60">·</span>}
                               {c.fuelType && <span>{c.fuelType}</span>}
-                              {c.type && <span className="text-gray-700">·</span>}
+                              {c.type && <span className="text-muted-foreground/60">·</span>}
                               {c.type && <span className="text-emerald-500">{c.type}</span>}
                             </div>
                           </div>
@@ -377,7 +377,7 @@ export function ContributionHistory() {
                             {c.price !== null ? (
                               <div className="text-lg font-black">P{c.price.toFixed(2)}</div>
                             ) : (
-                              <div className="text-xs font-black uppercase text-gray-600">N/A</div>
+                              <div className="text-xs font-black uppercase text-muted-foreground">N/A</div>
                             )}
                             <div
                               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${
@@ -408,7 +408,7 @@ export function ContributionHistory() {
                 <div className="pt-6 pb-12 flex justify-center">
                   <button
                     onClick={() => setVisibleCount((prev) => prev + 15)}
-                    className="rounded-full bg-[#193834] px-8 py-4 text-xs font-black uppercase tracking-widest text-emerald-400 shadow-xl transition-all hover:bg-emerald-900 hover:text-emerald-300"
+                    className="app-panel rounded-full border border-emerald-500/10 px-8 py-4 text-xs font-black uppercase tracking-widest text-emerald-600 shadow-xl transition-all hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
                   >
                     Load More
                   </button>

@@ -430,7 +430,7 @@ export function Map() {
 
   const renderDesktopSearchBar = (widthClassName) => (
     <div ref={desktopSearchRef} className={`relative ${widthClassName}`}>
-      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
+      <Search className="absolute left-4 top-1/2 z-10 w-5 h-5 -translate-y-1/2 text-muted-foreground" />
       <input
         type="text"
         value={searchQuery}
@@ -442,11 +442,11 @@ export function Map() {
           }
         }}
         placeholder={desktopToolPanel === "saved" ? "Search saved stations" : "Search stations, cities, or roads"}
-        className="w-full pl-12 pr-5 py-3.5 bg-[#0C1A17] rounded-2xl border border-emerald-500/10 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-2xl transition-all placeholder:text-gray-600 text-white font-bold"
+        className="app-panel w-full rounded-2xl border border-emerald-500/10 py-3.5 pl-12 pr-5 font-bold text-foreground shadow-2xl transition-all placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
       />
 
       {showRecentSearches && recentSearches.length > 0 && (
-        <div className="absolute top-[calc(100%+0.75rem)] left-0 w-full rounded-[24px] bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl border border-white/70 dark:border-neutral-700/70 shadow-[0_24px_60px_rgba(15,23,42,0.22)] p-3 z-20">
+        <div className="app-panel-strong absolute left-0 top-[calc(100%+0.75rem)] z-20 w-full rounded-[24px] p-3 shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
           <div className="flex items-center justify-between px-2 pb-2">
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
               Recent searches
@@ -675,7 +675,7 @@ export function Map() {
   return (
     <div className="h-full min-h-0 flex flex-col overflow-hidden lg:flex-row lg:overflow-hidden">
       {/* Map View */}
-      <div className="flex-1 relative bg-muted overflow-hidden z-10 h-full min-h-0">
+      <div className="relative z-10 h-full min-h-0 flex-1 overflow-hidden bg-muted">
 
         {/* Empty state — shown when not loading, no stations, and no GPS yet */}
         {!isLoadingStations && filteredStations.length === 0 && !userLocation && (
@@ -742,7 +742,7 @@ export function Map() {
         <div className="absolute top-0 left-0 right-0 p-4 pt-[calc(1rem+env(safe-area-inset-top))] space-y-3 overflow-visible bg-gradient-to-b from-black/60 via-black/30 to-transparent lg:hidden z-20">
           <div className="flex items-center gap-2.5">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 z-10" />
+              <Search className="absolute left-4 top-1/2 z-10 w-5 h-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
@@ -753,12 +753,12 @@ export function Map() {
                   }
                 }}
                 placeholder="Search stations or locations"
-                className="w-full pl-12 pr-5 py-3.5 bg-[#0C1A17] rounded-full border border-emerald-500/20 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 shadow-2xl transition-all placeholder:text-gray-600 text-white font-black text-xs uppercase tracking-widest"
+                className="app-panel w-full rounded-full border border-emerald-500/20 py-3.5 pl-12 pr-5 text-xs font-black uppercase tracking-widest text-foreground shadow-2xl transition-all placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
             <button
               onClick={() => setShowFilters(true)}
-              className="w-12 h-12 min-w-12 min-h-12 rounded-full bg-[#0C1A17] shadow-2xl flex items-center justify-center relative border border-emerald-500/20 hover:scale-105 transition-transform"
+              className="app-panel relative flex h-12 min-h-12 w-12 min-w-12 items-center justify-center rounded-full border border-emerald-500/20 shadow-2xl transition-transform hover:scale-105"
             >
               <Filter className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
               {activeFilters.length > 0 && (
@@ -812,7 +812,7 @@ export function Map() {
               setShowList(false);
               setSelectedStation(null);
             }}
-            className="w-12 h-12 bg-[#0C1A17] rounded-2xl shadow-2xl flex items-center justify-center border border-emerald-500/10"
+            className="app-panel flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-500/10 shadow-2xl"
             title="Saved stations"
           >
             <Heart className="w-5 h-5 text-rose-500" strokeWidth={2.5} />
@@ -842,10 +842,10 @@ export function Map() {
 
                 <button
                   onClick={() => setShowFilters(true)}
-                  className="h-12 w-12 rounded-2xl bg-white/94 dark:bg-neutral-950/92 border border-white/75 dark:border-neutral-700/80 shadow-[0_14px_30px_rgba(15,23,42,0.2)] flex items-center justify-center relative hover:border-emerald-300 transition-colors"
+                  className="app-panel-strong relative flex h-12 w-12 items-center justify-center rounded-2xl border shadow-[0_14px_30px_rgba(15,23,42,0.2)] transition-colors hover:border-emerald-300"
                   title="Open filters"
                 >
-                  <Filter className="w-5 h-5 text-gray-700 dark:text-gray-200" strokeWidth={2.5} />
+                  <Filter className="w-5 h-5 text-foreground" strokeWidth={2.5} />
                   {activeFilters.length > 0 && (
                     <div className="absolute -top-1.5 -right-1.5 min-w-6 h-6 px-1 bg-gradient-to-br from-emerald-600 via-green-600 to-teal-600 rounded-full flex items-center justify-center shadow-lg">
                       <span className="text-[11px] text-white font-bold">{activeFilters.length}</span>
@@ -898,12 +898,12 @@ export function Map() {
             ref={desktopSidebarRef}
             className="pointer-events-auto flex items-start gap-3"
           >
-            <div className="w-[92px] shrink-0 px-4 py-5 flex flex-col items-center gap-3 rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
+            <div className="app-panel-strong flex w-[92px] shrink-0 flex-col items-center gap-3 rounded-[34px] border px-4 py-5 shadow-[0_28px_70px_rgba(15,23,42,0.22)]">
               <button
                 onClick={toggleDesktopListPanel}
                 className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${desktopToolPanel === "list"
                   ? "bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/30"
-                  : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-800"
+                  : "app-elevated text-foreground border-gray-200 dark:border-neutral-700 hover:border-emerald-300 hover:bg-emerald-50 dark:hover:bg-neutral-800"
                   }`}
                 title="Nearby stations"
               >
@@ -913,7 +913,7 @@ export function Map() {
                 onClick={toggleDesktopSavedPanel}
                 className={`h-[52px] w-[52px] rounded-[22px] border transition-all duration-200 flex items-center justify-center ${desktopToolPanel === "saved"
                   ? "bg-rose-500 text-white border-rose-300 shadow-lg shadow-rose-500/25"
-                  : "bg-white/92 dark:bg-neutral-900 text-foreground border-gray-200 dark:border-neutral-700 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-neutral-800"
+                  : "app-elevated text-foreground border-gray-200 dark:border-neutral-700 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-neutral-800"
                   }`}
                 title="Saved stations"
               >
@@ -929,21 +929,21 @@ export function Map() {
             </div>
 
             <div
-              className={`min-w-0 overflow-hidden rounded-[34px] border border-white/60 dark:border-neutral-700/70 bg-white/88 dark:bg-neutral-900/88 backdrop-blur-2xl shadow-[0_32px_80px_rgba(15,23,42,0.24)] transition-[width,opacity,transform] duration-300 ease-out ${isDesktopSidebarExpanded
+              className={`app-panel-strong min-w-0 overflow-hidden rounded-[34px] border shadow-[0_32px_80px_rgba(15,23,42,0.24)] transition-[width,opacity,transform] duration-300 ease-out ${isDesktopSidebarExpanded
                 ? "w-[min(455px,34vw)] h-[min(720px,calc(100vh-8rem))] opacity-100 translate-x-0"
                 : "w-0 opacity-0 -translate-x-2 pointer-events-none border-transparent shadow-none"
                 }`}
             >
               <div className="h-full flex flex-col px-5 py-5">
                 {renderDesktopSearchBar("w-full")}
-                <div className="mt-4 flex-1 min-h-0 overflow-hidden rounded-[28px] bg-white/60 dark:bg-neutral-950/34 border border-white/50 dark:border-neutral-700/55 shadow-inner">
+                <div className="app-panel-muted mt-4 min-h-0 flex-1 overflow-hidden rounded-[28px] border shadow-inner">
                   <div
                     className={`h-full transition-all duration-300 ease-out ${isDesktopSidebarExpanded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                       }`}
                   >
                     {desktopToolPanel === "list" ? (
                       <div className="h-full flex flex-col">
-                        <div className="px-5 pt-4 pb-3 border-b border-white/55 dark:border-neutral-700/60">
+                        <div className="border-b border-border/70 px-5 pb-3 pt-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <div className="text-xl font-bold text-foreground tracking-tight">Nearby Stations</div>
@@ -951,7 +951,7 @@ export function Map() {
                                 {filteredStations.length} stations found
                               </div>
                             </div>
-                            <div className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+                            <div className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
                               {getFilterDescription()}
                             </div>
                           </div>
@@ -987,7 +987,7 @@ export function Map() {
                       </div>
                     ) : (
                       <div className="h-full flex flex-col">
-                        <div className="px-5 pt-4 pb-3 border-b border-white/55 dark:border-neutral-700/60">
+                        <div className="border-b border-border/70 px-5 pb-3 pt-4">
                           <div className="text-xl font-bold text-foreground tracking-tight">Saved Stations</div>
                           <div className="mt-1 text-sm font-medium text-muted-foreground">
                             {filteredSavedStations.length} saved stations ready for quick access
@@ -1033,7 +1033,7 @@ export function Map() {
         <div className="absolute right-4 bottom-[8.25rem] lg:hidden z-20">
           <button
             onClick={() => handlePreciseLocation(false)}
-            className="w-14 h-14 bg-white dark:bg-neutral-900 backdrop-blur-xl rounded-full shadow-2xl shadow-black/20 flex items-center justify-center border-2 border-gray-200 dark:border-neutral-700 hover:scale-105 transition-transform"
+            className="app-panel-strong flex h-14 w-14 items-center justify-center rounded-full border-2 border-gray-200 shadow-2xl shadow-black/20 transition-transform hover:scale-105 dark:border-neutral-700"
             title="Go to my location"
           >
             <Navigation className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
@@ -1052,15 +1052,15 @@ export function Map() {
         >
           <button
             onClick={() => handlePreciseLocation(false)}
-            className="w-14 h-14 bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl rounded-2xl shadow-2xl shadow-black/15 flex items-center justify-center border border-gray-200/80 dark:border-neutral-700/80 hover:scale-105 transition-transform"
+            className="app-panel-strong flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200/80 shadow-2xl shadow-black/15 transition-transform hover:scale-105 dark:border-neutral-700/80"
             title="Go to my location"
           >
             <Navigation className="w-6 h-6 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
           </button>
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-white/96 dark:bg-neutral-900/96 backdrop-blur-2xl border border-gray-200/80 dark:border-neutral-700/80 shadow-2xl shadow-black/15">
+          <div className="app-panel-strong flex flex-col overflow-hidden rounded-2xl border border-gray-200/80 shadow-2xl shadow-black/15 dark:border-neutral-700/80">
             <button
               onClick={zoomMapIn}
-              className="w-14 h-14 flex items-center justify-center text-foreground hover:bg-muted transition-colors border-b border-gray-200/70 dark:border-neutral-700/70"
+              className="flex h-14 w-14 items-center justify-center border-b border-border/70 text-foreground transition-colors hover:bg-muted"
               title="Zoom in"
             >
               <Plus className="w-6 h-6" strokeWidth={2.5} />
@@ -1077,7 +1077,7 @@ export function Map() {
 
         {/* Desktop Selected Station Panel */}
         {selectedStation && !showList && !isDesktopSidebarExpanded && (
-          <div className="hidden lg:block absolute bottom-6 right-6 w-[min(420px,38vw)] bg-white/98 dark:bg-neutral-900/98 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl border-2 border-gray-200 dark:border-neutral-700 z-30">
+          <div className="app-panel-strong absolute bottom-6 right-6 z-30 hidden w-[min(420px,38vw)] rounded-3xl border-2 border-gray-200 p-6 shadow-2xl dark:border-neutral-700 lg:block">
             <button
               onClick={() => setSelectedStation(null)}
               className="absolute top-5 right-5 w-9 h-9 bg-muted hover:bg-muted/80 rounded-full flex items-center justify-center transition-all shadow-md z-10"
@@ -1099,8 +1099,8 @@ export function Map() {
 
         {/* Bottom Sheet - Selected Station (Mobile Only) */}
         {selectedStation && !showList && !showSavedSheet && (
-          <div className="lg:hidden absolute bottom-[5.5rem] left-0 right-0 bg-white dark:bg-neutral-900 backdrop-blur-2xl rounded-t-3xl p-5 sm:p-6 shadow-2xl border-t-2 border-gray-200 dark:border-neutral-700 max-h-[52vh] overflow-y-auto z-30">
-            <div className="w-16 h-1.5 bg-gray-300 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
+          <div className="app-panel-strong absolute bottom-[5.5rem] left-0 right-0 z-30 max-h-[52vh] overflow-y-auto rounded-t-3xl border-t-2 border-gray-200 p-5 shadow-2xl dark:border-neutral-700 lg:hidden sm:p-6">
+            <div className="mx-auto mb-5 h-1.5 w-16 rounded-full bg-border" />
             <div className="relative">
               <button
                 onClick={() => setSelectedStation(null)}

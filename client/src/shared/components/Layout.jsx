@@ -32,9 +32,9 @@ export function Layout() {
   const isMobileMapRoute = isDesktopMapRoute;
 
   return (
-    <div className="flex flex-col h-screen bg-[#050A09]">
+    <div className="app-shell flex h-screen flex-col">
       {/* Desktop Top Navigation - Hidden on Mobile */}
-      <nav className="hidden lg:block sticky top-0 z-50 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-700 shadow-lg">
+      <nav className="app-panel-strong hidden sticky top-0 z-50 border-b lg:block">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo/Brand */}
@@ -55,7 +55,7 @@ export function Layout() {
                     className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold text-sm transition-all relative ${
                       active
                         ? "bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white shadow-lg shadow-emerald-500/30"
-                        : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-neutral-800"
+                        : "text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5"
                     }`}
                   >
                     <Icon className="w-4 h-4" strokeWidth={2.5} />
@@ -81,7 +81,7 @@ export function Layout() {
 
       {/* Bottom Navigation - Mobile Only */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 px-6 pb-6">
-        <div className="bg-[#0C1A17] border border-emerald-500/10 rounded-full shadow-[0_15px_40px_rgba(0,0,0,0.4)] max-w-md mx-auto px-2 py-3">
+        <div className="app-panel-strong max-w-md rounded-full px-2 py-3 shadow-[0_15px_40px_rgba(0,0,0,0.28)] mx-auto">
           <div className="flex items-center justify-around relative">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -115,7 +115,7 @@ export function Layout() {
                 >
                   <Icon
                     className={`w-6 h-6 transition-all ${
-                      active ? "text-emerald-400" : "text-gray-600"
+                      active ? "text-emerald-400" : "text-muted-foreground"
                     }`}
                     strokeWidth={active ? 3 : 2}
                   />

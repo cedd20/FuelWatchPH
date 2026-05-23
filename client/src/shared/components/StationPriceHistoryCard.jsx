@@ -27,8 +27,8 @@ function PriceHistoryTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="min-w-[180px] rounded-2xl border border-emerald-500/15 bg-[#050A09]/90 px-4 py-3 text-slate-50 shadow-2xl shadow-black/30 backdrop-blur-xl">
-      <p className="mb-2 text-sm font-bold text-slate-50">{label}</p>
+    <div className="app-panel-strong min-w-[180px] rounded-2xl px-4 py-3 shadow-2xl shadow-black/20">
+      <p className="mb-2 text-sm font-bold text-foreground">{label}</p>
       <div className="space-y-1.5">
         {payload
           .filter((item) => Number.isFinite(item.value))
@@ -39,9 +39,9 @@ function PriceHistoryTooltip({ active, payload, label }) {
                   className="h-2.5 w-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: item.stroke || item.color }}
                 />
-                <span className="truncate font-medium text-slate-300">{item.name}</span>
+                <span className="truncate font-medium text-muted-foreground">{item.name}</span>
               </div>
-              <span className="whitespace-nowrap font-bold text-slate-50">{formatPeso(item.value)}</span>
+              <span className="whitespace-nowrap font-bold text-foreground">{formatPeso(item.value)}</span>
             </div>
           ))}
       </div>
@@ -52,19 +52,12 @@ function PriceHistoryTooltip({ active, payload, label }) {
 function PriceHistoryLegend({ payload }) {
   if (!payload?.length) return null;
 
-  const chipStyle = {
-    color: "#f8fafc",
-    backgroundColor: "rgba(5, 10, 9, 0.88)",
-    borderColor: "rgba(16, 185, 129, 0.16)",
-  };
-
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       {payload.map((item) => (
         <div
           key={item.value}
-          className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold leading-none shadow-sm shadow-slate-950/5"
-          style={chipStyle}
+          className="app-panel-muted inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none shadow-sm"
         >
           <span
             className="h-2 w-2 rounded-full shrink-0"
@@ -109,21 +102,21 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
   const fuelTypes = useMemo(() => getStationPriceHistoryFuelTypes(historyEntries, selectedRange), [historyEntries, selectedRange]);
 
   return (
-    <section className={`bg-[#0C1A17] backdrop-blur-2xl rounded-3xl border border-emerald-500/10 shadow-2xl shadow-black/10 overflow-hidden ${compact ? "" : ""}`}>
-      <div className={`${compact ? "px-4 pt-4 pb-3" : "px-5 pt-5 pb-4"} border-b border-white/5`}>
+    <section className={`app-panel rounded-3xl overflow-hidden shadow-2xl shadow-black/10 ${compact ? "" : ""}`}>
+      <div className={`${compact ? "px-4 pt-4 pb-3" : "px-5 pt-5 pb-4"} border-b border-border/60`}>
         <div className={`flex items-start justify-between gap-4 ${compact ? "mb-3" : "mb-4"}`}>
           <div className="flex items-center gap-3 min-w-0">
             <div className={`${compact ? "w-9 h-9" : "w-11 h-11"} rounded-xl bg-emerald-500/10 flex items-center justify-center flex-shrink-0`}>
               <Fuel className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
             </div>
             <div className="min-w-0">
-              <h3 className={`${compact ? "text-sm sm:text-lg" : "text-lg sm:text-xl"} font-bold text-white tracking-tight`}>Price History</h3>
-              <p className={`${compact ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"} text-gray-500 font-medium truncate`}>
+              <h3 className={`${compact ? "text-sm sm:text-lg" : "text-lg sm:text-xl"} font-bold text-foreground tracking-tight`}>Price History</h3>
+              <p className={`${compact ? "text-[10px] sm:text-xs" : "text-xs sm:text-sm"} text-muted-foreground font-medium truncate`}>
                 Station trends for {stationName || "this station"}
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-[10px] font-semibold text-emerald-500/60 bg-emerald-500/5 px-3 py-2 rounded-full border border-emerald-500/10">
+          <div className="hidden rounded-full border border-emerald-500/15 bg-emerald-500/8 px-3 py-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-300 sm:flex items-center gap-2">
             <Clock3 className="w-3 h-3" />
             Local history
           </div>
@@ -138,7 +131,7 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
               className={`flex-shrink-0 px-3 py-1.5 rounded-full ${compact ? "text-[10px]" : "text-sm"} font-bold transition-all border ${
                 selectedRange === range
                   ? "bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/30"
-                  : "bg-[#050A09] text-gray-500 border-white/5 hover:border-emerald-500/20 hover:text-white"
+                  : "app-panel-muted text-muted-foreground border-transparent hover:border-emerald-500/20 hover:text-foreground"
               }`}
             >
               {range}
@@ -149,12 +142,12 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
 
       <div className={`${compact ? "p-4 sm:p-5" : "p-4 sm:p-6"}`}>
         {chartData.length === 0 ? (
-          <div className={`${compact ? "min-h-[140px] px-4 py-6" : "min-h-[200px] px-6 py-10"} flex flex-col items-center justify-center text-center rounded-2xl border-2 border-dashed border-white/5 bg-[#050A09]/50`}>
+          <div className={`${compact ? "min-h-[140px] px-4 py-6" : "min-h-[200px] px-6 py-10"} app-panel-muted flex flex-col items-center justify-center rounded-2xl border-2 border-dashed text-center`}>
             <div className={`${compact ? "w-10 h-10 mb-2" : "w-14 h-14 mb-4"} rounded-full bg-emerald-500/10 flex items-center justify-center`}>
               <AlertCircle className={`${compact ? "w-5 h-5" : "w-7 h-7"} text-emerald-400`} />
             </div>
-            <h4 className={`${compact ? "text-xs" : "text-sm"} font-bold text-white mb-1`}>No local history yet.</h4>
-            <p className={`${compact ? "text-[10px]" : "text-xs"} text-gray-500 max-w-md`}>
+            <h4 className={`${compact ? "text-xs" : "text-sm"} mb-1 font-bold text-foreground`}>No local history yet.</h4>
+            <p className={`${compact ? "text-[10px]" : "text-xs"} max-w-md text-muted-foreground`}>
               Updates you make will appear here.
             </p>
           </div>
@@ -163,7 +156,7 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
             <div className={compact ? "h-[220px] sm:h-[260px]" : "h-[270px] sm:h-[330px]"}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 8, left: -8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(120, 145, 138, 0.28)" vertical={false} />
                   <XAxis
                     dataKey="label"
                     tickLine={false}
@@ -171,14 +164,14 @@ export function StationPriceHistoryCard({ stationId, stationName, compact = fals
                     tickMargin={10}
                     minTickGap={18}
                     interval="preserveStartEnd"
-                    tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: "var(--app-text-muted)", fontSize: 12, fontWeight: 600 }}
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
                     width={48}
-                    tick={{ fill: "#64748b", fontSize: 12, fontWeight: 600 }}
+                    tick={{ fill: "var(--app-text-muted)", fontSize: 12, fontWeight: 600 }}
                     tickFormatter={(value) => `₱${Number(value).toFixed(0)}`}
                     domain={["auto", "auto"]}
                   />

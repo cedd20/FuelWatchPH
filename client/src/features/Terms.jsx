@@ -40,7 +40,7 @@ export function Terms() {
   const activeContent = activeTab === "terms" ? termsContent : privacyContent;
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-28">
+    <div className="app-shell min-h-screen pb-28 text-foreground">
       {/* Header */}
       <div className="relative pt-14 pb-24 px-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
@@ -48,13 +48,13 @@ export function Terms() {
           <div className="flex items-center gap-6 mb-10">
             <button
               onClick={() => navigate(-1)}
-              className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 transition-all shadow-2xl group"
+              className="app-panel group rounded-full p-3 transition-all hover:bg-emerald-500 hover:text-white shadow-2xl"
             >
               <ArrowLeft className="w-6 h-6 group-hover:scale-110 transition-transform" />
             </button>
             <div>
               <h1 className="text-4xl font-black tracking-tight">Legal</h1>
-              <p className="text-gray-600 font-bold text-xs uppercase tracking-widest mt-1">Terms & Privacy Policy</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">Terms & Privacy Policy</p>
             </div>
           </div>
         </div>
@@ -66,14 +66,14 @@ export function Terms() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#0C1A17] p-2 rounded-[2.5rem] flex border border-emerald-500/10 shadow-2xl"
+          className="app-panel flex rounded-[2.5rem] p-2 shadow-2xl"
         >
           <button
             onClick={() => setActiveTab("terms")}
             className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
               activeTab === "terms"
                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                : "text-gray-600 hover:text-gray-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Scale className="w-4 h-4" />
@@ -84,7 +84,7 @@ export function Terms() {
             className={`flex-1 flex items-center justify-center gap-2 py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest transition-all ${
               activeTab === "privacy"
                 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                : "text-gray-600 hover:text-gray-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Shield className="w-4 h-4" />
@@ -108,7 +108,7 @@ export function Terms() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.08 }}
-                className="bg-[#0C1A17] rounded-[2.5rem] p-8 border border-emerald-500/5 hover:border-emerald-500/20 transition-all shadow-2xl group"
+                className="app-panel group rounded-[2.5rem] p-8 transition-all hover:border-emerald-500/20 shadow-2xl"
               >
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
@@ -116,7 +116,7 @@ export function Terms() {
                   </div>
                   <h3 className="font-black text-base tracking-tight">{section.title}</h3>
                 </div>
-                <p className="text-gray-500 font-medium text-sm leading-relaxed pl-14">
+                <p className="pl-14 text-sm font-medium leading-relaxed text-muted-foreground">
                   {section.content}
                 </p>
               </motion.div>
@@ -125,8 +125,8 @@ export function Terms() {
         </AnimatePresence>
 
         {/* Legal Footer */}
-        <div className="bg-emerald-500/5 rounded-[2rem] p-6 border border-emerald-500/10 text-center">
-          <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">
+        <div className="rounded-[2rem] border border-emerald-500/12 bg-emerald-500/6 p-6 text-center">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
             Last updated: April 24, 2026 · Subject to change
           </p>
         </div>

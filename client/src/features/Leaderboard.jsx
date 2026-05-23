@@ -94,18 +94,18 @@ export function Leaderboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-32">
+    <div className="app-shell min-h-screen pb-32 text-foreground">
       {/* Header section */}
       <div className="relative pt-16 pb-24 px-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex items-center gap-6 mb-12">
-            <button onClick={() => navigate(-1)} className="p-3 bg-[#0C1A17] rounded-full border border-emerald-500/10 hover:bg-emerald-500 hover:text-white transition-all shadow-2xl">
+            <button onClick={() => navigate(-1)} className="app-panel rounded-full border border-emerald-500/10 p-3 shadow-2xl transition-all hover:bg-emerald-500 hover:text-white">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1">Hall of Fame</h1>
-              <p className="text-gray-500 font-semibold uppercase tracking-wider text-[10px]">Community contributors of the month</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Community contributors of the month</p>
             </div>
           </div>
 
@@ -116,12 +116,12 @@ export function Leaderboard() {
               { label: "Verified Rate", value: `${stats?.verified_rate || 98}%`, icon: ShieldCheck },
               { label: "Total Karma", value: stats?.total_updates ? `${((stats.total_updates * 10) / 1000).toFixed(1)}k` : "0k", icon: Star }
             ].map((stat, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-[#0C1A17] rounded-2xl p-5 border border-emerald-500/5 shadow-2xl">
+              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="app-panel rounded-2xl border border-emerald-500/5 p-5 shadow-2xl">
                  <div className="flex items-center gap-3 mb-3">
                     <div className="p-1.5 bg-emerald-500/10 rounded-lg">
                        <stat.icon className="w-3.5 h-3.5 text-emerald-400" />
                     </div>
-                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">{stat.label}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</span>
                  </div>
                  <div className="text-2xl font-bold">{stat.value}</div>
               </motion.div>
@@ -144,15 +144,15 @@ export function Leaderboard() {
 
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 bg-[#0C1A17] rounded-3xl animate-pulse border border-emerald-500/5" />
+              <div key={i} className="app-panel h-24 animate-pulse rounded-3xl border border-emerald-500/5" />
             ))
           ) : leaderboard.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center p-12 bg-[#0C1A17] rounded-[2.5rem] border border-emerald-500/10 shadow-2xl">
+            <div className="app-panel flex flex-col items-center justify-center rounded-[2.5rem] border border-emerald-500/10 p-12 text-center shadow-2xl">
               <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4 border border-emerald-500/20">
                 <Trophy className="w-8 h-8 text-emerald-500/60" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">No eligible contributors yet</h3>
-              <p className="text-sm text-gray-400 max-w-sm">
+              <h3 className="mb-2 text-xl font-bold text-foreground">No eligible contributors yet</h3>
+              <p className="max-w-sm text-sm text-muted-foreground">
                 Users need at least 300 Karma to appear in the Hall of Fame. Keep verifying and updating prices to reach the leaderboard!
               </p>
             </div>
@@ -171,39 +171,39 @@ export function Leaderboard() {
               let badgeClass = "";
 
               if (isTop1) {
-                cardClass = "bg-gradient-to-br from-[#193834] via-[#112926] to-[#0a1e1b] border-emerald-400/40 shadow-[0_0_35px_rgba(16,185,129,0.2)] hover:border-emerald-400/60 ring-1 ring-emerald-400/10";
+                cardClass = "border-emerald-400/30 bg-gradient-to-br from-emerald-50 via-teal-50 to-white text-foreground shadow-[0_0_35px_rgba(16,185,129,0.08)] hover:border-emerald-400/50 ring-1 ring-emerald-400/10 dark:from-[#193834] dark:via-[#112926] dark:to-[#0a1e1b] dark:text-white dark:shadow-[0_0_35px_rgba(16,185,129,0.2)]";
                 paddingClass = "p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem]";
                 avatarSizeClass = "w-14 h-14 md:w-18 md:h-18";
                 iconSizeClass = "w-7 h-7 md:w-9 md:h-9";
                 nameClass = "text-lg md:text-2xl font-black";
                 karmaClass = "text-2xl md:text-4xl font-black text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]";
-                badgeClass = "bg-[#050A09]/80 border border-emerald-500/20 text-emerald-400";
+                badgeClass = "border border-emerald-500/20 bg-white/80 text-emerald-700 dark:bg-[#050A09]/80 dark:text-emerald-400";
               } else if (isTop2) {
-                cardClass = "bg-gradient-to-br from-[#122b27] to-[#081a17] border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)] hover:border-emerald-500/35";
+                cardClass = "border-emerald-400/20 bg-gradient-to-br from-slate-50 via-white to-emerald-50 text-foreground shadow-[0_0_20px_rgba(16,185,129,0.06)] hover:border-emerald-500/30 dark:from-[#122b27] dark:to-[#081a17] dark:text-white dark:shadow-[0_0_20px_rgba(16,185,129,0.1)]";
                 paddingClass = "p-5 md:p-7 rounded-[1.75rem] md:rounded-[2.25rem]";
                 avatarSizeClass = "w-12 h-12 md:w-15 md:h-15";
                 iconSizeClass = "w-6 h-6 md:w-7 md:h-7";
                 nameClass = "text-base md:text-xl font-black";
-                karmaClass = "text-xl md:text-3xl font-black text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.15)]";
-                badgeClass = "bg-[#050A09]/60 border border-emerald-500/10 text-slate-300";
+                karmaClass = "text-xl md:text-3xl font-black text-slate-600 drop-shadow-[0_0_8px_rgba(203,213,225,0.15)] dark:text-slate-300";
+                badgeClass = "border border-emerald-500/10 bg-white/72 text-slate-600 dark:bg-[#050A09]/60 dark:text-slate-300";
               } else if (isTop3) {
-                cardClass = "bg-gradient-to-br from-[#0e211e] to-[#061513] border-emerald-500/15 shadow-[0_0_15px_rgba(16,185,129,0.05)] hover:border-emerald-500/25";
+                cardClass = "border-amber-400/20 bg-gradient-to-br from-amber-50 via-white to-orange-50 text-foreground shadow-[0_0_15px_rgba(16,185,129,0.04)] hover:border-amber-500/30 dark:from-[#0e211e] dark:to-[#061513] dark:text-white dark:shadow-[0_0_15px_rgba(16,185,129,0.05)]";
                 paddingClass = "p-4.5 md:p-6 rounded-[1.5rem] md:rounded-[2rem]";
                 avatarSizeClass = "w-11 h-11 md:w-13 md:h-13";
                 iconSizeClass = "w-5.5 h-5.5 md:w-6 md:h-6";
                 nameClass = "text-sm md:text-lg font-black";
                 karmaClass = "text-lg md:text-2xl font-black text-amber-600 drop-shadow-[0_0_6px_rgba(217,119,6,0.1)]";
-                badgeClass = "bg-[#050A09]/50 border border-emerald-500/5 text-amber-600";
+                badgeClass = "border border-amber-400/20 bg-white/70 text-amber-700 dark:bg-[#050A09]/50 dark:text-amber-600";
               } else {
                 cardClass = entry.id === user?.id 
-                  ? "bg-[#1A2E2A] border-emerald-500/30 shadow-2xl shadow-emerald-500/10 hover:border-emerald-500/40" 
-                  : "bg-[#0C1A17] border-emerald-500/5 hover:border-emerald-500/25 hover:bg-[#0e221e]";
+                  ? "app-panel border-emerald-500/30 shadow-2xl shadow-emerald-500/10 hover:border-emerald-500/40"
+                  : "app-panel border-emerald-500/5 hover:border-emerald-500/25";
                 paddingClass = "p-3.5 md:p-4.5 rounded-[1.25rem] md:rounded-[1.75rem]";
                 avatarSizeClass = "w-9 h-9 md:w-11 md:h-11";
                 iconSizeClass = "w-4.5 h-4.5 md:w-5 md:h-5";
                 nameClass = "text-xs md:text-base font-bold";
                 karmaClass = "text-base md:text-xl font-bold text-emerald-400/90";
-                badgeClass = "bg-[#050A09]/40 border border-emerald-500/5 text-gray-500";
+                badgeClass = "bg-emerald-500/8 border border-emerald-500/10 text-muted-foreground";
               }
 
               return (
@@ -227,7 +227,7 @@ export function Leaderboard() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 md:gap-2.5 mb-1">
-                      <h3 className={`${nameClass} font-black truncate text-white`}>{entry.name}</h3>
+                      <h3 className={`${nameClass} truncate font-black ${isTop1 || isTop2 || isTop3 ? "text-foreground dark:text-white" : "text-foreground"}`}>{entry.name}</h3>
                       {entry.isVerified && <CheckCircle className="w-3.5 h-3.5 md:w-4.5 md:h-4.5 text-emerald-400 shrink-0" />}
                       
                       {isTop1 ? (
@@ -250,7 +250,7 @@ export function Leaderboard() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3.5 text-[8.5px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    <div className={`flex items-center gap-3.5 text-[8.5px] md:text-[10px] font-bold uppercase tracking-widest ${isTop1 || isTop2 || isTop3 ? "text-muted-foreground dark:text-white/65" : "text-muted-foreground"}`}>
                       <div className="flex items-center gap-1"><Zap className="w-2.5 h-2.5 md:w-3 md:h-3 text-emerald-500" /> {entry.updates} Updates</div>
                       <div className="flex items-center gap-1"><Sparkles className="w-2.5 h-2.5 md:w-3 md:h-3 text-emerald-400" /> {entry.trustScore}% Trust</div>
                     </div>
@@ -258,7 +258,7 @@ export function Leaderboard() {
 
                   <div className="text-right shrink-0">
                     <div className={karmaClass}>{entry.karma.toLocaleString()}</div>
-                    <div className="text-[7.5px] md:text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] mt-0.5">Karma</div>
+                    <div className={`mt-0.5 text-[7.5px] md:text-[9px] font-black uppercase tracking-[0.2em] ${isTop1 || isTop2 || isTop3 ? "text-muted-foreground dark:text-white/45" : "text-muted-foreground"}`}>Karma</div>
                   </div>
                 </motion.div>
               );
@@ -269,13 +269,13 @@ export function Leaderboard() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* My Rank Card */}
-          <div className="bg-[#0C1A17] rounded-[2.5rem] p-8 border border-emerald-500/10 shadow-2xl relative overflow-hidden">
+          <div className="app-panel relative overflow-hidden rounded-[2.5rem] border border-emerald-500/10 p-8 shadow-2xl">
              <div className="absolute top-0 right-0 p-4 opacity-10"><Crown className="w-20 h-20" /></div>
-             <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-6">Your Standing</h3>
+             <h3 className="mb-6 text-xs font-black uppercase tracking-widest text-muted-foreground">Your Standing</h3>
              <div className="flex items-center gap-4 mb-8">
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl ${
                   me?.rank === "—" 
-                    ? "bg-gray-800/40 text-gray-500 border border-gray-700/30" 
+                    ? "border border-gray-300/60 bg-gray-100 text-muted-foreground dark:border-gray-700/30 dark:bg-gray-800/40" 
                     : "bg-emerald-500 text-white shadow-emerald-500/20"
                 }`}>
                    <span className="text-2xl font-black">{me?.rank}</span>
@@ -292,19 +292,19 @@ export function Leaderboard() {
                 </div>
              </div>
              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#050A09] p-4 rounded-2xl border border-emerald-500/5 text-center">
+                <div className="app-elevated rounded-2xl border border-emerald-500/5 p-4 text-center">
                    <div className="text-lg font-black">{me?.karma.toLocaleString()}</div>
-                   <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Points</div>
+                   <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Points</div>
                 </div>
-                <div className="bg-[#050A09] p-4 rounded-2xl border border-emerald-500/5 text-center">
+                <div className="app-elevated rounded-2xl border border-emerald-500/5 p-4 text-center">
                    <div className="text-lg font-black">{me?.trustScore}%</div>
-                   <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest">Accuracy</div>
+                   <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Accuracy</div>
                 </div>
              </div>
           </div>
 
           {/* Rules Card */}
-          <div className="bg-emerald-500/5 rounded-[2.5rem] p-8 border border-emerald-500/10 shadow-2xl">
+          <div className="rounded-[2.5rem] border border-emerald-500/10 bg-emerald-500/5 p-8 shadow-2xl">
              <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4">Elite Perks</h3>
              <ul className="space-y-4">
                 {[
@@ -313,7 +313,7 @@ export function Leaderboard() {
                   "Early access to new features",
                   "Exclusive profile customization"
                 ].map((perk, i) => (
-                  <li key={i} className="flex gap-3 text-xs font-bold text-gray-500 leading-relaxed">
+                  <li key={i} className="flex gap-3 text-xs font-bold leading-relaxed text-muted-foreground">
                      <div className="mt-1 w-1.5 h-1.5 bg-emerald-500 rounded-full shrink-0" />
                      {perk}
                   </li>

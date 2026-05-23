@@ -151,7 +151,7 @@ export function Compare() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#050A09] flex flex-col items-center justify-center">
+      <div className="app-shell min-h-screen flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
         <p className="text-emerald-500/60 font-bold animate-pulse">Analyzing prices...</p>
       </div>
@@ -159,7 +159,7 @@ export function Compare() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-24 overflow-x-hidden">
+    <div className="app-shell min-h-screen overflow-x-hidden pb-24 text-foreground">
       <div className="max-w-md mx-auto px-5 pt-8 space-y-6">
         
         {/* Page Header */}
@@ -174,13 +174,13 @@ export function Compare() {
              </div>
              <h1 className="text-2xl font-bold tracking-tight">Compare Prices</h1>
           </div>
-          <p className="text-xs text-gray-400 font-bold uppercase tracking-widest pl-1">
-            Find the best deals in <span className="text-white">{activeCityLabel}</span>
+          <p className="pl-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Find the best deals in <span className="text-foreground">{activeCityLabel}</span>
           </p>
         </motion.div>
 
         {/* Location & Fuel Filter Bar */}
-        <Card className="bg-[#0C1A17] border-emerald-500/10 rounded-[2rem] overflow-visible">
+        <Card className="app-panel overflow-visible rounded-[2rem] border-emerald-500/10">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
@@ -188,7 +188,7 @@ export function Compare() {
                 <select
                   value={selectedCity}
                   onChange={(e) => handleCityChange(e.target.value)}
-                  className="w-full bg-[#1A2E2A] text-white text-sm font-bold pl-10 pr-4 py-3 rounded-2xl border-none focus:ring-2 focus:ring-emerald-500/50 appearance-none"
+                  className="app-input w-full appearance-none rounded-2xl border-none py-3 pl-10 pr-4 text-sm font-bold focus:ring-2 focus:ring-emerald-500/50"
                 >
                   {selectableCities.map(city => (
                     <option key={city} value={city}>{city}</option>
@@ -208,7 +208,7 @@ export function Compare() {
                   className={`px-4 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap border-2 ${
                     selectedFuelType === type
                       ? "bg-emerald-500 border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                      : "bg-[#1A2E2A] border-transparent text-gray-500 hover:text-gray-300"
+                      : "app-panel-muted border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {type}
@@ -225,10 +225,10 @@ export function Compare() {
             animate={{ opacity: 1, scale: 1 }}
             className="flex flex-col items-center justify-center py-20 text-center space-y-4"
           >
-            <SearchX className="w-16 h-16 text-gray-700" />
+            <SearchX className="w-16 h-16 text-muted-foreground/60" />
             <div className="space-y-1">
-              <h3 className="font-bold text-lg text-gray-300">No Prices Found</h3>
-              <p className="text-sm text-gray-500 max-w-[250px]">We couldn't find any {selectedFuelType} prices in this area yet.</p>
+              <h3 className="text-lg font-bold text-foreground">No Prices Found</h3>
+              <p className="max-w-[250px] text-sm text-muted-foreground">We couldn't find any {selectedFuelType} prices in this area yet.</p>
             </div>
           </motion.div>
         ) : (
@@ -274,7 +274,7 @@ export function Compare() {
 
               {/* Station List */}
               <div className="space-y-4">
-                <h3 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] px-2">Price Breakdown</h3>
+                <h3 className="px-2 text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">Price Breakdown</h3>
                 <div className="space-y-3">
                   {sortedStations.map((station, idx) => {
                     const price = getStationPrice(station, selectedFuelType);
@@ -288,7 +288,7 @@ export function Compare() {
                         transition={{ delay: idx * 0.05 }}
                         key={station.id}
                         onClick={() => navigate(`/app/station/${station.id}`)}
-                        className={`bg-[#0C1A17] border rounded-[2rem] p-5 flex items-center gap-4 group cursor-pointer active:scale-95 transition-all ${
+                        className={`app-panel rounded-[2rem] border p-5 flex items-center gap-4 group cursor-pointer active:scale-95 transition-all ${
                           isLowest ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-emerald-500/5'
                         }`}
                       >
@@ -304,13 +304,13 @@ export function Compare() {
                             <h4 className="font-bold text-sm truncate">{station.name}</h4>
                             {isLowest && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                           </div>
-                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground">
                             <MapPin className="w-3 h-3" />
                             <span className="truncate">{station.address}</span>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className={`font-black text-lg tracking-tighter ${isLowest ? 'text-emerald-400' : 'text-white'}`}>
+                          <div className={`font-black text-lg tracking-tighter ${isLowest ? 'text-emerald-400' : 'text-foreground'}`}>
                             {formatPrice(price)}
                           </div>
                           {priceDiff > 0 && (
@@ -324,7 +324,7 @@ export function Compare() {
                             </div>
                           )}
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-emerald-500 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
                       </motion.div>
                     );
                   })}
@@ -335,9 +335,9 @@ export function Compare() {
         )}
 
         {/* Coverage Insight */}
-        <div className="bg-[#0C1A17] rounded-[2rem] p-6 border border-emerald-500/10 text-center">
+        <div className="app-panel rounded-[2rem] p-6 border border-emerald-500/10 text-center">
            <TrendingDown className="w-8 h-8 text-emerald-500/20 mx-auto mb-3" />
-           <p className="text-[11px] text-gray-500 font-bold leading-relaxed">
+           <p className="text-[11px] font-bold leading-relaxed text-muted-foreground">
              Prices are community-verified. Always check for the "Verified" badge on station details for the most accurate and recent data.
            </p>
         </div>

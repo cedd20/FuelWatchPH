@@ -2,18 +2,18 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
+  --background: #f4f7f5;
+  --foreground: #10211e;
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --card-foreground: #10211e;
+  --popover: #ffffff;
+  --popover-foreground: #10211e;
   
   /* FuelWatch PH Custom Colors - Green System */
-  --primary: #10B981;
+  --primary: #193834;
   --primary-foreground: #ffffff;
-  --primary-light: #22C55E;
-  --primary-dark: #065F46;
+  --primary-light: #2a6b58;
+  --primary-dark: #102724;
   
   --success: #16A34A;
   --success-foreground: #ffffff;
@@ -23,29 +23,49 @@
   --warning-foreground: #ffffff;
   --warning-light: #FCD34D;
   
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #F3F4F6;
-  --muted-foreground: #6B7280;
-  --accent: #F3F4F6;
-  --accent-foreground: #030213;
+  --secondary: #dfe8e4;
+  --secondary-foreground: #10211e;
+  --muted: #e9efeb;
+  --muted-foreground: #58756f;
+  --accent: #e6f0ec;
+  --accent-foreground: #10211e;
   --destructive: #DC2626;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
+  --border: rgba(25, 56, 52, 0.12);
   --input: transparent;
-  --input-background: #F9FAFB;
+  --input-background: #ffffff;
   --switch-background: #cbced4;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
+  --ring: rgba(25, 56, 52, 0.26);
   
   /* Chart colors - Green System */
-  --chart-1: #10B981;
-  --chart-2: #14B8A6;
+  --chart-1: #193834;
+  --chart-2: #0f766e;
   --chart-3: #22C55E;
-  --chart-4: #6EE7B7;
-  --chart-5: #065F46;
+  --chart-4: #4ade80;
+  --chart-5: #2a6b58;
+  --app-shell: #f4f7f5;
+  --app-shell-secondary: #edf3ef;
+  --app-surface: rgba(255, 255, 255, 0.92);
+  --app-surface-strong: rgba(255, 255, 255, 0.98);
+  --app-surface-muted: rgba(230, 240, 236, 0.92);
+  --app-surface-elevated: rgba(241, 246, 243, 0.96);
+  --app-border: rgba(25, 56, 52, 0.12);
+  --app-border-strong: rgba(25, 56, 52, 0.2);
+  --app-text-soft: #2a4640;
+  --app-text-muted: #58756f;
+  --app-input: rgba(255, 255, 255, 0.96);
+  --app-input-focus: #ffffff;
+  --app-auth-shell: #edf4f0;
+  --app-auth-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(237, 243, 239, 0.98));
+  --app-auth-aside: linear-gradient(180deg, rgba(25, 56, 52, 0.98), rgba(16, 33, 30, 0.96));
+  --app-auth-input: rgba(255, 255, 255, 0.96);
+  --app-auth-input-focus: #ffffff;
+  --app-auth-text: #f4fbf8;
+  --app-auth-muted: #9fc2b9;
+  --app-auth-subtle: #6f8e88;
   --radius: 0.75rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -58,50 +78,70 @@
 }
 
 .dark {
-  --background: #0F172A;
-  --foreground: #F8FAFC;
-  --card: #1E293B;
-  --card-foreground: #F8FAFC;
-  --popover: #334155;
-  --popover-foreground: #F8FAFC;
-  --primary: #14B8A6;
-  --primary-foreground: #F8FAFC;
-  --primary-light: #2DD4BF;
-  --primary-dark: #0D9488;
+  --background: #08110f;
+  --foreground: #f3fbf8;
+  --card: #193834;
+  --card-foreground: #f3fbf8;
+  --popover: #193834;
+  --popover-foreground: #f3fbf8;
+  --primary: #193834;
+  --primary-foreground: #f8fffc;
+  --primary-light: #2a6b58;
+  --primary-dark: #10211e;
   --success: #22C55E;
   --success-foreground: #F8FAFC;
   --success-light: #4ADE80;
   --warning: #F59E0B;
   --warning-foreground: #F8FAFC;
   --warning-light: #FBBF24;
-  --secondary: #334155;
+  --secondary: #20443d;
   --secondary-foreground: #F8FAFC;
-  --muted: #1E293B;
-  --muted-foreground: #CBD5E1;
-  --accent: #334155;
+  --muted: #10211e;
+  --muted-foreground: #9eb6b0;
+  --accent: #20443d;
   --accent-foreground: #F8FAFC;
   --destructive: #F87171;
   --destructive-foreground: #F8FAFC;
-  --border: #475569;
+  --border: rgba(159, 194, 185, 0.14);
   --input: transparent;
-  --input-background: #1E293B;
-  --switch-background: #475569;
-  --ring: #475569;
+  --input-background: #10211e;
+  --switch-background: #365750;
+  --ring: rgba(159, 194, 185, 0.22);
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --chart-1: #14B8A6;
+  --chart-1: #34d399;
   --chart-2: #10B981;
   --chart-3: #F59E0B;
   --chart-4: #6EE7B7;
-  --chart-5: #2DD4BF;
-  --sidebar: #1E293B;
+  --chart-5: #2a6b58;
+  --app-shell: #050a09;
+  --app-shell-secondary: #08110f;
+  --app-surface: rgba(12, 26, 23, 0.94);
+  --app-surface-strong: rgba(25, 56, 52, 0.98);
+  --app-surface-muted: rgba(16, 33, 30, 0.92);
+  --app-surface-elevated: rgba(15, 31, 28, 0.98);
+  --app-border: rgba(159, 194, 185, 0.1);
+  --app-border-strong: rgba(159, 194, 185, 0.18);
+  --app-text-soft: #d9ebe6;
+  --app-text-muted: #7f9b95;
+  --app-input: rgba(25, 56, 52, 0.88);
+  --app-input-focus: #1d413b;
+  --app-auth-shell: #050a09;
+  --app-auth-panel: linear-gradient(180deg, rgba(25, 56, 52, 0.96), rgba(10, 21, 18, 0.98));
+  --app-auth-aside: linear-gradient(180deg, rgba(16, 33, 30, 0.98), rgba(8, 17, 15, 0.98));
+  --app-auth-input: rgba(25, 56, 52, 0.88);
+  --app-auth-input-focus: #1d413b;
+  --app-auth-text: #f8fffc;
+  --app-auth-muted: #8eb3ab;
+  --app-auth-subtle: #6f8e88;
+  --sidebar: #193834;
   --sidebar-foreground: #F8FAFC;
-  --sidebar-primary: #14B8A6;
+  --sidebar-primary: #34d399;
   --sidebar-primary-foreground: #F8FAFC;
-  --sidebar-accent: #334155;
+  --sidebar-accent: #20443d;
   --sidebar-accent-foreground: #F8FAFC;
-  --sidebar-border: #475569;
-  --sidebar-ring: #475569;
+  --sidebar-border: rgba(159, 194, 185, 0.14);
+  --sidebar-ring: rgba(159, 194, 185, 0.22);
 }
 
 @theme inline {
@@ -237,5 +277,88 @@
 
   .animate-slideUp {
     animation: slideUp 300ms cubic-bezier(0.87, 0, 0.13, 1);
+  }
+}
+
+@layer components {
+  .app-shell {
+    background:
+      radial-gradient(circle at top right, color-mix(in srgb, var(--primary-light) 12%, transparent), transparent 34%),
+      linear-gradient(180deg, var(--app-shell-secondary), var(--app-shell));
+    color: var(--foreground);
+  }
+
+  .app-panel {
+    background: var(--app-surface);
+    border: 1px solid var(--app-border);
+    color: var(--foreground);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(18px);
+  }
+
+  .app-panel-strong {
+    background: var(--app-surface-strong);
+    border: 1px solid var(--app-border-strong);
+    color: var(--foreground);
+    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(18px);
+  }
+
+  .app-panel-muted {
+    background: var(--app-surface-muted);
+    border: 1px solid var(--app-border);
+    color: var(--foreground);
+    backdrop-filter: blur(14px);
+  }
+
+  .app-elevated {
+    background: var(--app-surface-elevated);
+    border: 1px solid var(--app-border);
+    color: var(--foreground);
+  }
+
+  .app-subtle-text {
+    color: var(--app-text-soft);
+  }
+
+  .app-muted-text {
+    color: var(--app-text-muted);
+  }
+
+  .app-input {
+    background: var(--app-input);
+    border: 1px solid var(--app-border);
+    color: var(--foreground);
+  }
+
+  .app-input::placeholder {
+    color: color-mix(in srgb, var(--app-text-muted) 84%, transparent);
+  }
+
+  .app-auth-shell {
+    background:
+      radial-gradient(circle at top, rgba(33, 115, 95, 0.18), transparent 36%),
+      linear-gradient(180deg, var(--app-auth-shell), var(--app-shell));
+    color: var(--foreground);
+  }
+
+  .app-auth-aside {
+    background: var(--app-auth-aside);
+    color: var(--app-auth-text);
+  }
+
+  .app-auth-panel {
+    background: var(--app-auth-panel);
+    color: var(--foreground);
+  }
+
+  .app-auth-input {
+    background: var(--app-auth-input);
+    color: var(--foreground);
+    border: 1px solid var(--app-border);
+  }
+
+  .app-auth-input::placeholder {
+    color: var(--app-auth-subtle);
   }
 }

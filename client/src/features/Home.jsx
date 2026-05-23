@@ -345,7 +345,7 @@ export function Home() {
 
   if (stationsLoading || isLocating || authLoading) {
     return (
-      <div className="min-h-screen bg-[#050A09] flex flex-col items-center justify-center">
+      <div className="app-shell min-h-screen flex flex-col items-center justify-center">
         <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
         <p className="text-emerald-500/60 font-bold animate-pulse">Loading FuelWatch...</p>
       </div>
@@ -353,7 +353,7 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050A09] text-white pb-24 overflow-x-hidden">
+    <div className="app-shell min-h-screen overflow-x-hidden pb-24 text-foreground">
       <div className="max-w-md mx-auto px-5 pt-8 space-y-6">
         
         {/* Header Greeting */}
@@ -385,16 +385,16 @@ export function Home() {
         </motion.div>
 
         {/* Avg Price Pattern Chart Section */}
-        <Card className="bg-[#0C1A17] border-emerald-500/10 rounded-[2rem] overflow-hidden shadow-2xl">
+        <Card className="app-panel overflow-hidden rounded-[2rem] border-emerald-500/10 shadow-2xl">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-bold flex items-center justify-between text-white">
+            <CardTitle className="flex items-center justify-between text-lg font-bold text-foreground">
               <div>Price in <span className="text-warning ml-1">{cityName}</span></div>
               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 border-none font-black text-[10px]">
                 <TrendingUpIcon className="w-3 h-3 mr-1" />
                 Live Trends
               </Badge>
             </CardTitle>
-            <CardDescription className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+            <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
               Price trends per fuel type
             </CardDescription>
           </CardHeader>
@@ -419,13 +419,13 @@ export function Home() {
                     />
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#ffffff08" />
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(120, 145, 138, 0.22)" />
                 <XAxis
                   dataKey="fuel"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tick={{ fill: '#888', fontSize: 10, fontWeight: 700 }}
+                  tick={{ fill: 'var(--app-text-muted)', fontSize: 10, fontWeight: 700 }}
                 />
                 <YAxis 
                   tickLine={false}
@@ -433,14 +433,14 @@ export function Home() {
                   tickMargin={0}
                   domain={['auto', 'auto']}
                   tickFormatter={(val) => `${val}`}
-                  tick={{ fill: '#555', fontSize: 9, fontWeight: 600 }}
+                  tick={{ fill: 'var(--app-text-muted)', fontSize: 9, fontWeight: 600 }}
                 />
                 <ChartTooltip
                   cursor={{ stroke: '#10b981', strokeWidth: 1 }}
                   content={
                     <ChartTooltipContent
                       indicator="dot"
-                      className="bg-[#0C1A17] border-emerald-500/20 text-white shadow-2xl"
+                      className="app-panel-strong border-emerald-500/20 shadow-2xl"
                       labelFormatter={(value) => (
                         <div className="border-emerald-500/20 mb-1 border-b pb-1">
                           <span className="text-[10px] font-bold text-emerald-400">{fuelTypeMap[value] || value}</span>
@@ -450,9 +450,9 @@ export function Home() {
                         <div className="flex w-full items-center justify-between gap-4">
                           <div className="flex items-center gap-1.5">
                             <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                            <span className="text-[10px] text-gray-300">Avg Price</span>
+                            <span className="text-[10px] text-muted-foreground">Avg Price</span>
                           </div>
-                          <span className="text-sm font-black text-white">₱{Number(value).toFixed(2)}</span>
+                          <span className="text-sm font-black text-foreground">₱{Number(value).toFixed(2)}</span>
                         </div>
                       )}
                     />
@@ -475,9 +475,9 @@ export function Home() {
         {/* Info Cards Grid */}
         <div className="grid grid-cols-2 gap-4">
           {/* Nearest Station */}
-          <div className="bg-[#0C1A17] rounded-[2rem] p-5 border border-emerald-500/10 flex flex-col items-center text-center">
+          <div className="app-panel flex flex-col items-center rounded-[2rem] border border-emerald-500/10 p-5 text-center">
             <div className="flex items-center justify-center h-6 mb-4">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nearest</h4>
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Nearest</h4>
             </div>
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 p-3 shadow-lg">
               <img src={getBrandLogo(stats?.nearest?.brand || stats?.nearest?.name)} className="w-full h-full object-contain" />
@@ -494,9 +494,9 @@ export function Home() {
           </div>
 
           {/* Cheapest Station */}
-          <div className="bg-[#0C1A17] rounded-[2rem] p-5 border border-emerald-500/10 flex flex-col items-center text-center">
+          <div className="app-panel flex flex-col items-center rounded-[2rem] border border-emerald-500/10 p-5 text-center">
             <div className="flex items-center justify-center h-6 gap-1 mb-4">
-               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cheapest</h4>
+               <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cheapest</h4>
                <div className="relative">
                  <button 
                    onClick={() => setFuelDropdownOpen(!fuelDropdownOpen)}
@@ -505,7 +505,7 @@ export function Home() {
                    {selectedFuelType} <ChevronDown className="w-2 h-2" />
                  </button>
                  {fuelDropdownOpen && (
-                   <div className="absolute right-0 mt-1 bg-[#1A2E2A] rounded-lg shadow-2xl border border-emerald-500/20 z-20 min-w-fit">
+                   <div className="app-panel-strong absolute right-0 z-20 mt-1 min-w-fit rounded-lg border border-emerald-500/20 shadow-2xl">
                      {fuelTypes.map(ft => (
                        <button 
                          key={ft}
@@ -542,22 +542,22 @@ export function Home() {
         </div>
 
         {/* Coverage Section */}
-        <div className="bg-[#0C1A17] rounded-[2rem] p-6 border border-emerald-500/10">
-          <h3 className="text-center font-bold text-sm mb-6 text-gray-400 uppercase tracking-widest">FuelWatchPH coverage</h3>
+        <div className="app-panel rounded-[2rem] border border-emerald-500/10 p-6">
+          <h3 className="mb-6 text-center text-sm font-bold uppercase tracking-widest text-muted-foreground">FuelWatchPH coverage</h3>
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#1A2E2A] rounded-2xl p-4 flex flex-col items-center justify-center space-y-1">
+            <div className="app-elevated flex flex-col items-center justify-center space-y-1 rounded-2xl p-4">
               <Users className="w-4 h-4 text-emerald-400/60" />
-              <div className="text-lg font-black text-white">{stats?.contributors}</div>
+              <div className="text-lg font-black text-foreground">{stats?.contributors}</div>
               <div className="text-[9px] font-bold text-emerald-400/60 uppercase">Contributors</div>
             </div>
-            <div className="bg-[#1A2E2A] rounded-2xl p-4 flex flex-col items-center justify-center space-y-1">
+            <div className="app-elevated flex flex-col items-center justify-center space-y-1 rounded-2xl p-4">
               <MapIcon className="w-4 h-4 text-emerald-400/60" />
-              <div className="text-lg font-black text-white">{stats?.citiesCount}</div>
+              <div className="text-lg font-black text-foreground">{stats?.citiesCount}</div>
               <div className="text-[9px] font-bold text-emerald-400/60 uppercase">Cities</div>
             </div>
-            <div className="bg-[#1A2E2A] rounded-2xl p-4 flex flex-col items-center justify-center space-y-1">
+            <div className="app-elevated flex flex-col items-center justify-center space-y-1 rounded-2xl p-4">
               <Building2 className="w-4 h-4 text-emerald-400/60" />
-              <div className="text-lg font-black text-white">{stats?.stationsCount}</div>
+              <div className="text-lg font-black text-foreground">{stats?.stationsCount}</div>
               <div className="text-[9px] font-bold text-emerald-400/60 uppercase">Stations</div>
             </div>
           </div>

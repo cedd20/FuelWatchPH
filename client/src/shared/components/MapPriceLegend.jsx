@@ -7,12 +7,12 @@ export function MapPriceLegend() {
   if (!isVisible) return null;
 
   return (
-    <div className="pointer-events-auto w-[9.75rem] bg-white/92 dark:bg-neutral-900/92 backdrop-blur-xl border border-gray-200/80 dark:border-neutral-700/80 rounded-[1.15rem] px-3 py-2.5 shadow-[0_16px_36px_rgba(15,23,42,0.14)] flex flex-col gap-2">
+    <div className="app-panel-strong pointer-events-auto flex w-[9.75rem] flex-col gap-2 rounded-[1.15rem] px-3 py-2.5 shadow-[0_16px_36px_rgba(15,23,42,0.14)]">
       <div className="flex items-center justify-between gap-2">
         <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-[0.16em]">Price Level</div>
         <button
           onClick={() => setIsVisible(false)}
-          className="h-5 w-5 rounded-full hover:bg-gray-100 dark:hover:bg-neutral-800 flex items-center justify-center transition-colors"
+          className="flex h-5 w-5 items-center justify-center rounded-full transition-colors hover:bg-black/5 dark:hover:bg-white/5"
         >
           <X className="w-3 h-3 text-foreground" />
         </button>
