@@ -3,8 +3,8 @@ import { api } from "../lib/apiClient";
 
 export function useLeaderboard() {
   return useQuery({
-    queryKey: ["contributors"],
-    queryFn: () => api.get("/contributors"),
+    queryKey: ["leaderboard"],
+    queryFn: () => api.get("/leaderboard"),
     staleTime: 300_000,
   });
 }

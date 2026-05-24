@@ -37,10 +37,24 @@ export function Profile() {
 
   const isTopContributor = useMemo(() => {
     if (!isAuthenticated || !user || !leaderboardData?.length) return false;
-    const sorted = [...leaderboardData].sort((a, b) => (b.karma || 0) - (a.karma || 0));
-    const top10 = sorted.slice(0, 10);
-    return top10.some(c => c.id === user.id);
+
+    const getLeaderboardScore = (entry) =>
+      entry?.total_points ?? entry?.points ?? entry?.reputation ?? 0;
+
+    const top10 = [...leaderboardData]
+      .sort((a, b) => getLeaderboardScore(b) - getLeaderboardScore(a))
+      .slice(0, 10);
+
+    return top10.some((entry) => entry.id === user.id);
   }, [leaderboardData, isAuthenticated, user]);
+
+  const profileReady =
+    isAuthenticated &&
+    !!user &&
+    !!user.email &&
+    !!(user.name || user.username) &&
+    user.karma !== undefined &&
+    user.trustScore !== undefined;
 
   const stats = useMemo(() => {
     if (!isAuthenticated) return { total: 0, verified: 0, karma: 0, trustScore: 0 };
@@ -90,48 +104,45 @@ export function Profile() {
     visible: { opacity: 1, y: 0 }
   };
 
-  const renderAchievementBadges = ({ desktop = false } = {}) => {
+  // Minimal, professional, horizontally-aligned badges
+  const renderAchievementBadges = () => {
+    if (loading || (isAuthenticated && contributionsLoading) || !profileReady) return null;
     if (!isAuthenticated || (!hasTrustedContributorBadge && !isTopContributor)) return null;
 
-    return (
-      <div
-        className={`mt-6 grid w-full gap-4 ${
-          desktop ? "max-w-none grid-cols-1 xl:grid-cols-2 px-0" : "max-w-sm grid-cols-1 px-4 sm:grid-cols-2 mx-auto"
-        }`}
-      >
-        {hasTrustedContributorBadge && (
-          <div className="app-panel group relative flex items-center gap-3 overflow-hidden rounded-full border border-emerald-500/50 px-4 py-2.5 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-            <div className="absolute top-0 left-6 h-[1px] w-8 bg-emerald-400 shadow-[0_0_10px_2px_#34d399]" />
-            <div className="absolute -top-1 left-8 h-1 w-1 rounded-full bg-white shadow-[0_0_8px_2px_#34d399]" />
-            <div className="flex-shrink-0">
-              <ShieldCheck className="h-8 w-8 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" strokeWidth={1.5} />
-            </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 drop-shadow-[0_0_4px_rgba(16,185,129,0.3)] sm:text-xs">
-                Trusted Contributor
-              </span>
-              <span className="text-[9px] text-muted-foreground">Verified & reliable reporter</span>
-            </div>
-          </div>
-        )}
+    // Compact badge width for both
+    const badgeBase =
+      "flex items-center gap-1.5 rounded-full border bg-white/90 px-3 py-1 min-w-[160px] max-w-[160px] h-[40px] justify-center";
 
-        {isTopContributor && (
-          <div className={`app-panel group relative flex items-center gap-3 overflow-visible rounded-full border border-amber-500/50 px-4 py-2.5 shadow-[0_0_20px_rgba(245,158,11,0.15)] ${desktop ? "" : "mt-2 sm:mt-0"}`}>
-            <div className="absolute -top-4 right-1/4 translate-x-1/2">
-              <Crown className="h-5 w-5 fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+    return (
+      <div className="mt-3 mb-1 flex w-full justify-center">
+        <div className="flex flex-row gap-3 justify-center items-center">
+          {hasTrustedContributorBadge && (
+            <div className={badgeBase + " border-emerald-400"}>
+              <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                <div className="flex min-w-0 flex-col items-start text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wide leading-tight text-emerald-600">
+                    Trusted Contributor
+                  </span>
+                  <span className="text-[8px] leading-tight text-muted-foreground">
+                    Verified & reliable reporter
+                  </span>
+                </div>
             </div>
-            <div className="absolute top-0 right-1/4 h-[1px] w-8 bg-amber-400 shadow-[0_0_10px_2px_#fbbf24]" />
-            <div className="flex-shrink-0">
-              <Trophy className="h-8 w-8 text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" strokeWidth={1.5} />
+          )}
+          {isTopContributor && (
+            <div className={badgeBase + " border-amber-400"}>
+              <Trophy className="h-4 w-4 shrink-0 text-amber-500" strokeWidth={2} />
+                <div className="flex min-w-0 flex-col items-start text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wide leading-tight text-amber-600">
+                    Top Contributor
+                  </span>
+                  <span className="text-[8px] leading-tight text-muted-foreground">
+                    Top 5% of community
+                  </span>
+                </div>
             </div>
-            <div className="flex flex-col text-left">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 drop-shadow-[0_0_4px_rgba(245,158,11,0.3)] sm:text-xs">
-                Top Contributor
-              </span>
-              <span className="text-[9px] text-muted-foreground">Top 5% of community</span>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   };
