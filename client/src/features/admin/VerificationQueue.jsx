@@ -20,7 +20,8 @@ export function VerificationQueue() {
     async function fetchRequests() {
       setIsLoading(true);
       try {
-        const data = await apiClient.get("/admin/verifications", { status: statusFilter });
+        const query = statusFilter === "all" ? "/admin/verifications" : `/admin/verifications?status=${encodeURIComponent(statusFilter)}`;
+        const data = await apiClient.get(query);
         setRequests(data || []);
       } catch (error) {
         console.error("Failed to fetch verifications:", error);
@@ -128,7 +129,7 @@ export function VerificationQueue() {
           </div>
           <div className="bg-white dark:bg-neutral-900 rounded-lg lg:rounded-xl p-3.5 lg:p-4 border-2 border-blue-400/40 shadow-lg">
             <div className="text-xl lg:text-2xl font-bold text-foreground mb-0.5 lg:mb-1">{needsCorrectionCount}</div>
-            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Needs Review</div>
+            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Needs Correction</div>
           </div>
         </div>
 
@@ -202,7 +203,7 @@ export function VerificationQueue() {
                   : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
               }`}
             >
-              Needs Review
+              Needs Correction
             </button>
 
             <div className="border-l-2 border-gray-300 dark:border-neutral-700 h-8 mx-2" />
@@ -275,7 +276,7 @@ export function VerificationQueue() {
                     : "bg-gray-100 dark:bg-neutral-800 text-foreground active:bg-gray-200 dark:active:bg-neutral-700"
                 }`}
               >
-                Needs Review
+                Needs Correction
               </button>
             </div>
 

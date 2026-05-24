@@ -14,6 +14,7 @@ export function EditProfile() {
   const [isFetching, setIsFetching] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [profileData, setProfileData] = useState(null);
 
   const [formData, setFormData] = useState({
     username: "",
@@ -23,12 +24,14 @@ export function EditProfile() {
 
   const [existingRequest, setExistingRequest] = useState(undefined);
   const [isCheckingRequest, setIsCheckingRequest] = useState(true);
+  const isVerified = Boolean(profileData?.is_verified || user?.is_verified || existingRequest?.status === "approved");
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         const data = await apiClient.get("/me/profile");
         if (data) {
+          setProfileData(data);
           setFormData({
             username: data.username || "",
             bio: data.bio || "",
@@ -36,6 +39,7 @@ export function EditProfile() {
           });
         }
       } catch (error) {
+        setProfileData(null);
         setFormData({
           username: user?.username || user?.email?.split("@")[0] || "",
           bio: user?.bio || "",
@@ -246,13 +250,13 @@ export function EditProfile() {
                   <div>
                     <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Verification</div>
                     <div className="mt-0.5 text-xs font-bold text-foreground">
-                      {user?.is_verified ? "Verified Member" : "Not Verified"}
+                      {isVerified ? "Verified Member" : "Not Verified"}
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  {user?.is_verified ? (
+                  {isVerified ? (
                     <div className="text-emerald-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Verified

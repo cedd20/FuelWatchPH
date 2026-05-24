@@ -34,8 +34,8 @@ import { KarmaService } from "@/lib/karmaService";
 import { formatPrice } from "@/shared/utils/priceUtils";
 import { PageHeaderSkeleton, CardSkeleton, ChartSkeleton } from "@/shared/components/Skeleton";
 import { toast } from "sonner";
+import { api as apiClient } from "@/lib/apiClient";
 
-const STATION_ISSUE_STORAGE_KEY = "fuelwatch_station_issue_reports";
 const stationIssueTypes = [
   "Incorrect station information",
   "Wrong location pin",
@@ -61,6 +61,7 @@ export function StationDetail() {
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [issueType, setIssueType] = useState("");
   const [issueDetails, setIssueDetails] = useState("");
+  const [isSubmittingIssue, setIsSubmittingIssue] = useState(false);
 
   const { data: rawStation, isLoading, error } = useStation(id);
   const { data: rawPrices = [] } = usePrices({ station_id: id });
@@ -182,6 +183,36 @@ export function StationDetail() {
   };
 
   const confirmPriceMutation = useConfirmPrice();
+
+  const handleSubmitStationIssue = async () => {
+    if (!isAuthenticated) {
+      setAuthPromptMessage("Sign in to report station issues.");
+      setShowAuthPrompt(true);
+      return;
+    }
+
+    if (!issueType) {
+      toast.error("Please select an issue type");
+      return;
+    }
+
+    setIsSubmittingIssue(true);
+    try {
+      await apiClient.post("/me/station-reports", {
+        station_id: id,
+        report_type: issueType,
+        description: issueDetails.trim() || issueType,
+      });
+      toast.success("Issue reported! Thank you.");
+      setIssueType("");
+      setIssueDetails("");
+      setShowReportIssueModal(false);
+    } catch (error) {
+      toast.error(error.message || "Failed to submit issue report.");
+    } finally {
+      setIsSubmittingIssue(false);
+    }
+  };
 
   const handleFinalConfirm = async () => {
     const confirmationData = { stationId: id, isAnonymous: !isAuthenticated, confirmedAt: new Date().toISOString() };
@@ -439,12 +470,12 @@ export function StationDetail() {
                     <label className="mb-3 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">Description</label>
                     <textarea value={issueDetails} onChange={(e) => setIssueDetails(e.target.value)} rows={4} placeholder="Tell us what's wrong..." className="app-input w-full resize-none rounded-2xl border border-emerald-500/10 p-5 text-sm font-bold focus:border-emerald-500 outline-none transition-all" />
                   </div>
-                  <button onClick={() => {
-                    if (!issueType) return toast.error("Please select an issue type");
-                    toast.success("Issue reported! Thank you.");
-                    setShowReportIssueModal(false);
-                  }} className="w-full py-5 bg-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-500/20 hover:scale-[1.01] transition-all">
-                    Submit Report
+                  <button
+                    onClick={handleSubmitStationIssue}
+                    disabled={isSubmittingIssue || user?.is_banned}
+                    className="w-full py-5 bg-rose-500 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-rose-500/20 hover:scale-[1.01] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingIssue ? "Submitting..." : user?.is_banned ? "Account Restricted" : "Submit Report"}
                   </button>
                 </div>
               </div>

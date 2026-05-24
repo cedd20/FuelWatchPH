@@ -51,8 +51,8 @@ export function AuthProvider({ children }) {
           };
           setUser(basicUser);
 
-          // Wait for the first profile refresh before clearing the loading state
-          await refreshProfile();
+          // Refresh profile in the background so the app can render immediately.
+          refreshProfile();
         } else {
           setUser(null);
         }
@@ -116,9 +116,15 @@ export function AuthProvider({ children }) {
       });
 
       // Silently ignore auth errors during sign-out — expected behavior
-      if (res.status === 401 || res.status === 403) return null;
+      if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch profile from API");
       const profile = await res.json();
+
+      if (profile?.is_banned) {
+        await supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+      }
       
       // Only update state if the user is still logged in (guards against race conditions)
       setUser(prev => {
@@ -130,6 +136,9 @@ export function AuthProvider({ children }) {
           trustScore: profile?.accuracy || 0,
           avatar_url: profile?.avatar_url || prev?.avatar_url,
           bio: profile?.bio || "",
+          is_banned: !!profile?.is_banned,
+          ban_reason: profile?.ban_reason || null,
+          ban_reason_label: profile?.ban_reason_label || null,
           initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
           name: profile?.username || prev?.name || 'User'
         };
@@ -205,6 +214,9 @@ export function AuthProvider({ children }) {
       
       // Refresh profile to get user_type immediately after login
       const profile = await refreshProfile();
+      if (profile?.is_banned) {
+        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+      }
       return { user: { ...data.user, ...profile } };
     },
     adminLogin: async (email, password, options = {}) => {
@@ -236,6 +248,9 @@ export function AuthProvider({ children }) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       const profile = await refreshProfile();
+      if (profile?.is_banned) {
+        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+      }
       if (profile?.user_type !== 0) {
         const { error: signOutError } = await supabase.auth.signOut();
         if (signOutError) console.warn("Failed to sign out non-admin user after admin login attempt:", signOutError);

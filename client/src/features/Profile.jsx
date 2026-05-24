@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import {
@@ -19,16 +19,21 @@ import {
   ShieldCheck,
   History,
   Zap,
-  Crown
+  Crown,
+  Clock3,
+  AlertCircle,
+  XCircle
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthContext";
 import { useMyContributions } from "@/hooks/usePrices";
 import { useLeaderboard } from "@/hooks/useLeaderboard";
+import { api as apiClient } from "@/lib/apiClient";
 import { Card, CardContent } from "@/shared/components/ui/card";
 
 export function Profile() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, logout, refreshProfile } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
+  const [latestVerification, setLatestVerification] = useState(null);
   const hasTrustedContributorBadge = (user?.karma || 0) > 200;
   const { data: rawContributions = [], isLoading: contributionsLoading } = useMyContributions({
     enabled: isAuthenticated,
@@ -56,6 +61,75 @@ export function Profile() {
     user.karma !== undefined &&
     user.trustScore !== undefined;
 
+  const verificationStatus = user?.is_verified || latestVerification?.status === "approved"
+    ? "approved"
+    : latestVerification?.status || null;
+
+  const verificationVisual = {
+    approved: {
+      ring: "bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20",
+      frame: "border-emerald-400/30",
+      badge: "bg-emerald-500",
+      icon: <CheckCircle className="w-4 h-4 text-white" />,
+    },
+    pending: {
+      ring: "bg-gradient-to-br from-amber-500 to-yellow-500 shadow-amber-500/20",
+      frame: "border-amber-400/30",
+      badge: "bg-amber-500",
+      icon: <Clock3 className="w-4 h-4 text-white" />,
+    },
+    needs_correction: {
+      ring: "bg-gradient-to-br from-rose-500 to-orange-500 shadow-rose-500/20",
+      frame: "border-rose-400/30",
+      badge: "bg-rose-500",
+      icon: <AlertCircle className="w-4 h-4 text-white" />,
+    },
+    rejected: {
+      ring: "bg-gradient-to-br from-rose-600 to-red-600 shadow-rose-500/20",
+      frame: "border-rose-500/30",
+      badge: "bg-rose-600",
+      icon: <XCircle className="w-4 h-4 text-white" />,
+    },
+    default: {
+      ring: "bg-gradient-to-br from-slate-500 to-slate-700 shadow-slate-500/20",
+      frame: "border-white/10",
+      badge: "bg-slate-500",
+      icon: null,
+    },
+  };
+
+  const activeVerificationVisual = verificationVisual[verificationStatus] || verificationVisual.default;
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadVerificationStatus() {
+      if (!isAuthenticated) {
+        if (isMounted) setLatestVerification(null);
+        return;
+      }
+
+      if (user?.is_verified) {
+        if (isMounted) setLatestVerification(null);
+        return;
+      }
+
+      try {
+        const requests = await apiClient.get("/me/verifications");
+        if (!isMounted) return;
+        setLatestVerification(Array.isArray(requests) && requests.length > 0 ? requests[0] : null);
+      } catch {
+        if (isMounted) setLatestVerification(null);
+      }
+    }
+
+    loadVerificationStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, user?.is_verified]);
+
   const stats = useMemo(() => {
     if (!isAuthenticated) return { total: 0, verified: 0, karma: 0, trustScore: 0 };
     const total = rawContributions.length;
@@ -63,10 +137,6 @@ export function Profile() {
     const trustScore = user?.trustScore || 0;
     return { total, karma, trustScore };
   }, [rawContributions, isAuthenticated, user]);
-
-  useEffect(() => {
-    if (isAuthenticated) refreshProfile();
-  }, [isAuthenticated]);
 
   if (loading || (isAuthenticated && contributionsLoading)) {
     return (
@@ -188,18 +258,18 @@ export function Profile() {
 
           <div className="relative z-10 mx-auto flex max-w-md flex-col items-center text-center">
             <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative mb-6">
-              <div className="h-28 w-28 rounded-[2.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-1 shadow-2xl shadow-emerald-500/20">
-                <div className="app-panel-strong flex h-full w-full items-center justify-center overflow-hidden rounded-[2.2rem] border border-white/10">
+              <div className={`h-28 w-28 rounded-[2.5rem] p-1 shadow-2xl ${activeVerificationVisual.ring}`}>
+                <div className={`app-panel-strong flex h-full w-full items-center justify-center overflow-hidden rounded-[2.2rem] border ${activeVerificationVisual.frame}`}>
                   {user?.avatar_url ? (
                     <img src={user.avatar_url} className="h-full w-full object-cover" />
                   ) : (
-                    <User className="h-12 w-12 text-emerald-500" />
+                    <User className={`h-12 w-12 ${verificationStatus ? "text-white" : "text-emerald-500"}`} />
                   )}
                 </div>
               </div>
-              {isAuthenticated && (
-                <div className="absolute -bottom-2 -right-2 rounded-full border-4 border-[var(--app-shell)] bg-emerald-500 p-1.5 shadow-xl">
-                  <CheckCircle className="w-4 h-4 text-white" />
+              {isAuthenticated && verificationStatus && verificationStatus !== "default" && (
+                <div className={`absolute -bottom-2 -right-2 rounded-full border-4 border-[var(--app-shell)] p-1.5 shadow-xl ${activeVerificationVisual.badge}`}>
+                  {activeVerificationVisual.icon}
                 </div>
               )}
             </motion.div>
@@ -336,18 +406,18 @@ export function Profile() {
 
                   <div className="flex items-start gap-8 xl:gap-12">
                     <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative shrink-0">
-                      <div className="h-36 w-36 rounded-[2.7rem] bg-gradient-to-br from-emerald-500 to-teal-600 p-1 shadow-2xl shadow-emerald-500/20 xl:h-40 xl:w-40">
-                        <div className="app-panel-strong flex h-full w-full items-center justify-center overflow-hidden rounded-[2.35rem] border border-white/10">
+                      <div className={`h-36 w-36 rounded-[2.7rem] p-1 shadow-2xl xl:h-40 xl:w-40 ${activeVerificationVisual.ring}`}>
+                        <div className={`app-panel-strong flex h-full w-full items-center justify-center overflow-hidden rounded-[2.35rem] border ${activeVerificationVisual.frame}`}>
                           {user?.avatar_url ? (
                             <img src={user.avatar_url} className="h-full w-full object-cover" />
                           ) : (
-                            <User className="h-14 w-14 text-emerald-500" />
+                            <User className={`h-14 w-14 ${verificationStatus ? "text-white" : "text-emerald-500"}`} />
                           )}
                         </div>
                       </div>
-                      {isAuthenticated && (
-                        <div className="absolute -bottom-2 -right-2 rounded-full border-4 border-[var(--app-shell)] bg-emerald-500 p-2 shadow-xl">
-                          <CheckCircle className="h-4 w-4 text-white" />
+                      {isAuthenticated && verificationStatus && verificationStatus !== "default" && (
+                        <div className={`absolute -bottom-2 -right-2 rounded-full border-4 border-[var(--app-shell)] p-2 shadow-xl ${activeVerificationVisual.badge}`}>
+                          {activeVerificationVisual.icon}
                         </div>
                       )}
                     </motion.div>

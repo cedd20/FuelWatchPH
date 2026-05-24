@@ -4,11 +4,13 @@ import {
   LayoutDashboard,
   Shield,
   CheckCircle,
+  Fuel,
   MapPin,
   Users,
   Ban,
   Activity,
   Settings,
+  ArrowLeft,
   Menu,
   X,
   LogOut,
@@ -22,6 +24,7 @@ const navItems = [
   { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Verification Requests", path: "/admin/verification-queue", icon: Shield },
   { name: "Verified Users", path: "/admin/verified-users", icon: CheckCircle },
+  { name: "Fuel Reports", path: "/admin/fuel-reports", icon: Fuel },
   { name: "Station Reports", path: "/admin/station-reports", icon: MapPin },
   { name: "User Management", path: "/admin/user-management", icon: Users },
   { name: "Banned Users", path: "/admin/banned-users", icon: Ban },
@@ -82,6 +85,17 @@ export function AdminLayout() {
 
         {/* Navigation */}
         <nav className="p-4 space-y-2 overflow-y-auto" style={{ height: "calc(100vh - 160px)" }}>
+          <button
+            onClick={() => {
+              navigate("/app");
+              setIsMobileMenuOpen(false);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 hover:bg-emerald-100 dark:hover:bg-emerald-950/30 transition-all"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+            Back to User App
+          </button>
+
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = isActiveRoute(item.path);

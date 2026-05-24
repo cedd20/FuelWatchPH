@@ -51,16 +51,21 @@ export function Login() {
       }
       showAuthSuccessToast("Welcome back!", "You're now signed in.");
       const isAdminUser = result?.user?.role === "admin" || result?.user?.user_type === 0;
-      if (isAdminUser) {
-        navigate("/admin/dashboard", { replace: true });
-      } else {
-        navigate(returnTo, { replace: true });
-      }
+      // if (isAdminUser) {
+      //   navigate("/admin/dashboard", { replace: true });
+      // } else {
+      //   navigate(returnTo, { replace: true });
+      // }
+      // For now, we'll just navigate to the returnTo path regardless of role for a cleaner flow, but we can easily add role-based redirects later if needed.
+      // As long as the admin panel button is only shown to admin users, regular users won't even see the option to go there, so it should be fine to just rely on the route guard for access control.
+      navigate(returnTo, { replace: true });
     } catch (error) {
       const message = error.message || "";
       const lowerMessage = message.toLowerCase();
       if (lowerMessage.includes("email not confirmed")) {
         toast.error("Email not confirmed. Please check your inbox.");
+      } else if (lowerMessage.includes("account banned")) {
+        toast.error(message || "This account has been banned.");
       } else if (
         error.status === 400 ||
         lowerMessage.includes("invalid login credentials") ||

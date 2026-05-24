@@ -54,6 +54,7 @@ export function VerificationRequest() {
     },
   };
   const statusTone = existingRequest ? (statusToneMap[existingRequest.status] || statusToneMap.pending) : null;
+  const showAdminReason = existingRequest && (existingRequest.status === "rejected" || existingRequest.status === "needs_correction") && existingRequest.admin_notes;
 
   useEffect(() => {
     async function checkExistingRequest() {
@@ -261,6 +262,12 @@ export function VerificationRequest() {
                       </div>
                       <div className="mt-1 text-lg font-black">{statusTone.label}</div>
                       <p className={`mt-1 text-sm font-medium ${statusTone.meta}`}>{statusTone.message}</p>
+                      {showAdminReason && (
+                        <div className="mt-3 rounded-2xl border border-white/40 bg-white/60 px-4 py-3 dark:bg-black/10">
+                          <div className="text-[10px] font-black uppercase tracking-[0.22em] opacity-80">Admin Reason</div>
+                          <p className={`mt-1 text-sm font-semibold ${statusTone.meta}`}>{existingRequest.admin_notes}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

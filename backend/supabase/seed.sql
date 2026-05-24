@@ -11,3 +11,11 @@
 -- PDSL
 -- Kerosene
 
+-- Admin moderation tables are created in
+-- backend/supabase/migrations/012_admin_moderation_tables.sql.
+-- No default seed rows are required for:
+-- station_reports
+-- admin_bans
+-- admin_activity_log
+-- admin_settings
+

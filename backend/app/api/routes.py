@@ -18,6 +18,12 @@ from app.models.schemas import (
     UserProfileBase,
     UserProfileOut,
     VerificationRequestIn,
+    VerificationAdminNotesIn,
+    BanUserIn,
+    UnbanUserIn,
+    StationReportUpdateIn,
+    StationReportCreateIn,
+    AdminSettingsIn,
 )
 from app.services import report_service
 from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client
@@ -100,6 +106,229 @@ def _distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     d_lng = radians(lng2 - lng1)
     a = sin(d_lat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lng / 2) ** 2
     return 2 * r * asin(sqrt(a))
+
+
+def _parse_iso_datetime(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+
+def _require_admin(token: str):
+    client = get_authenticated_client(token)
+    user_res = client.auth.get_user(token)
+    user = getattr(user_res, "user", None)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+
+    profile_res = client.table("user_profiles").select("id, username, user_type, created_at, avatar_url, reputation, accuracy, is_verified").eq("id", user.id).limit(1).execute()
+    profile = (profile_res.data or [None])[0]
+    if not profile or profile.get("user_type") != 0:
+        raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+
+    return client, user.id, profile
+
+
+def _get_auth_user_email(user_id: Optional[str]) -> Optional[str]:
+    if not user_id:
+        return None
+
+    try:
+        result = supabase_admin.auth.admin.get_user_by_id(user_id)
+        user = getattr(result, "user", None)
+        return getattr(user, "email", None)
+    except Exception:
+        return None
+
+
+def _get_auth_email_map(user_ids: List[Optional[str]]) -> dict[str, Optional[str]]:
+    unique_ids = [user_id for user_id in dict.fromkeys(user_ids) if user_id]
+    if not unique_ids:
+        return {}
+
+    try:
+        auth_map = {}
+        page = 1
+        per_page = 200
+        while True:
+            users = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
+            if not users:
+                break
+            for user in users:
+                auth_user_id = getattr(user, "id", None)
+                if auth_user_id:
+                    auth_map[auth_user_id] = getattr(user, "email", None)
+            if len(users) < per_page or all(user_id in auth_map for user_id in unique_ids):
+                break
+            page += 1
+        return {user_id: auth_map.get(user_id) for user_id in unique_ids}
+    except Exception:
+        return {
+            user_id: _get_auth_user_email(user_id)
+            for user_id in unique_ids
+        }
+
+
+def _get_active_ban(user_id: Optional[str]) -> Optional[dict]:
+    if not user_id:
+        return None
+
+    try:
+        result = (
+            supabase_admin.table("admin_bans")
+            .select("id, reason, reason_label, notes, ban_date, is_active")
+            .eq("user_id", user_id)
+            .eq("is_active", True)
+            .order("ban_date", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return (result.data or [None])[0]
+    except Exception:
+        return None
+
+
+def _require_not_banned(user_id: Optional[str]) -> None:
+    active_ban = _get_active_ban(user_id)
+    if active_ban:
+        detail = active_ban.get("reason_label") or "Account banned"
+        raise HTTPException(status_code=403, detail=f"Account banned: {detail}")
+
+
+def _get_latest_approved_verification(client, user_id: Optional[str]) -> Optional[dict]:
+    if not user_id:
+        return None
+
+    result = (
+        client.table("verification_requests")
+        .select("id, updated_at, created_at, id_type, status")
+        .eq("user_id", user_id)
+        .eq("status", "approved")
+        .order("updated_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    return (result.data or [None])[0]
+
+
+def _get_latest_approved_verification_map(client, user_ids: List[Optional[str]]) -> dict[str, dict]:
+    unique_ids = [user_id for user_id in dict.fromkeys(user_ids) if user_id]
+    if not unique_ids:
+        return {}
+
+    result = (
+        client.table("verification_requests")
+        .select("user_id, updated_at, created_at, id_type, status")
+        .in_("user_id", unique_ids)
+        .eq("status", "approved")
+        .order("updated_at", desc=True)
+        .execute()
+    )
+
+    latest_map: dict[str, dict] = {}
+    for row in result.data or []:
+        user_id = row.get("user_id")
+        if user_id and user_id not in latest_map:
+            latest_map[user_id] = row
+    return latest_map
+
+
+def _fetch_profiles_map(client, user_ids: List[Optional[str]]):
+    unique_ids = [user_id for user_id in dict.fromkeys(user_ids) if user_id]
+    if not unique_ids:
+        return {}
+
+    profiles_res = client.table("user_profiles").select("id, username, created_at, avatar_url, reputation, accuracy, is_verified").in_("id", unique_ids).execute()
+    profiles = profiles_res.data or []
+    email_map = _get_auth_email_map([profile.get("id") for profile in profiles])
+    return {
+        profile["id"]: {
+            **profile,
+            "email": email_map.get(profile.get("id")) or "",
+        }
+        for profile in profiles
+    }
+
+
+def _attach_user_profile(record: dict, profiles_map: dict):
+    profile = profiles_map.get(record.get("user_id"), {})
+    return {
+        **record,
+        "user_profiles": {
+            "id": profile.get("id", record.get("user_id")),
+            "username": profile.get("username"),
+            "email": profile.get("email"),
+            "created_at": profile.get("created_at"),
+            "avatar_url": profile.get("avatar_url"),
+            "reputation": profile.get("reputation", 0),
+            "accuracy": profile.get("accuracy", 0),
+            "is_verified": profile.get("is_verified", False),
+        },
+    }
+
+
+def _format_verified_user(profile: dict, latest_verification: Optional[dict], total_reports: int, total_confirmations: int, accuracy: int):
+    email = profile.get("email")
+    verification_date = (
+        latest_verification.get("updated_at")
+        if latest_verification
+        else profile.get("created_at")
+    )
+    id_type = latest_verification.get("id_type", "Unknown") if latest_verification else "Unknown"
+
+    return {
+        "id": profile["id"],
+        "name": profile.get("username") or email or "Unknown",
+        "email": email or "",
+        "verificationDate": verification_date,
+        "accountCreated": profile.get("created_at"),
+        "karma": profile.get("reputation", 0),
+        "totalUpdates": total_reports,
+        "accuracyRate": accuracy,
+        "reportsSubmitted": total_confirmations,
+        "idType": id_type,
+        "avatar_url": profile.get("avatar_url"),
+        "is_verified": True,
+    }
+
+def _resolve_verification_media_url(client, url: Optional[str]):
+    if not url:
+        return url
+
+    candidate = str(url).strip()
+    if not candidate:
+        return candidate
+
+    marker = "verification-ids/"
+    if marker in candidate:
+        candidate = candidate.split(marker, 1)[1]
+
+    if "?" in candidate:
+        candidate = candidate.split("?", 1)[0]
+
+    if candidate.startswith("http"):
+        return url
+
+    try:
+        signed = client.storage.from_("verification-ids").create_signed_url(candidate, 60 * 60)
+        if isinstance(signed, dict):
+            return signed.get("signedURL") or signed.get("signedUrl") or signed.get("signed_url") or url
+        data = getattr(signed, "data", None)
+        if isinstance(data, dict):
+            return data.get("signedURL") or data.get("signedUrl") or data.get("signed_url") or url
+        return url
+    except Exception:
+        return url
+
+
+def _attach_verification_media(client, record: dict):
+    return {
+        **record,
+        "id_front_url": _resolve_verification_media_url(client, record.get("id_front_url")),
+        "id_back_url": _resolve_verification_media_url(client, record.get("id_back_url")),
+    }
 
 
 @router.get("/stations", response_model=List[StationOut])
@@ -194,6 +423,7 @@ def create_station(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
+        _require_not_banned(user_id)
     except Exception as e:
         print(f"Auth failed in create_station: {e}")
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
@@ -228,6 +458,10 @@ def update_station(
     token: str = Depends(get_jwt_token),
 ):
     client = get_authenticated_client(token)
+    user_res = client.auth.get_user(token)
+    if not user_res.user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    _require_not_banned(user_res.user.id)
     
     updates = station.model_dump(exclude_unset=True)
     _validate_station_payload(updates, partial=True)
@@ -251,6 +485,10 @@ def delete_station(
     token: str = Depends(get_jwt_token),
 ):
     client = get_authenticated_client(token)
+    user_res = client.auth.get_user(token)
+    if not user_res.user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    _require_not_banned(user_res.user.id)
     
     # Soft delete
     result = client.table("stations").update({"is_active": False}).eq("id", station_id).execute()
@@ -303,6 +541,7 @@ def create_price(
             session_result = client.auth.get_user(token)
             if session_result.user:
                 user_id = session_result.user.id
+                _require_not_banned(user_id)
         except Exception:
             # If token is invalid/expired, we treat as anonymous if token was optional
             # or could raise 401 if we want to be strict.
@@ -349,6 +588,7 @@ def create_prices_batch(
             user_res = db_client.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
+                _require_not_banned(user_id)
         except Exception as e:
             print(f"Auth verification failed in batch: {e}")
             # Non-critical: allow anonymous batch if token fails but was optional
@@ -420,6 +660,10 @@ def update_price(
     token: str = Depends(get_jwt_token),
 ):
     client = get_authenticated_client(token)
+    user_res = client.auth.get_user(token)
+    if not user_res.user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    _require_not_banned(user_res.user.id)
     
     updates = price.model_dump(exclude_unset=True)
     _validate_price_payload(updates, partial=True)
@@ -445,6 +689,10 @@ def delete_price(
     token: str = Depends(get_jwt_token),
 ):
     client = get_authenticated_client(token)
+    user_res = client.auth.get_user(token)
+    if not user_res.user:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    _require_not_banned(user_res.user.id)
     
     result = client.table("price_reports").update({"is_active": False}).eq("id", price_id).execute()
     if not result.data:
@@ -469,6 +717,7 @@ async def confirm_price(
             user_res = supabase.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
+                _require_not_banned(user_id)
         except Exception:
             pass
 
@@ -797,6 +1046,123 @@ async def get_summary_stats():
         raise HTTPException(status_code=500, detail=f"Stats summary failed: {str(e)}")
 
 
+@router.get("/admin/dashboard")
+async def get_admin_dashboard(token: str = Depends(get_jwt_token)):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        total_requests_res = client.table("verification_requests").select("id", count="exact").execute()
+        pending_requests_res = client.table("verification_requests").select("id", count="exact").eq("status", "pending").execute()
+        approved_requests_res = client.table("verification_requests").select("id", count="exact").eq("status", "approved").execute()
+        rejected_requests_res = client.table("verification_requests").select("id", count="exact").eq("status", "rejected").execute()
+
+        total_reports_res = client.table("price_reports").select("id", count="exact").eq("is_active", True).execute()
+        open_reports_res = client.table("price_reports").select("id", count="exact").eq("is_active", True).eq("confirmation_count", 0).execute()
+
+        active_users_res = client.table("user_profiles").select("id", count="exact").execute()
+        banned_users_res = client.table("admin_bans").select("id", count="exact").eq("is_active", True).execute()
+        verified_today_res = client.table("verification_requests").select("id", count="exact").eq("status", "approved").gte("updated_at", today_start.isoformat()).execute()
+        reports_today_res = client.table("price_reports").select("id", count="exact").eq("is_active", True).gte("observed_at", today_start.isoformat()).execute()
+
+        recent_verifications_res = client.table("verification_requests").select("id, user_id, full_name, id_type, status, created_at, updated_at").order("created_at", desc=True).limit(3).execute()
+        recent_verification_rows = recent_verifications_res.data or []
+        verification_profiles = _fetch_profiles_map(client, [row.get("user_id") for row in recent_verification_rows])
+
+        recent_reports_res = client.table("price_reports").select("id, station_id, fuel_type, price, observed_at, reported_by, confirmation_count, stations(name, brand, address, city)").eq("is_active", True).order("observed_at", desc=True).limit(3).execute()
+        recent_report_rows = recent_reports_res.data or []
+        report_profiles = _fetch_profiles_map(client, [row.get("reported_by") for row in recent_report_rows])
+
+        recent_verifications = []
+        for row in recent_verification_rows:
+            profile = verification_profiles.get(row.get("user_id"), {})
+            recent_verifications.append({
+                "id": row["id"],
+                "userName": profile.get("username") or row.get("full_name") or "Unknown user",
+                "idType": row.get("id_type") or "Unknown",
+                "submissionDate": row.get("created_at"),
+                "status": row.get("status") or "pending",
+            })
+
+        recent_reports = []
+        for row in recent_report_rows:
+            station = row.get("stations") or {}
+            reporter = report_profiles.get(row.get("reported_by"), {})
+            price_value = row.get("price")
+            recent_reports.append({
+                "id": row["id"],
+                "stationName": station.get("name") or station.get("brand") or "Unknown station",
+                "reportType": f"{row.get('fuel_type') or 'Fuel'} price report",
+                "priceLabel": f"PHP {float(price_value):.2f}" if price_value is not None else "Pending review",
+                "confirmationCount": row.get("confirmation_count") or 0,
+                "reportedBy": reporter.get("username") or "Unknown user",
+                "submissionDate": row.get("observed_at"),
+                "status": "approved" if (row.get("confirmation_count") or 0) > 0 else "pending",
+            })
+
+        recent_activity = []
+        for row in recent_verification_rows:
+            profile = verification_profiles.get(row.get("user_id"), {})
+            status = row.get("status") or "pending"
+            action_map = {
+                "approved": "Approved verification",
+                "rejected": "Rejected verification",
+                "needs_correction": "Requested verification correction",
+                "pending": "Verification submitted",
+            }
+            recent_activity.append({
+                "id": f"verification-{row['id']}",
+                "action": action_map.get(status, "Verification updated"),
+                "target": profile.get("username") or row.get("full_name") or "Unknown user",
+                "admin": "Admin",
+                "timestamp": row.get("updated_at") or row.get("created_at"),
+                "type": status,
+            })
+
+        for row in recent_report_rows:
+            station = row.get("stations") or {}
+            reporter = report_profiles.get(row.get("reported_by"), {})
+            is_confirmed = (row.get("confirmation_count") or 0) > 0
+            recent_activity.append({
+                "id": f"report-{row['id']}",
+                "action": "Confirmed fuel report" if is_confirmed else "Logged fuel report",
+                "target": station.get("name") or station.get("brand") or "Unknown station",
+                "admin": "Admin",
+                "timestamp": row.get("observed_at"),
+                "type": "approved" if is_confirmed else "pending",
+                "subtitle": reporter.get("username") or "Unknown user",
+            })
+
+        recent_activity = sorted(
+            recent_activity,
+            key=lambda item: _parse_iso_datetime(item.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )[:5]
+
+        return {
+            "stats": {
+                "totalRequests": total_requests_res.count or 0,
+                "pendingRequests": pending_requests_res.count or 0,
+                "approvedRequests": approved_requests_res.count or 0,
+                "rejectedRequests": rejected_requests_res.count or 0,
+                "totalReports": total_reports_res.count or 0,
+                "openReports": open_reports_res.count or 0,
+                "activeUsers": active_users_res.count or 0,
+                "bannedUsers": banned_users_res.count or 0,
+                "verifiedToday": verified_today_res.count or 0,
+                "reportsLoggedToday": reports_today_res.count or 0,
+            },
+            "recentVerifications": recent_verifications,
+            "recentReports": recent_reports,
+            "recentActivity": recent_activity,
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/reports")
 async def create_report(report: PriceReportIn):
     """Legacy report endpoint used by the existing smoke test."""
@@ -833,6 +1199,7 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
+        user_email = getattr(user_res.user, "email", None)
         
         # 1. Fetch profile
         profile_res = client.table("user_profiles").select("*").eq("id", user_id).single().execute()
@@ -840,7 +1207,14 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
         
         # Fallback to prevent Pydantic 500 errors if profile row is missing
         profile["id"] = user_id
-        
+        profile["email"] = profile.get("email") or user_email
+
+        latest_approved_verification = _get_latest_approved_verification(client, user_id)
+        profile["is_verified"] = bool(profile.get("is_verified") or latest_approved_verification)
+
+        if latest_approved_verification and not profile.get("is_verified"):
+            profile["is_verified"] = True
+
         # 2. Compute dynamic stats
         try:
             reports_count = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).execute()
@@ -899,11 +1273,17 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
         # Ensure permanent database sync for reputation
         try:
             # We use supabase_admin to bypass RLS in case the user isn't allowed to self-edit their reputation
-            supabase_admin.table("user_profiles").update({
-                "reputation": profile["points"]
-            }).eq("id", user_id).execute()
+            sync_updates = {"reputation": profile["points"]}
+            if latest_approved_verification:
+                sync_updates["is_verified"] = True
+            supabase_admin.table("user_profiles").update(sync_updates).eq("id", user_id).execute()
         except Exception as db_err:
             print(f"Failed to sync reputation to database: {db_err}")
+
+        active_ban = _get_active_ban(user_id)
+        profile["is_banned"] = bool(active_ban)
+        profile["ban_reason"] = active_ban.get("reason") if active_ban else None
+        profile["ban_reason_label"] = active_ban.get("reason_label") if active_ban else None
             
         return profile
     except Exception as e:
@@ -924,6 +1304,7 @@ async def update_my_profile(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
+        _require_not_banned(user_id)
         
         updates = profile_data.model_dump(exclude_unset=True)
         # Use authenticated client for RLS
@@ -948,6 +1329,7 @@ async def submit_verification(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         user_id = user_res.user.id
+        _require_not_banned(user_id)
         
         # Insert into verification_requests table
         data = request.model_dump()
@@ -966,6 +1348,57 @@ async def submit_verification(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/me/station-reports", status_code=201)
+async def submit_station_report(
+    payload: StationReportCreateIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
+        if not user_res.user:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        user = user_res.user
+        user_id = user.id
+        _require_not_banned(user_id)
+
+        station_res = client.table("stations").select("id, name, address").eq("id", payload.station_id).eq("is_active", True).limit(1).execute()
+        station = (station_res.data or [None])[0]
+        if not station:
+            raise HTTPException(status_code=404, detail="Station not found")
+
+        profile_res = client.table("user_profiles").select("username").eq("id", user_id).limit(1).execute()
+        profile = (profile_res.data or [None])[0] or {}
+
+        report_data = {
+            "station_id": station["id"],
+            "station_name": station.get("name") or "Unknown Station",
+            "station_address": station.get("address") or "",
+            "report_type": payload.report_type,
+            "description": payload.description,
+            "reported_by": user_id,
+            "reported_by_name": profile.get("username") or getattr(user, "email", None) or "Unknown user",
+            "status": "pending",
+            "created_at": _now().isoformat(),
+            "updated_at": _now().isoformat(),
+        }
+
+        metadata = payload.metadata or {}
+        if metadata and not report_data["description"]:
+            report_data["description"] = str(metadata)
+
+        result = client.table("station_reports").insert(report_data).execute()
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to submit station report")
+
+        return {"message": "Station report submitted successfully", "report": result.data[0]}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/me/verifications")
 async def get_my_verifications(
     token: str = Depends(get_jwt_token)
@@ -978,7 +1411,7 @@ async def get_my_verifications(
         user_id = user_res.user.id
         
         result = client.table("verification_requests").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
-        return result.data
+        return [_attach_verification_media(client, row) for row in (result.data or [])]
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
@@ -992,19 +1425,16 @@ async def list_verifications(
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, _admin_user_id, _admin_profile = _require_admin(token)
 
-        query = supabase_admin.table("verification_requests").select("*, user_profiles(username)")
+        query = client.table("verification_requests").select("id, user_id, full_name, id_type, id_number, id_front_url, id_back_url, status, admin_notes, created_at, updated_at")
         if status and status != "all":
             query = query.eq("status", status)
         
         result = query.order("created_at", desc=True).execute()
-        return result.data
+        rows = result.data or []
+        profiles = _fetch_profiles_map(client, [row.get("user_id") for row in rows])
+        return [_attach_user_profile(row, profiles) for row in rows]
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
@@ -1015,18 +1445,16 @@ async def get_verification_detail(
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, _admin_user_id, _admin_profile = _require_admin(token)
 
-        result = supabase_admin.table("verification_requests").select("*, user_profiles(*)").eq("id", request_id).single().execute()
-        if not result.data:
+        result = client.table("verification_requests").select("id, user_id, full_name, id_type, id_number, id_front_url, id_back_url, status, admin_notes, created_at, updated_at").eq("id", request_id).execute()
+        rows = result.data or []
+        if not rows:
             raise HTTPException(status_code=404, detail="Request not found")
-            
-        return result.data
+
+        row = rows[0]
+        profiles = _fetch_profiles_map(client, [row.get("user_id")])
+        return _attach_verification_media(client, _attach_user_profile(row, profiles))
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
@@ -1034,35 +1462,42 @@ async def get_verification_detail(
 @router.post("/admin/verifications/{request_id}/approve")
 async def approve_verification(
     request_id: str,
-    admin_notes: Optional[str] = None,
+    payload: VerificationAdminNotesIn,
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        admin_user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, admin_user_id, admin_profile = _require_admin(token)
 
         # Get the request to find the user_id
-        req_result = supabase_admin.table("verification_requests").select("user_id").eq("id", request_id).single().execute()
+        req_result = client.table("verification_requests").select("user_id, full_name").eq("id", request_id).single().execute()
         if not req_result.data:
             raise HTTPException(status_code=404, detail="Request not found")
         
         target_user_id = req_result.data["user_id"]
+        target_name = req_result.data.get("full_name") or "User"
 
         # Update request status
-        supabase_admin.table("verification_requests").update({
+        client.table("verification_requests").update({
             "status": "approved",
-            "admin_notes": admin_notes,
+            "admin_notes": payload.admin_notes,
             "updated_at": _now().isoformat()
         }).eq("id", request_id).execute()
 
         # Update user profile verification status
-        supabase_admin.table("user_profiles").update({
+        client.table("user_profiles").update({
             "is_verified": True
         }).eq("id", target_user_id).execute()
+
+        _log_admin_activity(
+            client,
+            "verification_approved",
+            f"Approved verification for {target_name}",
+            admin_user_id,
+            admin_profile.get("username", "Admin"),
+            target_id=target_user_id,
+            target_name=target_name,
+            action_note=payload.admin_notes,
+        )
 
         return {"message": "User verified successfully"}
     except Exception as e:
@@ -1072,23 +1507,33 @@ async def approve_verification(
 @router.post("/admin/verifications/{request_id}/reject")
 async def reject_verification(
     request_id: str,
-    admin_notes: str,
+    payload: VerificationAdminNotesIn,
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        admin_user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, admin_user_id, admin_profile = _require_admin(token)
+
+        req_result = client.table("verification_requests").select("user_id, full_name").eq("id", request_id).single().execute()
+        target_user_id = req_result.data.get("user_id") if req_result.data else None
+        target_name = (req_result.data or {}).get("full_name") or "User"
 
         # Update request status
-        supabase_admin.table("verification_requests").update({
+        client.table("verification_requests").update({
             "status": "rejected",
-            "admin_notes": admin_notes,
+            "admin_notes": payload.admin_notes,
             "updated_at": _now().isoformat()
         }).eq("id", request_id).execute()
+
+        _log_admin_activity(
+            client,
+            "verification_rejected",
+            f"Rejected verification for {target_name}",
+            admin_user_id,
+            admin_profile.get("username", "Admin"),
+            target_id=target_user_id,
+            target_name=target_name,
+            action_note=payload.admin_notes,
+        )
 
         return {"message": "Verification request rejected"}
     except Exception as e:
@@ -1098,23 +1543,33 @@ async def reject_verification(
 @router.post("/admin/verifications/{request_id}/correction")
 async def request_correction(
     request_id: str,
-    admin_notes: str,
+    payload: VerificationAdminNotesIn,
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        admin_user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, admin_user_id, admin_profile = _require_admin(token)
+
+        req_result = client.table("verification_requests").select("user_id, full_name").eq("id", request_id).single().execute()
+        target_user_id = req_result.data.get("user_id") if req_result.data else None
+        target_name = (req_result.data or {}).get("full_name") or "User"
 
         # Update request status to needs_correction
-        supabase_admin.table("verification_requests").update({
+        client.table("verification_requests").update({
             "status": "needs_correction",
-            "admin_notes": admin_notes,
+            "admin_notes": payload.admin_notes,
             "updated_at": _now().isoformat()
         }).eq("id", request_id).execute()
+
+        _log_admin_activity(
+            client,
+            "correction_requested",
+            f"Requested verification correction for {target_name}",
+            admin_user_id,
+            admin_profile.get("username", "Admin"),
+            target_id=target_user_id,
+            target_name=target_name,
+            action_note=payload.admin_notes,
+        )
 
         return {"message": "Correction requested successfully"}
     except Exception as e:
@@ -1124,24 +1579,668 @@ async def request_correction(
 @router.patch("/admin/verifications/{request_id}")
 async def update_verification_request(
     request_id: str,
-    admin_notes: Optional[str] = None,
+    payload: VerificationAdminNotesIn,
     token: str = Depends(get_jwt_token)
 ):
     try:
-        # Check admin role
-        user_res = supabase.auth.get_user(token)
-        admin_user_id = user_res.user.id
-        profile = supabase_admin.table("user_profiles").select("user_type").eq("id", admin_user_id).single().execute()
-        if not profile.data or profile.data.get("user_type") != 0:
-            raise HTTPException(status_code=403, detail="Forbidden: Admin access required")
+        client, admin_user_id, _admin_profile = _require_admin(token)
 
         update_data = {"updated_at": _now().isoformat()}
-        if admin_notes is not None:
-            update_data["admin_notes"] = admin_notes
+        if payload.admin_notes is not None:
+            update_data["admin_notes"] = payload.admin_notes
 
-        supabase_admin.table("verification_requests").update(update_data).eq("id", request_id).execute()
+        client.table("verification_requests").update(update_data).eq("id", request_id).execute()
         return {"message": "Request updated successfully"}
     except Exception as e:
         if isinstance(e, HTTPException): raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# --- Helper: log admin activity ---
+
+def _log_admin_activity(client, action_type: str, action_title: str, actor_id: str, actor_name: str,
+                        target_id: Optional[str] = None, target_name: Optional[str] = None,
+                        action_note: Optional[str] = None, meta: Optional[dict] = None):
+    try:
+        client.table("admin_activity_log").insert({
+            "action_type": action_type,
+            "action_title": action_title,
+            "actor_id": actor_id,
+            "actor_name": actor_name,
+            "target_id": target_id,
+            "target_name": target_name,
+            "action_note": action_note,
+            "meta": meta or {},
+        }).execute()
+    except Exception as e:
+        print(f"Warning: Failed to log admin activity: {e}")
+
+
+# --- ADMIN: Verified Users ---
+
+@router.get("/admin/verified-users")
+async def list_verified_users(token: str = Depends(get_jwt_token)):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        profiles_res = client.table("user_profiles").select("*").order("created_at", desc=True).execute()
+        all_profiles = profiles_res.data or []
+        approved_map = _get_latest_approved_verification_map(client, [profile["id"] for profile in all_profiles])
+        users = [
+            profile for profile in all_profiles
+            if profile.get("is_verified") or profile["id"] in approved_map
+        ]
+        fallback_email_map = _get_auth_email_map([profile["id"] for profile in users if not profile.get("email")])
+        enriched = []
+        for u in users:
+            user_id = u["id"]
+            if fallback_email_map.get(user_id):
+                u = {**u, "email": fallback_email_map[user_id]}
+            # Count reports
+            reports_res = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).execute()
+            total_reports = reports_res.count or 0
+
+            # Count confirmations
+            total_confirmations = 0
+            try:
+                conf_res = client.table("price_verifications").select("id", count="exact").eq("user_id", user_id).execute()
+                total_confirmations = conf_res.count or 0
+            except:
+                pass
+
+            ver_data = approved_map.get(user_id)
+
+            # Accuracy
+            accuracy = 0
+            if total_reports > 0:
+                try:
+                    accurate_res = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).gte("confirmation_count", 1).execute()
+                    accuracy = min(100, int((accurate_res.count or 0) / total_reports * 100))
+                except:
+                    pass
+
+            enriched.append(
+                _format_verified_user(
+                    u,
+                    ver_data,
+                    total_reports,
+                    total_confirmations,
+                    accuracy,
+                )
+            )
+
+        return enriched
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: User Management ---
+
+@router.get("/admin/users")
+async def list_all_users(token: str = Depends(get_jwt_token)):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        result = client.table("user_profiles").select("*").order("created_at", desc=True).execute()
+        users = result.data or []
+        fallback_email_map = _get_auth_email_map([user["id"] for user in users if not user.get("email")])
+        # Check for pending verifications
+        pending_ver_res = client.table("verification_requests").select("user_id").eq("status", "pending").execute()
+        pending_user_ids = set(row["user_id"] for row in (pending_ver_res.data or []))
+        approved_ver_map = _get_latest_approved_verification_map(client, [user["id"] for user in users])
+        approved_user_ids = set(approved_ver_map.keys())
+
+        # Check active bans
+        bans_res = client.table("admin_bans").select("user_id, reason, reason_label").eq("is_active", True).execute()
+        active_bans = {row["user_id"]: row for row in (bans_res.data or [])}
+        banned_user_ids = set(active_bans.keys())
+
+        enriched = []
+        for u in users:
+            user_id = u["id"]
+            email = u.get("email") or fallback_email_map.get(user_id) or ""
+
+            # Determine verification status
+            if u.get("is_verified") or user_id in approved_user_ids:
+                verification_status = "verified"
+            elif user_id in pending_user_ids:
+                verification_status = "pending"
+            else:
+                verification_status = "unverified"
+
+            # Count reports
+            reports_res = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).execute()
+            total_reports = reports_res.count or 0
+
+            # Accuracy
+            accuracy = 0
+            if total_reports > 0:
+                try:
+                    accurate_res = client.table("price_reports").select("id", count="exact").eq("reported_by", user_id).gte("confirmation_count", 1).execute()
+                    accuracy = min(100, int((accurate_res.count or 0) / total_reports * 100))
+                except:
+                    pass
+
+            enriched.append({
+                "id": user_id,
+                "name": u.get("username") or email or "Unknown",
+                "email": email,
+                "verificationStatus": verification_status,
+                "karma": u.get("reputation", 0),
+                "totalUpdates": total_reports,
+                "accuracyRate": accuracy,
+                "accountStatus": "banned" if user_id in banned_user_ids else "active",
+                "joinDate": u.get("created_at"),
+                "avatar_url": u.get("avatar_url"),
+                "is_verified": verification_status == "verified",
+                "banReason": active_bans.get(user_id, {}).get("reason"),
+                "banReasonLabel": active_bans.get(user_id, {}).get("reason_label"),
+            })
+
+        return enriched
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Ban User ---
+
+@router.post("/admin/users/{user_id}/ban")
+async def ban_user(
+    user_id: str,
+    payload: BanUserIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, admin_user_id, admin_profile = _require_admin(token)
+
+        # Get target user info
+        target_res = client.table("user_profiles").select("username").eq("id", user_id).single().execute()
+        target_name = target_res.data.get("username", "Unknown") if target_res.data else "Unknown"
+
+        # Create ban record
+        client.table("admin_bans").insert({
+            "user_id": user_id,
+            "user_name": target_name,
+            "reason": payload.reason,
+            "reason_label": payload.reason_label,
+            "notes": payload.notes,
+            "banned_by": admin_user_id,
+            "banned_by_name": admin_profile.get("username", "Admin"),
+            "is_active": True,
+        }).execute()
+
+        # Log activity
+        _log_admin_activity(
+            client, "user_banned", f"Banned user: {target_name}",
+            admin_user_id, admin_profile.get("username", "Admin"),
+            target_id=user_id, target_name=target_name,
+            action_note=f"{payload.reason_label}: {payload.notes or 'No notes'}",
+        )
+
+        return {"message": f"User {target_name} has been banned"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Banned Users ---
+
+@router.get("/admin/banned-users")
+async def list_banned_users(token: str = Depends(get_jwt_token)):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        result = client.table("admin_bans").select("*").eq("is_active", True).order("ban_date", desc=True).execute()
+        bans = result.data or []
+        profiles_map = _fetch_profiles_map(client, [ban.get("user_id") for ban in bans])
+        fallback_email_map = _get_auth_email_map([
+            ban.get("user_id")
+            for ban in bans
+            if not (profiles_map.get(ban.get("user_id")) or {}).get("email")
+        ])
+
+        return [{
+            "id": ban["id"],
+            "userId": ban["user_id"],
+            "name": ban.get("user_name", "Unknown"),
+            "email": (profiles_map.get(ban.get("user_id")) or {}).get("email") or fallback_email_map.get(ban.get("user_id")) or "",
+            "banReason": ban.get("reason", "other"),
+            "banReasonLabel": ban.get("reason_label", "Other"),
+            "banDate": ban.get("ban_date"),
+            "bannedBy": ban.get("banned_by_name", "Admin"),
+            "notes": ban.get("notes", ""),
+        } for ban in bans]
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Unban User ---
+
+@router.post("/admin/bans/{ban_id}/unban")
+async def unban_user(
+    ban_id: str,
+    payload: UnbanUserIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, admin_user_id, admin_profile = _require_admin(token)
+
+        # Get the ban record
+        ban_res = client.table("admin_bans").select("user_id, user_name").eq("id", ban_id).single().execute()
+        if not ban_res.data:
+            raise HTTPException(status_code=404, detail="Ban record not found")
+
+        target_name = ban_res.data.get("user_name", "Unknown")
+        target_user_id = ban_res.data.get("user_id")
+
+        # Update ban record
+        client.table("admin_bans").update({
+            "is_active": False,
+            "unbanned_at": _now().isoformat(),
+            "unbanned_by": admin_user_id,
+            "unbanned_by_name": admin_profile.get("username", "Admin"),
+            "unban_notes": payload.notes,
+        }).eq("id", ban_id).execute()
+
+        # Log activity
+        _log_admin_activity(
+            client, "user_unbanned", f"Unbanned user: {target_name}",
+            admin_user_id, admin_profile.get("username", "Admin"),
+            target_id=target_user_id, target_name=target_name,
+            action_note=payload.notes,
+        )
+
+        return {"message": f"User {target_name} has been unbanned"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Station Reports ---
+
+@router.get("/admin/station-reports")
+async def list_station_reports(
+    status: Optional[str] = None,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        query = client.table("station_reports").select("*")
+        if status and status != "all":
+            query = query.eq("status", status)
+
+        result = query.order("created_at", desc=True).execute()
+        reports = result.data or []
+        reporter_profiles = _fetch_profiles_map(client, [report.get("reported_by") for report in reports])
+        fallback_email_map = _get_auth_email_map([
+            report.get("reported_by")
+            for report in reports
+            if not (reporter_profiles.get(report.get("reported_by")) or {}).get("email")
+        ])
+
+        return [{
+            "id": r["id"],
+            "stationId": r.get("station_id"),
+            "stationName": r.get("station_name", "Unknown Station"),
+            "stationAddress": r.get("station_address", ""),
+            "reportType": r.get("report_type", "Unknown"),
+            "reportedBy": r.get("reported_by_name", "Unknown"),
+            "reporterEmail": (reporter_profiles.get(r.get("reported_by")) or {}).get("email") or fallback_email_map.get(r.get("reported_by")) or "",
+            "submissionDate": r.get("created_at"),
+            "status": r.get("status", "pending"),
+            "description": r.get("description", ""),
+            "adminNotes": r.get("admin_notes"),
+            "reviewedBy": r.get("reviewed_by_name"),
+            "reviewedAt": r.get("reviewed_at"),
+        } for r in reports]
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/fuel-reports")
+async def list_fuel_reports(token: str = Depends(get_jwt_token)):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        result = (
+            client.table("price_reports")
+            .select("id, station_id, fuel_type, price, observed_at, reported_by, confirmation_count, notes, created_at, stations(name, brand, address, city)")
+            .eq("is_active", True)
+            .order("observed_at", desc=True)
+            .limit(250)
+            .execute()
+        )
+        rows = result.data or []
+        profiles_map = _fetch_profiles_map(client, [row.get("reported_by") for row in rows])
+
+        reports = []
+        for row in rows:
+            station = row.get("stations") or {}
+            profile = profiles_map.get(row.get("reported_by"), {})
+            confirmation_count = row.get("confirmation_count") or 0
+            reports.append({
+                "id": row["id"],
+                "stationId": row.get("station_id"),
+                "stationName": station.get("name") or station.get("brand") or "Unknown station",
+                "stationAddress": station.get("address") or station.get("city") or "",
+                "fuelType": row.get("fuel_type") or "Unknown fuel",
+                "price": row.get("price"),
+                "reportedBy": profile.get("username") or "Unknown user",
+                "reporterEmail": profile.get("email") or "",
+                "submissionDate": row.get("observed_at") or row.get("created_at"),
+                "confirmationCount": confirmation_count,
+                "status": "approved" if confirmation_count > 0 else "pending",
+                "notes": row.get("notes") or "",
+            })
+
+        return reports
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/admin/station-reports/{report_id}")
+async def get_station_report_detail(
+    report_id: str,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        result = client.table("station_reports").select("*").eq("id", report_id).single().execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Report not found")
+
+        r = result.data
+        reporter_profile = _fetch_profiles_map(client, [r.get("reported_by")]).get(r.get("reported_by"), {})
+        reporter_email = reporter_profile.get("email") or _get_auth_user_email(r.get("reported_by")) or ""
+        return {
+            "id": r["id"],
+            "stationId": r.get("station_id"),
+            "stationName": r.get("station_name", "Unknown Station"),
+            "stationAddress": r.get("station_address", ""),
+            "reportType": r.get("report_type", "Unknown"),
+            "reportTypeLabel": r.get("report_type", "Unknown"),
+            "reportedBy": r.get("reported_by_name", "Unknown"),
+            "reporterEmail": reporter_email,
+            "reportDate": r.get("created_at"),
+            "status": r.get("status", "pending"),
+            "description": r.get("description", ""),
+            "adminNotes": r.get("admin_notes"),
+            "reviewedBy": r.get("reviewed_by_name"),
+            "reviewedAt": r.get("reviewed_at"),
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/admin/station-reports/{report_id}/update")
+async def update_station_report(
+    report_id: str,
+    payload: StationReportUpdateIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, admin_user_id, admin_profile = _require_admin(token)
+
+        # Get the report
+        report_res = client.table("station_reports").select("station_name, report_type").eq("id", report_id).single().execute()
+        if not report_res.data:
+            raise HTTPException(status_code=404, detail="Report not found")
+
+        station_name = report_res.data.get("station_name", "Unknown")
+
+        # Update the report
+        update_data = {
+            "status": payload.status,
+            "reviewed_by": admin_user_id,
+            "reviewed_by_name": admin_profile.get("username", "Admin"),
+            "reviewed_at": _now().isoformat(),
+            "updated_at": _now().isoformat(),
+        }
+        if payload.admin_notes is not None:
+            update_data["admin_notes"] = payload.admin_notes
+
+        client.table("station_reports").update(update_data).eq("id", report_id).execute()
+
+        # Map status to activity type
+        action_type_map = {
+            "resolved": "report_resolved",
+            "dismissed": "report_dismissed",
+            "under_review": "report_under_review",
+        }
+
+        _log_admin_activity(
+            client, action_type_map.get(payload.status, "report_updated"),
+            f"{payload.status.replace('_', ' ').title()} report for {station_name}",
+            admin_user_id, admin_profile.get("username", "Admin"),
+            target_id=report_id, target_name=station_name,
+            action_note=payload.admin_notes,
+        )
+
+        return {"message": f"Report updated to {payload.status}"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Activity Log ---
+
+@router.get("/admin/activity-log")
+async def list_admin_activity(
+    action_type: Optional[str] = None,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, _admin_user_id, _admin_profile = _require_admin(token)
+
+        direct_result = client.table("admin_activity_log").select("*").order("created_at", desc=True).limit(200).execute()
+        direct_activities = direct_result.data or []
+
+        verification_rows = (
+            client.table("verification_requests")
+            .select("id, user_id, full_name, status, admin_notes, updated_at, created_at")
+            .in_("status", ["approved", "rejected", "needs_correction"])
+            .order("updated_at", desc=True)
+            .limit(200)
+            .execute()
+        ).data or []
+        verification_type_map = {
+            "approved": "verification_approved",
+            "rejected": "verification_rejected",
+            "needs_correction": "correction_requested",
+        }
+
+        synthetic_activities = []
+        for row in verification_rows:
+            synthetic_type = verification_type_map.get(row.get("status"))
+            if not synthetic_type:
+                continue
+            synthetic_activities.append({
+                "id": f"verification-{row['id']}",
+                "type": synthetic_type,
+                "actor_id": None,
+                "adminName": "Admin",
+                "target_id": row.get("user_id"),
+                "targetUser": row.get("full_name") or "User",
+                "timestamp": row.get("updated_at") or row.get("created_at"),
+                "details": {
+                    "verification_approved": f"Approved verification for {row.get('full_name') or 'user'}",
+                    "verification_rejected": f"Rejected verification for {row.get('full_name') or 'user'}",
+                    "correction_requested": f"Requested verification correction for {row.get('full_name') or 'user'}",
+                }.get(synthetic_type, "Updated verification"),
+                "notes": row.get("admin_notes") or "",
+            })
+
+        ban_rows = (
+            client.table("admin_bans")
+            .select("id, user_id, user_name, reason_label, notes, ban_date, banned_by, banned_by_name, is_active, unbanned_at, unbanned_by, unbanned_by_name, unban_notes")
+            .order("ban_date", desc=True)
+            .limit(200)
+            .execute()
+        ).data or []
+        for row in ban_rows:
+            synthetic_activities.append({
+                "id": f"ban-{row['id']}",
+                "type": "user_banned",
+                "actor_id": row.get("banned_by"),
+                "adminName": row.get("banned_by_name") or "Admin",
+                "target_id": row.get("user_id"),
+                "targetUser": row.get("user_name") or "User",
+                "timestamp": row.get("ban_date"),
+                "details": f"Banned user: {row.get('user_name') or 'User'}",
+                "notes": row.get("notes") or row.get("reason_label") or "",
+            })
+            if row.get("unbanned_at"):
+                synthetic_activities.append({
+                    "id": f"unban-{row['id']}",
+                    "type": "user_unbanned",
+                    "actor_id": row.get("unbanned_by"),
+                    "adminName": row.get("unbanned_by_name") or "Admin",
+                    "target_id": row.get("user_id"),
+                    "targetUser": row.get("user_name") or "User",
+                    "timestamp": row.get("unbanned_at"),
+                    "details": f"Unbanned user: {row.get('user_name') or 'User'}",
+                    "notes": row.get("unban_notes") or "",
+                })
+
+        station_report_rows = (
+            client.table("station_reports")
+            .select("id, station_name, status, admin_notes, reviewed_at, reviewed_by, reviewed_by_name")
+            .in_("status", ["resolved", "dismissed", "under_review"])
+            .order("reviewed_at", desc=True)
+            .limit(200)
+            .execute()
+        ).data or []
+        report_type_map = {
+            "resolved": "report_resolved",
+            "dismissed": "report_dismissed",
+            "under_review": "report_under_review",
+        }
+        for row in station_report_rows:
+            synthetic_type = report_type_map.get(row.get("status"))
+            if not synthetic_type:
+                continue
+            synthetic_activities.append({
+                "id": f"station-report-{row['id']}",
+                "type": synthetic_type,
+                "actor_id": row.get("reviewed_by"),
+                "adminName": row.get("reviewed_by_name") or "Admin",
+                "target_id": row.get("id"),
+                "targetUser": row.get("station_name") or "Station Report",
+                "timestamp": row.get("reviewed_at"),
+                "details": f"{row.get('status', 'updated').replace('_', ' ').title()} report for {row.get('station_name') or 'station'}",
+                "notes": row.get("admin_notes") or "",
+            })
+
+        profile_ids = []
+        for entry in direct_activities:
+            profile_ids.extend([entry.get("actor_id"), entry.get("target_id")])
+        for entry in synthetic_activities:
+            profile_ids.extend([entry.get("actor_id"), entry.get("target_id")])
+        profiles_map = _fetch_profiles_map(client, profile_ids)
+
+        formatted_direct = [{
+            "id": a["id"],
+            "type": a.get("action_type", "unknown"),
+            "adminName": a.get("actor_name", "Admin"),
+            "adminEmail": (profiles_map.get(a.get("actor_id")) or {}).get("email") or "",
+            "targetUser": a.get("target_name", ""),
+            "targetUserEmail": (profiles_map.get(a.get("target_id")) or {}).get("email") or "",
+            "timestamp": a.get("created_at"),
+            "details": a.get("action_title", ""),
+            "notes": a.get("action_note", ""),
+        } for a in direct_activities]
+
+        seen_ids = {entry["id"] for entry in formatted_direct}
+        formatted_synthetic = []
+        for entry in synthetic_activities:
+            if entry["id"] in seen_ids:
+                continue
+            formatted_synthetic.append({
+                "id": entry["id"],
+                "type": entry.get("type", "unknown"),
+                "adminName": entry.get("adminName", "Admin"),
+                "adminEmail": (profiles_map.get(entry.get("actor_id")) or {}).get("email") or "",
+                "targetUser": entry.get("targetUser", ""),
+                "targetUserEmail": (profiles_map.get(entry.get("target_id")) or {}).get("email") or "",
+                "timestamp": entry.get("timestamp"),
+                "details": entry.get("details", ""),
+                "notes": entry.get("notes", ""),
+            })
+
+        activities = formatted_direct + formatted_synthetic
+        if action_type and action_type != "all":
+            activities = [entry for entry in activities if entry.get("type") == action_type]
+
+        activities.sort(key=lambda entry: str(entry.get("timestamp") or ""), reverse=True)
+        return activities[:200]
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- ADMIN: Settings ---
+
+@router.get("/admin/settings")
+async def get_admin_settings(token: str = Depends(get_jwt_token)):
+    try:
+        client, admin_user_id, _admin_profile = _require_admin(token)
+
+        result = client.table("admin_settings").select("*").eq("admin_id", admin_user_id).execute()
+        settings = (result.data or [None])[0]
+
+        if not settings:
+            # Return defaults
+            return {
+                "default_view": "dashboard",
+                "items_per_page": 25,
+                "auto_refresh": True,
+                "refresh_interval": 30,
+            }
+
+        return {
+            "default_view": settings.get("default_view", "dashboard"),
+            "items_per_page": settings.get("items_per_page", 25),
+            "auto_refresh": settings.get("auto_refresh", True),
+            "refresh_interval": settings.get("refresh_interval", 30),
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/admin/settings")
+async def update_admin_settings(
+    payload: AdminSettingsIn,
+    token: str = Depends(get_jwt_token)
+):
+    try:
+        client, admin_user_id, _admin_profile = _require_admin(token)
+
+        settings_data = {
+            "admin_id": admin_user_id,
+            "default_view": payload.default_view,
+            "items_per_page": payload.items_per_page,
+            "auto_refresh": payload.auto_refresh,
+            "refresh_interval": payload.refresh_interval,
+            "updated_at": _now().isoformat(),
+        }
+
+        # Upsert: try update first, then insert
+        existing = client.table("admin_settings").select("admin_id").eq("admin_id", admin_user_id).execute()
+        if existing.data:
+            client.table("admin_settings").update(settings_data).eq("admin_id", admin_user_id).execute()
+        else:
+            client.table("admin_settings").insert(settings_data).execute()
+
+        return {"message": "Settings saved successfully"}
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))

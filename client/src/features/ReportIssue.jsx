@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, AlertCircle, CheckCircle2, Upload } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
 import { AuthPrompt } from "@/shared/components/AuthPrompt";
 import { useAuth } from "@/app/providers/AuthContext";
+import { useStation } from "@/hooks/useStations";
+import { api as apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 const issueTypes = [
   "Incorrect fuel price",
@@ -13,24 +16,27 @@ const issueTypes = [
   "Other issue",
 ];
 
-const mockPrices = [
-  { type: "DSL", price: 58.40, lastUpdated: "2 hours ago" },
-  { type: "PDSL", price: 62.50, lastUpdated: "2 hours ago" },
-  { type: "UL91", price: 64.30, lastUpdated: "1 hour ago" },
-  { type: "PR95", price: 68.20, lastUpdated: "1 hour ago" },
-  { type: "PR97", price: 72.80, lastUpdated: "3 hours ago" },
-];
-
 export function ReportIssue() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { data: station, isLoading: isStationLoading } = useStation(id);
   const [issueType, setIssueType] = useState("");
   const [selectedPrices, setSelectedPrices] = useState([]);
   const [corrections, setCorrections] = useState({});
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const availablePrices = useMemo(
+    () =>
+      Object.entries(station?.latest_prices || {}).map(([type, details]) => ({
+        type,
+        price: Number(details.price),
+      })),
+    [station]
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -40,30 +46,80 @@ export function ReportIssue() {
 
   const togglePriceSelection = (fuelType) => {
     if (selectedPrices.includes(fuelType)) {
-      setSelectedPrices(selectedPrices.filter((f) => f !== fuelType));
-      const newCorrections = { ...corrections };
-      delete newCorrections[fuelType];
-      setCorrections(newCorrections);
-    } else {
-      setSelectedPrices([...selectedPrices, fuelType]);
+      setSelectedPrices(selectedPrices.filter((item) => item !== fuelType));
+      const nextCorrections = { ...corrections };
+      delete nextCorrections[fuelType];
+      setCorrections(nextCorrections);
+      return;
     }
+
+    setSelectedPrices([...selectedPrices, fuelType]);
   };
 
   const handleCorrectionChange = (fuelType, value) => {
     setCorrections({ ...corrections, [fuelType]: value });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
       return;
     }
 
-    setSubmitted(true);
-    setTimeout(() => {
-      navigate(-1);
-    }, 2000);
+    if (!issueType) {
+      toast.error("Please select an issue type.");
+      return;
+    }
+
+    if (!station?.id) {
+      toast.error("Station details are still loading.");
+      return;
+    }
+
+    const descriptionParts = [];
+    if (issueType === "Incorrect fuel price" && selectedPrices.length > 0) {
+      const summary = selectedPrices
+        .map((fuelType) => {
+          const currentPrice = availablePrices.find((item) => item.type === fuelType)?.price;
+          const correctedPrice = corrections[fuelType];
+          return correctedPrice
+            ? `${fuelType}: current PHP ${currentPrice?.toFixed?.(2) ?? "unknown"}, corrected PHP ${correctedPrice}`
+            : `${fuelType}: current PHP ${currentPrice?.toFixed?.(2) ?? "unknown"}`;
+        })
+        .join("; ");
+      descriptionParts.push(`Affected prices: ${summary}`);
+    }
+    if (notes.trim()) {
+      descriptionParts.push(notes.trim());
+    }
+
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/me/station-reports", {
+        station_id: station.id,
+        report_type: issueType,
+        description: descriptionParts.join("\n\n") || issueType,
+        metadata:
+          issueType === "Incorrect fuel price"
+            ? { selectedPrices, corrections }
+            : undefined,
+      });
+      setSubmitted(true);
+      setTimeout(() => navigate(-1), 2000);
+    } catch (error) {
+      toast.error(error.message || "Failed to submit station report.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (isStationLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-neutral-950 flex items-center justify-center px-4">
+        <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -110,8 +166,8 @@ export function ReportIssue() {
                   key={type}
                   onClick={() => setIssueType(type)}
                   className={`p-4 rounded-2xl border-2 text-left transition-all ${
-                    issueType === type 
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-600 font-bold" 
+                    issueType === type
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-600 font-bold"
                       : "border-gray-100 bg-white dark:bg-neutral-900 text-muted-foreground"
                   }`}
                 >
@@ -125,13 +181,13 @@ export function ReportIssue() {
             <div>
               <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">Which fuel prices are incorrect?</label>
               <div className="space-y-3">
-                {mockPrices.map((fuel) => (
+                {availablePrices.map((fuel) => (
                   <button
                     key={fuel.type}
                     onClick={() => togglePriceSelection(fuel.type)}
                     className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
-                      selectedPrices.includes(fuel.type) 
-                        ? "border-emerald-500 bg-emerald-50" 
+                      selectedPrices.includes(fuel.type)
+                        ? "border-emerald-500 bg-emerald-50"
                         : "border-gray-100 bg-white dark:bg-neutral-900"
                     }`}
                   >
@@ -141,10 +197,28 @@ export function ReportIssue() {
                       </div>
                       <div className="font-bold text-foreground">{fuel.type}</div>
                     </div>
-                    <div className="text-right font-bold text-foreground">₱{fuel.price.toFixed(2)}</div>
+                    <div className="text-right font-bold text-foreground">PHP {fuel.price.toFixed(2)}</div>
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {issueType === "Incorrect fuel price" && selectedPrices.length > 0 && (
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-500 uppercase tracking-widest">Corrected Prices</label>
+              {selectedPrices.map((fuelType) => (
+                <input
+                  key={fuelType}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={corrections[fuelType] || ""}
+                  onChange={(event) => handleCorrectionChange(fuelType, event.target.value)}
+                  placeholder={`Enter corrected price for ${fuelType}`}
+                  className="w-full p-4 rounded-2xl border-2 border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:border-emerald-500 outline-none transition-all shadow-sm"
+                />
+              ))}
             </div>
           )}
 
@@ -153,7 +227,7 @@ export function ReportIssue() {
               <label className="block text-sm font-bold text-gray-500 mb-4 uppercase tracking-widest">Additional Details</label>
               <textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={(event) => setNotes(event.target.value)}
                 placeholder="Describe the issue... (e.g., station is closed for renovation)"
                 className="w-full p-5 rounded-2xl border-2 border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 focus:border-emerald-500 outline-none transition-all shadow-sm"
                 rows={4}
@@ -164,9 +238,10 @@ export function ReportIssue() {
           {issueType && (
             <button
               onClick={handleSubmit}
-              className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all"
+              disabled={isSubmitting || user?.is_banned}
+              className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold shadow-xl shadow-emerald-500/20 hover:scale-[1.02] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Submit Report
+              {isSubmitting ? "Submitting..." : user?.is_banned ? "Account Restricted" : "Submit Report"}
             </button>
           )}
         </div>

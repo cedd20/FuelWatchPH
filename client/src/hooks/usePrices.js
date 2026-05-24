@@ -77,6 +77,8 @@ export function useMyContributions(options = {}) {
       return data.map(c => ({ ...c, fuel_type: toAliasFuelType(c.fuel_type) }));
     },
     enabled,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
     ...rest,
   });
 }

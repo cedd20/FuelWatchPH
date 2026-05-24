@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/app/providers/AuthContext";
 import { useTheme } from "@/app/providers/ThemeContext";
 import { useStations } from "@/hooks/useStations";
+import { useSummaryStats } from "@/hooks/useUsers";
 import Mascot1 from "@/imports/For Users Already Signed In.png";
 import Mascot2 from "@/imports/For Users Already Signed In (2).png";
 import Mascot3 from "@/imports/For Users Already Signed In (3).png";
@@ -303,6 +304,7 @@ export function Home() {
   const { user, loading: authLoading } = useAuth();
   const { isDark } = useTheme();
   const { data: allStations = [], isLoading: stationsLoading } = useStations();
+  const { data: globalStats } = useSummaryStats();
 
   const [userLocation, setUserLocation] = useState(null);
   const [cityName, setCityName] = useState("Makati");
@@ -310,7 +312,6 @@ export function Home() {
   const [selectedFuelType, setSelectedFuelType] = useState("UL91");
   const [fuelDropdownOpen, setFuelDropdownOpen] = useState(false);
   const [currentMascot, setCurrentMascot] = useState(Mascot1);
-  const [globalStats, setGlobalStats] = useState(null);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -322,12 +323,6 @@ export function Home() {
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * MASCOTS.length);
     setCurrentMascot(MASCOTS[randomIndex]);
-  }, []);
-
-  useEffect(() => {
-    import("../lib/apiClient").then(({ api }) => {
-      api.get("/stats/summary").then(setGlobalStats).catch(() => {});
-    });
   }, []);
 
   useEffect(() => {

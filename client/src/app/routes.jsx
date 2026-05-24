@@ -30,13 +30,13 @@ import { AdminDashboard } from "@/features/admin/AdminDashboard";
 import { VerificationQueue } from "@/features/admin/VerificationQueue";
 import { VerificationDetail } from "@/features/admin/VerificationDetail";
 import { VerifiedUsers } from "@/features/admin/VerifiedUsers";
+import { FuelReports } from "@/features/admin/FuelReports";
 import { StationReports } from "@/features/admin/StationReports";
 import { StationReportDetail } from "@/features/admin/StationReportDetail";
 import { UserManagement } from "@/features/admin/UserManagement";
 import { BannedUsers } from "@/features/admin/BannedUsers";
 import { AdminActivityLog } from "@/features/admin/AdminActivityLog";
 import { AdminSettings } from "@/features/admin/AdminSettings";
-import { AdminLogin } from "@/features/admin/AdminLogin";
 
 export const router = createBrowserRouter([
   {
@@ -50,10 +50,6 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
-  },
-  {
-    path: "/admin/login",
-    element: <AdminLogin />,
   },
   {
     path: "/signup",
@@ -172,6 +168,10 @@ export const router = createBrowserRouter([
           {
             path: "verified-users",
             element: <VerifiedUsers />,
+          },
+          {
+            path: "fuel-reports",
+            element: <FuelReports />,
           },
           {
             path: "station-reports",

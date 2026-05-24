@@ -1,11 +1,12 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api as apiClient } from "../lib/apiClient";
 
 export function useLeaderboard() {
   return useQuery({
     queryKey: ["leaderboard"],
     queryFn: () => apiClient.get("/leaderboard"),
-    staleTime: 0, // Force fresh data for ranking fixes
+    staleTime: 300_000,
+    gcTime: 10 * 60_000,
   });
 }
 
@@ -14,6 +15,7 @@ export function useSummaryStats() {
     queryKey: ["summary-stats"],
     queryFn: () => apiClient.get("/stats/summary"),
     staleTime: 60_000,
+    gcTime: 10 * 60_000,
   });
 }
 

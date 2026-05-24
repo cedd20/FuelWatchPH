@@ -86,6 +86,7 @@ class UserProfileBase(BaseModel):
 
 class UserProfileOut(UserProfileBase):
     id: str
+    email: Optional[str] = None
     reputation: int = 0
     role: str = "user"
     created_at: Optional[datetime] = None
@@ -94,6 +95,9 @@ class UserProfileOut(UserProfileBase):
     verified_count: Optional[int] = None
     is_verified: bool = False
     accuracy: Optional[int] = None
+    is_banned: bool = False
+    ban_reason: Optional[str] = None
+    ban_reason_label: Optional[str] = None
 
 
 class VerificationRequestIn(BaseModel):
@@ -104,3 +108,34 @@ class VerificationRequestIn(BaseModel):
     id_back_url: str
 
 
+class VerificationAdminNotesIn(BaseModel):
+    admin_notes: Optional[str] = None
+
+
+class BanUserIn(BaseModel):
+    reason: str
+    reason_label: str
+    notes: Optional[str] = None
+
+
+class UnbanUserIn(BaseModel):
+    notes: Optional[str] = None
+
+
+class StationReportUpdateIn(BaseModel):
+    status: str
+    admin_notes: Optional[str] = None
+
+
+class StationReportCreateIn(BaseModel):
+    station_id: str
+    report_type: str
+    description: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class AdminSettingsIn(BaseModel):
+    default_view: Optional[str] = "dashboard"
+    items_per_page: Optional[int] = 25
+    auto_refresh: Optional[bool] = True
+    refresh_interval: Optional[int] = 30

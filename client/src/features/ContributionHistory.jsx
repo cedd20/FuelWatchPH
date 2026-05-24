@@ -87,7 +87,7 @@ function CustomSelect({ icon: Icon, value, options, onChange, prefix }) {
 
 export function ContributionHistory() {
   const navigate = useNavigate();
-  const { isAuthenticated, user, refreshProfile, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -95,10 +95,6 @@ export function ContributionHistory() {
   const [groupBy, setGroupBy] = useState("time");
   const [visibleCount, setVisibleCount] = useState(15);
   const { data: rawContributions = [], isLoading } = useMyContributions();
-
-  useEffect(() => {
-    if (isAuthenticated) refreshProfile();
-  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) setShowAuthPrompt(true);

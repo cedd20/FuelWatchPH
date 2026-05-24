@@ -1,70 +1,56 @@
-import { useState } from "react";
-import { Search, Ban, CheckCircle, X, Eye } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Ban, CheckCircle, X, Eye, Loader2 } from "lucide-react";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
-
-const mockBannedUsers = [
-  {
-    id: "1",
-    name: "John Smith",
-    email: "john.smith@email.com",
-    banReason: "spam",
-    banReasonLabel: "Spam/Fraudulent Activity",
-    banDate: "2024-05-01 10:30:00",
-    bannedBy: "Admin",
-    notes: "Repeatedly submitted false fuel prices to manipulate station rankings",
-  },
-  {
-    id: "2",
-    name: "Sarah Johnson",
-    email: "sarah.johnson@email.com",
-    banReason: "abuse",
-    banReasonLabel: "Abusive Behavior",
-    banDate: "2024-04-28 14:20:00",
-    bannedBy: "Admin",
-    notes: "Abusive comments and harassment of other users",
-  },
-  {
-    id: "3",
-    name: "Mike Wilson",
-    email: "mike.wilson@email.com",
-    banReason: "multiple_accounts",
-    banReasonLabel: "Multiple Accounts",
-    banDate: "2024-04-25 09:15:00",
-    bannedBy: "Admin",
-    notes: "Created multiple accounts to artificially boost station ratings",
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    email: "emily.davis@email.com",
-    banReason: "false_info",
-    banReasonLabel: "False Information",
-    banDate: "2024-04-20 16:45:00",
-    bannedBy: "Admin",
-    notes: "Consistently submitted incorrect verification documents",
-  },
-];
+import { api as apiClient } from "@/lib/apiClient";
 
 export function BannedUsers() {
+  const [bannedUsers, setBannedUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [unbanModalData, setUnbanModalData] = useState(null);
   const [unbanNotes, setUnbanNotes] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const handleUnbanUser = () => {
-    if (unbanModalData) {
-      console.log("Unbanning user:", unbanModalData.userId, "Notes:", unbanNotes);
-      setUnbanModalData(null);
-      setUnbanNotes("");
+  const fetchBannedUsers = async () => {
+    setIsLoading(true);
+    try {
+        const data = await apiClient.get("/admin/banned-users");
+      setBannedUsers(data || []);
+    } catch (error) {
+      console.error("Failed to fetch banned users:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const filteredUsers = mockBannedUsers.filter((user) => {
+  useEffect(() => {
+    fetchBannedUsers();
+  }, []);
+
+  const handleUnbanUser = async () => {
+    if (unbanModalData) {
+      try {
+        await apiClient.post(`/admin/bans/${unbanModalData.banId}/unban`, {
+          notes: unbanNotes,
+        });
+        setUnbanModalData(null);
+        setUnbanNotes("");
+        fetchBannedUsers(); // Refresh list
+      } catch (error) {
+        console.error("Failed to unban user:", error);
+        alert("Failed to unban user. Please try again.");
+      }
+    }
+  };
+
+  const filteredUsers = bannedUsers.filter((user) => {
+    const userName = user.name || "";
+    const userEmail = user.email || "";
     const matchesSearch =
       searchQuery === "" ||
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      userEmail.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesSearch;
   });
 
@@ -74,9 +60,9 @@ export function BannedUsers() {
   const endIndex = startIndex + rowsPerPage;
   const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
-  const spamCount = mockBannedUsers.filter((u) => u.banReason === "spam").length;
-  const abuseCount = mockBannedUsers.filter((u) => u.banReason === "abuse").length;
-  const multipleAccountsCount = mockBannedUsers.filter((u) => u.banReason === "multiple_accounts").length;
+  const spamCount = bannedUsers.filter((u) => u.banReason === "spam").length;
+  const abuseCount = bannedUsers.filter((u) => u.banReason === "abuse").length;
+  const multipleAccountsCount = bannedUsers.filter((u) => u.banReason === "multiple_accounts").length;
 
   return (
     <>
@@ -91,7 +77,7 @@ export function BannedUsers() {
           {/* Stats Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
             <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-rose-400/40 shadow-lg">
-              <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{mockBannedUsers.length}</div>
+              <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{bannedUsers.length}</div>
               <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Total Banned</div>
             </div>
             <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-yellow-400/40 shadow-lg">
@@ -183,7 +169,7 @@ export function BannedUsers() {
                     View Details
                   </button>
                   <button
-                    onClick={() => setUnbanModalData({ userId: user.id, userName: user.name, userEmail: user.email })}
+                    onClick={() => setUnbanModalData({ banId: user.id, userId: user.userId, userName: user.name, userEmail: user.email })}
                     className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-xs shadow-lg active:scale-[0.98] transition-transform flex items-center justify-center gap-1.5"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
@@ -286,7 +272,7 @@ export function BannedUsers() {
                             View Details
                           </button>
                           <button
-                            onClick={() => setUnbanModalData({ userId: user.id, userName: user.name, userEmail: user.email })}
+                            onClick={() => setUnbanModalData({ banId: user.id, userId: user.userId, userName: user.name, userEmail: user.email })}
                             className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-xs shadow-lg hover:shadow-xl transition-all flex items-center gap-1"
                           >
                             <CheckCircle className="w-3 h-3" />
