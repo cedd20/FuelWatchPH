@@ -73,6 +73,7 @@ export function Profile() {
   ] : [
     { icon: Compass, label: "Explore", sub: "Public map & prices", path: "/app/home" },
     { icon: Trophy, label: "Leaderboard", sub: "Community rankings", path: "/app/leaderboard" },
+    { icon: Settings, label: "Settings", sub: "Theme & preferences", path: "/app/settings" },
     { icon: HelpCircle, label: "Help Center", sub: "Guides & Support", path: "/app/support" },
     { icon: FileText, label: "Legal", sub: "Terms & Privacy", path: "/app/terms" },
   ];

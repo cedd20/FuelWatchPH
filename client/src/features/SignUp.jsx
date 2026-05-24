@@ -88,7 +88,6 @@ export function SignUp() {
 
   const inputClass =
     "app-auth-input w-full h-14 rounded-[1.15rem] pl-12 pr-12 text-sm font-semibold outline-none transition-all focus:border-emerald-400/55 focus:bg-[var(--app-auth-input-focus)] focus:ring-4 focus:ring-emerald-500/10";
-  const sectionLabelClass = "mb-2.5 block text-[0.65rem] font-black uppercase tracking-[0.28em] text-[var(--app-auth-subtle)]";
   const secondaryLinkClass = "text-sm font-semibold text-[var(--app-auth-muted)] transition-colors hover:text-foreground dark:hover:text-white";
 
   // ── Email Sent Confirmation Screen ──────────────────────────────────────────
@@ -203,10 +202,11 @@ export function SignUp() {
               Back
             </button>
 
-            <AuthBrand compact className="mb-6 lg:hidden" />
-
             <div className="mb-7">
-              <h2 className="mb-2 text-[2rem] font-black tracking-[-0.04em] text-foreground sm:text-[2.15rem]">Create account.</h2>
+              <div className="mb-3 flex items-center gap-3 sm:gap-4">
+                <AuthBrand compact className="shrink-0 lg:hidden" />
+                <h2 className="text-[2rem] font-black tracking-[-0.04em] text-foreground sm:text-[2.15rem]">Create account.</h2>
+              </div>
               <p className="max-w-sm text-sm font-medium leading-6 text-[var(--app-auth-muted)]">
                 Join the community and start saving on fuel with faster price checks and trusted updates.
               </p>
@@ -214,14 +214,13 @@ export function SignUp() {
 
             <form onSubmit={handleSignUp} className="space-y-[18px]">
               <div>
-                <label className={sectionLabelClass}>Full Name</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Juan Dela Cruz"
+                    placeholder="Full name"
                     className={`${inputClass} pr-4`}
                     required
                   />
@@ -229,14 +228,13 @@ export function SignUp() {
               </div>
 
               <div>
-                <label className={sectionLabelClass}>Email</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder="Email address"
                     className={`${inputClass} pr-4`}
                     required
                   />
@@ -244,14 +242,13 @@ export function SignUp() {
               </div>
 
               <div>
-                <label className={sectionLabelClass}>Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-auth-subtle)]" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 8 characters"
+                    placeholder="Password"
                     className={inputClass}
                     required
                     minLength={8}
