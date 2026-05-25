@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Mail, Send, X, Loader2, MessageSquare } from "lucide-react";
 import { Button } from "./Button";
 import { toast } from "sonner";
+import { api } from "@/lib/apiClient";
+
+const SUPPORT_EMAIL = "kencas.cyber@gmail.com";
+const SUPPORT_SUBJECT = "FuelWatch Support";
 
 export function ContactModal({ isOpen, onClose }) {
   const [message, setMessage] = useState("");
@@ -12,31 +16,16 @@ export function ContactModal({ isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    try {
-      const response = await fetch("https://formsubmit.co/ajax/cedickartiaga58@gmail.com", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          _subject: "FuelWatch PH Support Request",
-          "User Concern / Question": message,
-          _template: "box",
-          _captcha: "false"
-        }),
-      });
 
-      if (response.ok) {
-        toast.success("Support request sent successfully!");
-        setMessage("");
-        onClose();
-      } else {
-        toast.error("Failed to send message. Please try again.");
-      }
+    try {
+      await api.post("/support/contact", {
+        message: message.trim(),
+      });
+      toast.success("Support message sent successfully.");
+      setMessage("");
+      onClose();
     } catch (error) {
-      toast.error("An error occurred. Please check your connection.");
+      toast.error(error?.message || "Could not send your message. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +93,7 @@ export function ContactModal({ isOpen, onClose }) {
             <Button
               type="submit"
               disabled={isSubmitting || !message.trim()}
-              className="w-full py-5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-xl shadow-emerald-500/20 text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all"
+              className="w-full py-5 px-6 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 shadow-xl shadow-emerald-500/20 text-white font-bold text-lg rounded-2xl flex items-center justify-center gap-3 active:scale-95 transition-all"
             >
               {isSubmitting ? (
                 <>
@@ -122,6 +111,7 @@ export function ContactModal({ isOpen, onClose }) {
             <p className="text-center text-xs text-muted-foreground font-semibold uppercase tracking-wider">
               Response typically within 24 hours
             </p>
+            
           </form>
         </div>
       </div>

@@ -11,8 +11,9 @@
 -- PDSL
 -- Kerosene
 
--- Admin moderation tables are created in
--- backend/supabase/migrations/012_admin_moderation_tables.sql.
+-- Admin moderation tables and the per-user ban status policy are created in
+-- backend/supabase/migrations/012_admin_moderation_tables.sql and
+-- backend/supabase/migrations/013_users_can_read_own_ban_status.sql.
 -- No default seed rows are required for:
 -- station_reports
 -- admin_bans

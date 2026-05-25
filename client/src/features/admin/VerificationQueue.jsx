@@ -77,6 +77,8 @@ export function VerificationQueue() {
     }
   };
 
+  const isResolvedStatus = (status) => status === "approved" || status === "rejected" || status === "needs_correction";
+
   const filteredRequests = requests.filter((request) => {
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
     const userName = request.user_profiles?.username || request.full_name || "";
@@ -347,7 +349,7 @@ export function VerificationQueue() {
                 className="w-full px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-sm shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
               >
                 <Eye className="w-4 h-4" />
-                Review Request
+                {isResolvedStatus(request.status) ? "View Details" : "Review Request"}
               </button>
             </div>
           ))}

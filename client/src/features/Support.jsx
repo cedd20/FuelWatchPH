@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ArrowLeft, Mail, HelpCircle, ChevronDown, MessageCircle } from "lucide-react";
+import { ArrowLeft, Mail, HelpCircle, ChevronDown } from "lucide-react";
 import * as Accordion from "@radix-ui/react-accordion";
 import { ContactModal } from "@/shared/components/ContactModal";
 
@@ -31,7 +31,7 @@ export function Support() {
   return (
     <div className="app-shell min-h-screen pb-28 text-foreground">
       {/* Header */}
-      <div className="relative pt-14 pb-24 px-6 overflow-hidden">
+      <div className="relative pt-10 pb-24 px-6 overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3" />
         <div className="max-w-2xl mx-auto relative z-10">
           <div className="flex items-center gap-6 mb-10">
@@ -108,7 +108,11 @@ export function Support() {
                 <Mail className="w-8 h-8 text-white" strokeWidth={2.5} />
               </div>
               <div>
-                <div className="text-xl font-black mb-1">Send Us a Message</div>
+                <div className="mb-3">
+                  <span className="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-5 py-2 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg">
+                    Send Us a Message
+                  </span>
+                </div>
                 <div className="text-emerald-200 text-xs font-bold uppercase tracking-widest">We reply within 24 hours</div>
               </div>
             </div>
@@ -116,7 +120,7 @@ export function Support() {
         </motion.div>
 
         {/* Community Banner */}
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -137,7 +141,7 @@ export function Support() {
               Follow Us
             </button>
           </div>
-        </motion.div>
+        </motion.div> */}
       </div>
 
       <ContactModal isOpen={isContactModalOpen} onClose={() => setIsContactModalOpen(false)} />

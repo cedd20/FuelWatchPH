@@ -139,3 +139,7 @@ class AdminSettingsIn(BaseModel):
     items_per_page: Optional[int] = 25
     auto_refresh: Optional[bool] = True
     refresh_interval: Optional[int] = 30
+
+
+class SupportMessageIn(BaseModel):
+    message: str = Field(min_length=5, max_length=5000)

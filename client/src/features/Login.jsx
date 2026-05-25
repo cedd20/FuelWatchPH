@@ -64,8 +64,8 @@ export function Login() {
       const lowerMessage = message.toLowerCase();
       if (lowerMessage.includes("email not confirmed")) {
         toast.error("Email not confirmed. Please check your inbox.");
-      } else if (lowerMessage.includes("account banned")) {
-        toast.error(message || "This account has been banned.");
+      } else if (lowerMessage.includes("account banned") || lowerMessage.includes("user banned by admin")) {
+        toast.error(message || "User banned by admin. We promote a Filipino bayanihan culture here, and negativity is not welcome.");
       } else if (
         error.status === 400 ||
         lowerMessage.includes("invalid login credentials") ||

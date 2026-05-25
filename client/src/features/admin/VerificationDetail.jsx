@@ -117,6 +117,9 @@ export function VerificationDetail() {
     setActiveModal("image");
   };
 
+  const isResolvedStatus = (status) => status === "approved" || status === "rejected" || status === "needs_correction";
+  const isResolved = request ? isResolvedStatus(request.status) : false;
+
   const getStatusColor = (status) => {
     switch (status) {
       case "approved":
@@ -125,6 +128,8 @@ export function VerificationDetail() {
         return "text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-950/50 border-rose-400/40";
       case "pending":
         return "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-950/50 border-yellow-400/40";
+      case "needs_correction":
+        return "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/50 border-blue-400/40";
       default:
         return "text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-950/50 border-gray-400/40";
     }
@@ -300,21 +305,27 @@ export function VerificationDetail() {
                   <div className="space-y-2.5 lg:space-y-3">
                     <button
                       onClick={() => setActiveModal("approve")}
-                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      disabled={isProcessing || isResolved}
+                      title={isResolved ? "This request is already resolved" : undefined}
+                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     >
                       <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5" strokeWidth={2.5} />
                       Approve Request
                     </button>
                     <button
                       onClick={() => setActiveModal("reject")}
-                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      disabled={isProcessing || isResolved}
+                      title={isResolved ? "This request is already resolved" : undefined}
+                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-gradient-to-r from-rose-600 to-red-600 text-white rounded-lg lg:rounded-xl font-bold text-sm shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     >
                       <XCircle className="w-4 h-4 lg:w-5 lg:h-5" strokeWidth={2.5} />
                       Reject Request
                     </button>
                     <button
                       onClick={() => setActiveModal("correction")}
-                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg lg:rounded-xl font-bold text-sm text-foreground hover:border-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                      disabled={isProcessing || isResolved}
+                      title={isResolved ? "This request is already resolved" : undefined}
+                      className="w-full px-4 lg:px-5 py-3 lg:py-3.5 bg-white dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg lg:rounded-xl font-bold text-sm text-foreground hover:border-blue-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-200 dark:disabled:hover:border-neutral-700"
                     >
                       <AlertCircle className="w-4 h-4 lg:w-5 lg:h-5" strokeWidth={2.5} />
                       Request Correction

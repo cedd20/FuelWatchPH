@@ -13,6 +13,35 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bannedNotice, setBannedNotice] = useState("");
+  const [bannedContext, setBannedContext] = useState(null);
+  const [showAppealForm, setShowAppealForm] = useState(false);
+  const [appealMessage, setAppealMessage] = useState("");
+  const [appealImages, setAppealImages] = useState([]);
+  const [isSendingAppeal, setIsSendingAppeal] = useState(false);
+
+  const getBannedMessage = (profile) => {
+    const banLabel = profile?.ban_reason_label ? ` Reason: ${profile.ban_reason_label}.` : "";
+    return `User banned by admin. We promote a Filipino bayanihan culture here, and negativity is not welcome.${banLabel}`;
+  };
+
+  const clearBannedNotice = () => {
+    setBannedNotice("");
+    setBannedContext(null);
+    setShowAppealForm(false);
+    setAppealMessage("");
+    setAppealImages([]);
+  };
+
+  const blockBannedUser = (message, context = null) => {
+    setUser(null);
+    setLoading(false);
+    setBannedNotice(message);
+    setBannedContext(context);
+    setTimeout(() => {
+      supabase.auth.signOut().catch(() => {});
+    }, 0);
+  };
 
   useEffect(() => {
     async function getUser() {
@@ -49,10 +78,7 @@ export function AuthProvider({ children }) {
           const basicUser = {
             ...session.user,
           };
-          setUser(basicUser);
-
-          // Refresh profile in the background so the app can render immediately.
-          refreshProfile();
+          await refreshProfile({ baseUser: basicUser, sessionOverride: session });
         } else {
           setUser(null);
         }
@@ -69,14 +95,14 @@ export function AuthProvider({ children }) {
       console.log("Auth event:", event, session?.user?.id);
       
       if (session?.user) {
-        // Set basic user immediately to unblock UI
         const basicUser = {
           ...session.user,
         };
-        setUser(basicUser);
-
-        // Enrich asynchronously
-        refreshProfile();
+        try {
+          await refreshProfile({ baseUser: basicUser, sessionOverride: session });
+        } catch (error) {
+          console.warn("Blocked authenticated session during profile refresh:", error);
+        }
       } else {
         setUser(null);
       }
@@ -105,9 +131,10 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = async (options = {}) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { baseUser = null, sessionOverride = null } = options;
+      const session = sessionOverride || (await supabase.auth.getSession()).data.session;
       // No session means user just signed out — do nothing silently
       if (!session) return null;
 
@@ -117,38 +144,69 @@ export function AuthProvider({ children }) {
 
       // Silently ignore auth errors during sign-out — expected behavior
       if (res.status === 401) return null;
+      if (res.status === 403) {
+        const responseBody = await res.json().catch(() => ({}));
+        if (responseBody?.detail?.code === "ACCOUNT_BANNED") {
+          const bannedMessage = responseBody.detail.message || getBannedMessage();
+          const context = {
+            user_id: session?.user?.id,
+            email: session?.user?.email,
+            username:
+              baseUser?.user_metadata?.username ||
+              baseUser?.user_metadata?.full_name ||
+              baseUser?.user_metadata?.name ||
+              null,
+          };
+          blockBannedUser(bannedMessage, context);
+          throw new Error(bannedMessage);
+        }
+      }
       if (!res.ok) throw new Error("Failed to fetch profile from API");
       const profile = await res.json();
 
       if (profile?.is_banned) {
-        await supabase.auth.signOut().catch(() => {});
-        setUser(null);
-        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+        const bannedMessage = getBannedMessage(profile);
+        const context = {
+          user_id: profile?.id || session?.user?.id,
+          email: profile?.email || session?.user?.email,
+          username: profile?.username || baseUser?.user_metadata?.username || null,
+          ban_reason: profile?.ban_reason || null,
+          ban_reason_label: profile?.ban_reason_label || null,
+        };
+        blockBannedUser(bannedMessage, context);
+        throw new Error(bannedMessage);
       }
       
       // Only update state if the user is still logged in (guards against race conditions)
       setUser(prev => {
-        if (!prev) return prev;
+        const currentUser = prev || baseUser;
+        if (!currentUser) return prev;
         return {
-          ...prev,
+          ...currentUser,
           ...profile,
+          id: profile?.id || currentUser?.id,
+          email: profile?.email || currentUser?.email || "",
           karma: profile?.points || profile?.reputation || 0,
           trustScore: profile?.accuracy || 0,
-          avatar_url: profile?.avatar_url || prev?.avatar_url,
+          avatar_url: profile?.avatar_url || currentUser?.avatar_url,
           bio: profile?.bio || "",
           is_banned: !!profile?.is_banned,
           ban_reason: profile?.ban_reason || null,
           ban_reason_label: profile?.ban_reason_label || null,
-          initials: (profile?.username || prev?.name || 'U').substring(0, 1).toUpperCase(),
-          name: profile?.username || prev?.name || 'User'
+          initials: (profile?.username || currentUser?.name || 'U').substring(0, 1).toUpperCase(),
+          name: profile?.username || currentUser?.name || 'User'
         };
       });
       return profile;
     } catch (e) {
+      if (String(e?.message || "").toLowerCase().includes("user banned by admin")) {
+        throw e;
+      }
       // Only warn if it's not a sign-out-related abort
       if (!String(e).includes('Failed to fetch')) {
         console.warn("Profile refresh failed:", e);
       }
+      throw e;
     }
   };
 
@@ -213,9 +271,19 @@ export function AuthProvider({ children }) {
       if (error) throw error;
       
       // Refresh profile to get user_type immediately after login
-      const profile = await refreshProfile();
+      let profile;
+      try {
+        profile = await refreshProfile({
+          baseUser: data.user,
+          sessionOverride: data.session,
+        });
+      } catch (authError) {
+        await supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        throw authError;
+      }
       if (profile?.is_banned) {
-        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+        throw new Error(getBannedMessage(profile));
       }
       return { user: { ...data.user, ...profile } };
     },
@@ -247,9 +315,19 @@ export function AuthProvider({ children }) {
       setStoredRememberMePreference(rememberMe);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      const profile = await refreshProfile();
+      let profile;
+      try {
+        profile = await refreshProfile({
+          baseUser: data.user,
+          sessionOverride: data.session,
+        });
+      } catch (authError) {
+        await supabase.auth.signOut().catch(() => {});
+        setUser(null);
+        throw authError;
+      }
       if (profile?.is_banned) {
-        throw new Error(profile?.ban_reason_label ? `Account banned: ${profile.ban_reason_label}` : "Account banned.");
+        throw new Error(getBannedMessage(profile));
       }
       if (profile?.user_type !== 0) {
         const { error: signOutError } = await supabase.auth.signOut();
@@ -271,6 +349,7 @@ export function AuthProvider({ children }) {
     },
     logout: async () => {
       console.log("Attempting logout");
+      clearBannedNotice();
       if (!isValidUrl) {
         setUser(null);
         return;
@@ -287,9 +366,143 @@ export function AuthProvider({ children }) {
       });
       if (error) throw error;
     },
+    bannedNotice,
+    clearBannedNotice,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const sendAppeal = async () => {
+    const trimmed = appealMessage.trim();
+    if (trimmed.length < 5) throw new Error("Please describe your appeal.");
+
+    const apiBase = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
+    const formData = new FormData();
+    formData.append("message", trimmed);
+    if (bannedContext?.user_id) formData.append("user_id", bannedContext.user_id);
+    if (bannedContext?.email) formData.append("email", bannedContext.email);
+    if (bannedContext?.username) formData.append("username", bannedContext.username);
+    if (bannedContext?.ban_reason) formData.append("ban_reason", bannedContext.ban_reason);
+    if (bannedContext?.ban_reason_label) formData.append("ban_reason_label", bannedContext.ban_reason_label);
+
+    for (const file of appealImages) {
+      formData.append("attachments", file, file.name);
+    }
+
+    const res = await fetch(`${apiBase}/support/appeal`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body?.detail || "Failed to send appeal.");
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {bannedNotice && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(3,10,9,0.92)] px-6">
+          <div className="w-full max-w-md rounded-[2rem] border border-rose-500/20 bg-[rgba(12,18,17,0.98)] p-8 text-center shadow-2xl shadow-black/40">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400">
+              <span className="text-3xl font-black">!</span>
+            </div>
+            <h2 className="mb-3 text-2xl font-black text-white">Account Banned</h2>
+            <p className="text-sm font-medium leading-7 text-[var(--app-text-soft)]">
+              {bannedNotice}
+            </p>
+
+            {!showAppealForm ? (
+              <div className="mt-7 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAppealForm(true)}
+                  className="w-full rounded-2xl bg-white/10 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-white/15"
+                >
+                  Appeal
+                </button>
+                <button
+                  type="button"
+                  onClick={clearBannedNotice}
+                  className="w-full rounded-2xl bg-rose-500 px-5 py-4 text-sm font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400"
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 text-left">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-white/70">
+                  Appeal Message
+                </label>
+                <textarea
+                  value={appealMessage}
+                  onChange={(e) => setAppealMessage(e.target.value)}
+                  placeholder="Explain what happened and why you think this ban should be lifted..."
+                  className="h-28 w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm font-medium text-white placeholder:text-white/35 outline-none focus:border-emerald-400/60"
+                />
+
+                <label className="mt-4 mb-2 block text-xs font-bold uppercase tracking-widest text-white/70">
+                  Attach Images (optional)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setAppealImages(Array.from(e.target.files || []).slice(0, 5))}
+                  className="block w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white file:mr-3 file:rounded-xl file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-widest file:text-white hover:file:bg-white/15"
+                />
+                {appealImages.length > 0 && (
+                  <div className="mt-2 text-xs font-semibold text-white/55">
+                    {appealImages.length} attachment{appealImages.length === 1 ? "" : "s"} selected
+                  </div>
+                )}
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={isSendingAppeal}
+                    onClick={async () => {
+                      setIsSendingAppeal(true);
+                      try {
+                        await sendAppeal();
+                        setShowAppealForm(false);
+                        setAppealMessage("");
+                        setAppealImages([]);
+                      } catch (err) {
+                        console.warn("Appeal send failed:", err);
+                        alert(err?.message || "Failed to send appeal.");
+                      } finally {
+                        setIsSendingAppeal(false);
+                      }
+                    }}
+                    className="rounded-2xl bg-emerald-500 px-4 py-4 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSendingAppeal ? "Sending..." : "Send Appeal"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSendingAppeal}
+                    onClick={() => setShowAppealForm(false)}
+                    className="rounded-2xl bg-white/10 px-4 py-4 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isSendingAppeal}
+                  onClick={clearBannedNotice}
+                  className="mt-3 w-full rounded-2xl bg-rose-500 px-5 py-4 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => {

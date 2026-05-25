@@ -43,11 +43,15 @@ export function Profile() {
   const isTopContributor = useMemo(() => {
     if (!isAuthenticated || !user || !leaderboardData?.length) return false;
 
-    const getLeaderboardScore = (entry) =>
-      entry?.total_points ?? entry?.points ?? entry?.reputation ?? 0;
+    const getLeaderboardKarma = (entry) => {
+      const rawKarma = entry?.karma ?? entry?.total_points ?? entry?.points ?? entry?.reputation ?? 0;
+      return typeof rawKarma === "number" ? rawKarma : parseInt(rawKarma, 10) || 0;
+    };
+
+    if ((user?.karma || 0) < 300) return false;
 
     const top10 = [...leaderboardData]
-      .sort((a, b) => getLeaderboardScore(b) - getLeaderboardScore(a))
+      .sort((a, b) => getLeaderboardKarma(b) - getLeaderboardKarma(a))
       .slice(0, 10);
 
     return top10.some((entry) => entry.id === user.id);

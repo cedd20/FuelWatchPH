@@ -1,10 +1,14 @@
 import os
+from pathlib import Path
+
 from supabase import create_client, Client, ClientOptions
 from dotenv import load_dotenv
 
-# Try loading from local .env first, then fallback to backend/.env if running from root
-if not load_dotenv():
-    load_dotenv(dotenv_path="backend/.env")
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = BACKEND_DIR.parent
+
+load_dotenv(dotenv_path=BACKEND_DIR / ".env")
+load_dotenv(dotenv_path=ROOT_DIR / ".env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")

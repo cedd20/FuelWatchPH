@@ -1,9 +1,8 @@
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import datetime, timezone 
+from typing import Optional, List 
+from fastapi import APIRouter, Header, HTTPException, Query, Response, Request, Depends, UploadFile, File, Form
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response, Request, Depends
-
-from app.core.rate_limit import limiter
+from app.core.rate_limit import limiter 
 
 from app.constants import FUEL_TYPES, MAX_PRICE_PHP, MIN_PRICE_PHP
 from app.models.schemas import (
@@ -24,10 +23,12 @@ from app.models.schemas import (
     StationReportUpdateIn,
     StationReportCreateIn,
     AdminSettingsIn,
+    SupportMessageIn,
 )
-from app.services import report_service
-from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client
-from app.services import stats_service
+from app.services import report_service 
+from app.services.supabase_client import supabase, supabase_admin, get_authenticated_client 
+from app.services import stats_service 
+from app.services.support_email_service import send_support_email, send_support_email_with_attachments
 
 router = APIRouter()
 
@@ -56,6 +57,18 @@ async def get_optional_jwt(authorization: Optional[str] = Header(None)) -> Optio
 def _is_privileged(role: str) -> bool:
     # Note: In a real app, you'd verify the role from the JWT or user_profiles table.
     return role in {"moderator", "admin"}
+
+
+def _get_user_email_from_token(token: Optional[str]) -> Optional[str]:
+    if not token:
+        return None
+
+    try:
+        client = get_authenticated_client(token)
+        user_res = client.auth.get_user(token)
+        return getattr(user_res.user, "email", None) if user_res.user else None
+    except Exception:
+        return None
 
 
 
@@ -171,13 +184,14 @@ def _get_auth_email_map(user_ids: List[Optional[str]]) -> dict[str, Optional[str
         }
 
 
-def _get_active_ban(user_id: Optional[str]) -> Optional[dict]:
+def _get_active_ban(user_id: Optional[str], db_client=None) -> Optional[dict]:
     if not user_id:
         return None
 
     try:
+        lookup_client = db_client or supabase_admin
         result = (
-            supabase_admin.table("admin_bans")
+            lookup_client.table("admin_bans")
             .select("id, reason, reason_label, notes, ban_date, is_active")
             .eq("user_id", user_id)
             .eq("is_active", True)
@@ -186,12 +200,13 @@ def _get_active_ban(user_id: Optional[str]) -> Optional[dict]:
             .execute()
         )
         return (result.data or [None])[0]
-    except Exception:
-        return None
+    except Exception as error:
+        print(f"Failed to check active ban for user {user_id}: {error}")
+        raise
 
 
-def _require_not_banned(user_id: Optional[str]) -> None:
-    active_ban = _get_active_ban(user_id)
+def _require_not_banned(user_id: Optional[str], db_client=None) -> None:
+    active_ban = _get_active_ban(user_id, db_client)
     if active_ban:
         detail = active_ban.get("reason_label") or "Account banned"
         raise HTTPException(status_code=403, detail=f"Account banned: {detail}")
@@ -423,7 +438,7 @@ def create_station(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
-        _require_not_banned(user_id)
+        _require_not_banned(user_id, client)
     except Exception as e:
         print(f"Auth failed in create_station: {e}")
         raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
@@ -461,7 +476,7 @@ def update_station(
     user_res = client.auth.get_user(token)
     if not user_res.user:
         raise HTTPException(status_code=401, detail="Invalid session")
-    _require_not_banned(user_res.user.id)
+    _require_not_banned(user_res.user.id, client)
     
     updates = station.model_dump(exclude_unset=True)
     _validate_station_payload(updates, partial=True)
@@ -488,7 +503,7 @@ def delete_station(
     user_res = client.auth.get_user(token)
     if not user_res.user:
         raise HTTPException(status_code=401, detail="Invalid session")
-    _require_not_banned(user_res.user.id)
+    _require_not_banned(user_res.user.id, client)
     
     # Soft delete
     result = client.table("stations").update({"is_active": False}).eq("id", station_id).execute()
@@ -541,7 +556,7 @@ def create_price(
             session_result = client.auth.get_user(token)
             if session_result.user:
                 user_id = session_result.user.id
-                _require_not_banned(user_id)
+                _require_not_banned(user_id, client)
         except Exception:
             # If token is invalid/expired, we treat as anonymous if token was optional
             # or could raise 401 if we want to be strict.
@@ -588,7 +603,7 @@ def create_prices_batch(
             user_res = db_client.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
-                _require_not_banned(user_id)
+                _require_not_banned(user_id, db_client)
         except Exception as e:
             print(f"Auth verification failed in batch: {e}")
             # Non-critical: allow anonymous batch if token fails but was optional
@@ -663,7 +678,7 @@ def update_price(
     user_res = client.auth.get_user(token)
     if not user_res.user:
         raise HTTPException(status_code=401, detail="Invalid session")
-    _require_not_banned(user_res.user.id)
+    _require_not_banned(user_res.user.id, client)
     
     updates = price.model_dump(exclude_unset=True)
     _validate_price_payload(updates, partial=True)
@@ -692,7 +707,7 @@ def delete_price(
     user_res = client.auth.get_user(token)
     if not user_res.user:
         raise HTTPException(status_code=401, detail="Invalid session")
-    _require_not_banned(user_res.user.id)
+    _require_not_banned(user_res.user.id, client)
     
     result = client.table("price_reports").update({"is_active": False}).eq("id", price_id).execute()
     if not result.data:
@@ -714,10 +729,13 @@ async def confirm_price(
     user_id = None
     if token:
         try:
-            user_res = supabase.auth.get_user(token)
+            auth_client = get_authenticated_client(token)
+            user_res = auth_client.auth.get_user(token)
             if user_res.user:
                 user_id = user_res.user.id
-                _require_not_banned(user_id)
+                _require_not_banned(user_id, auth_client)
+        except HTTPException:
+            raise
         except Exception:
             pass
 
@@ -902,6 +920,105 @@ async def get_leaderboard(limit: int = 10):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Leaderboard enrichment failed: {str(e)}")
+
+
+@router.post("/support/contact")
+@limiter.limit("10/hour")
+async def send_support_message(
+    request: Request,
+    payload: SupportMessageIn,
+    token: Optional[str] = Depends(get_optional_jwt),
+):
+    sender_email = _get_user_email_from_token(token)
+    message = payload.message.strip()
+
+    try:
+        send_support_email(message=message, sender_email=sender_email)
+        return {"success": True}
+    except RuntimeError as e:
+        print(f"Support email configuration error: {e}")
+        raise HTTPException(status_code=500, detail="Support email is not configured")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"CRITICAL ERROR in send_support_message: {e}")
+        raise HTTPException(status_code=502, detail="Unable to send support message right now")
+
+
+@router.post("/support/appeal")
+@limiter.limit("3/day")
+async def send_ban_appeal(
+    request: Request,
+    message: str = Form(..., min_length=5, max_length=5000),
+    user_id: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    username: Optional[str] = Form(None),
+    ban_reason: Optional[str] = Form(None),
+    ban_reason_label: Optional[str] = Form(None),
+    attachments: List[UploadFile] = File(default=[]),
+):
+    try:
+        trimmed_message = message.strip()
+        if len(trimmed_message) < 5:
+            raise HTTPException(status_code=400, detail="Message is too short")
+
+        safe_attachments: list[tuple[str, bytes, str]] = []
+        max_files = 5
+        max_bytes_each = 5 * 1024 * 1024
+        allowed_types = {"image/png", "image/jpeg", "image/webp", "image/gif"}
+
+        for upload in (attachments or [])[:max_files]:
+            if not upload:
+                continue
+            content_type = (upload.content_type or "").lower()
+            if content_type not in allowed_types:
+                raise HTTPException(status_code=400, detail=f"Unsupported attachment type: {content_type or 'unknown'}")
+
+            raw = await upload.read()
+            if len(raw) > max_bytes_each:
+                raise HTTPException(status_code=400, detail=f"Attachment too large: {upload.filename}")
+
+            filename = upload.filename or "attachment"
+            safe_attachments.append((filename, raw, content_type))
+
+        ua = request.headers.get("user-agent", "")
+        forwarded_for = request.headers.get("x-forwarded-for")
+        client_host = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "")
+
+        body_lines = [
+            "FuelWatch ban appeal",
+            "",
+            "Account info:",
+            f"- user_id: {user_id or 'unknown'}",
+            f"- email: {email or 'unknown'}",
+            f"- username: {username or 'unknown'}",
+            f"- ban_reason: {ban_reason or 'unknown'}",
+            f"- ban_reason_label: {ban_reason_label or 'unknown'}",
+            "",
+            "Request info:",
+            f"- ip: {client_host or 'unknown'}",
+            f"- user_agent: {ua or 'unknown'}",
+            f"- submitted_at_utc: {datetime.now(timezone.utc).isoformat()}",
+            "",
+            "Message:",
+            trimmed_message,
+        ]
+
+        send_support_email_with_attachments(
+            subject="FuelWatch Support - Ban Appeal",
+            body="\n".join(body_lines),
+            reply_to=email,
+            attachments=safe_attachments,
+        )
+        return {"success": True}
+    except RuntimeError as e:
+        print(f"Support email configuration error: {e}")
+        raise HTTPException(status_code=500, detail="Support email is not configured")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"CRITICAL ERROR in send_ban_appeal: {e}")
+        raise HTTPException(status_code=502, detail="Unable to send appeal right now")
 
 
 @router.get("/me/contributions")
@@ -1200,6 +1317,20 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
         user_email = getattr(user_res.user, "email", None)
+
+        active_ban = _get_active_ban(user_id, client)
+        if active_ban:
+            reason = active_ban.get("reason_label") or "Restricted account"
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "ACCOUNT_BANNED",
+                    "message": (
+                        "User banned by admin. We promote a Filipino bayanihan culture here, "
+                        f"and negativity is not welcome. Reason: {reason}."
+                    ),
+                },
+            )
         
         # 1. Fetch profile
         profile_res = client.table("user_profiles").select("*").eq("id", user_id).single().execute()
@@ -1280,10 +1411,9 @@ async def get_my_profile(token: str = Depends(get_jwt_token)):
         except Exception as db_err:
             print(f"Failed to sync reputation to database: {db_err}")
 
-        active_ban = _get_active_ban(user_id)
-        profile["is_banned"] = bool(active_ban)
-        profile["ban_reason"] = active_ban.get("reason") if active_ban else None
-        profile["ban_reason_label"] = active_ban.get("reason_label") if active_ban else None
+        profile["is_banned"] = False
+        profile["ban_reason"] = None
+        profile["ban_reason_label"] = None
             
         return profile
     except Exception as e:
@@ -1304,7 +1434,7 @@ async def update_my_profile(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Invalid session")
         user_id = user_res.user.id
-        _require_not_banned(user_id)
+        _require_not_banned(user_id, client)
         
         updates = profile_data.model_dump(exclude_unset=True)
         # Use authenticated client for RLS
@@ -1329,7 +1459,7 @@ async def submit_verification(
         if not user_res.user:
             raise HTTPException(status_code=401, detail="Unauthorized")
         user_id = user_res.user.id
-        _require_not_banned(user_id)
+        _require_not_banned(user_id, client)
         
         # Insert into verification_requests table
         data = request.model_dump()
@@ -1361,7 +1491,7 @@ async def submit_station_report(
 
         user = user_res.user
         user_id = user.id
-        _require_not_banned(user_id)
+        _require_not_banned(user_id, client)
 
         station_res = client.table("stations").select("id, name, address").eq("id", payload.station_id).eq("is_active", True).limit(1).execute()
         station = (station_res.data or [None])[0]

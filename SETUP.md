@@ -43,6 +43,14 @@ SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=service-role-xxxxxxxxxxxxxxxx
 BACKEND_HOST=127.0.0.1
 BACKEND_PORT=8000
+SUPPORT_EMAIL_TO=kencas.cyber@gmail.com
+SUPPORT_EMAIL_SUBJECT=FuelWatch Support
+SUPPORT_SMTP_HOST=smtp.gmail.com
+SUPPORT_SMTP_PORT=587
+SUPPORT_SMTP_USERNAME=your-gmail@gmail.com
+SUPPORT_SMTP_PASSWORD=your-gmail-app-password
+SUPPORT_SMTP_STARTTLS=true
+SUPPORT_SMTP_SSL=false
 ```
 
 ### 3. Install Backend Dependencies
@@ -156,6 +164,14 @@ The **frontend never calls Supabase directly** for sensitive operations. Instead
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (PRIVATE) | (generated in Supabase dashboard) |
 | `BACKEND_HOST` | Host to bind to | `127.0.0.1` |
 | `BACKEND_PORT` | Port to run on | `8000` |
+| `SUPPORT_EMAIL_TO` | Support inbox destination | `kencas.cyber@gmail.com` |
+| `SUPPORT_EMAIL_SUBJECT` | Support mail subject | `FuelWatch Support` |
+| `SUPPORT_SMTP_HOST` | SMTP server host | `smtp.gmail.com` |
+| `SUPPORT_SMTP_PORT` | SMTP server port | `587` |
+| `SUPPORT_SMTP_USERNAME` | SMTP login username | `your-gmail@gmail.com` |
+| `SUPPORT_SMTP_PASSWORD` | SMTP password / app password | `(secret)` |
+| `SUPPORT_SMTP_STARTTLS` | Enable STARTTLS | `true` |
+| `SUPPORT_SMTP_SSL` | Use implicit SSL | `false` |
 
 ## Running Tests
 

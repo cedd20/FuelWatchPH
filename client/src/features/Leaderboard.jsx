@@ -308,7 +308,7 @@ export function Leaderboard() {
              <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest mb-4">Elite Perks</h3>
              <ul className="space-y-4">
                 {[
-                  "Verified Badge for top 10 contributors",
+                  "Top Contributor Badge for top 10 contributors",
                   "Priority reporting verification",
                   "Early access to new features",
                   "Exclusive profile customization"
