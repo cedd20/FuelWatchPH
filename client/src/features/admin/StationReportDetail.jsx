@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useStationReport, useUpdateStationReport } from "@/hooks/admin/useStationReports";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -130,51 +130,33 @@ function LoadingState() {
 export function StationReportDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [report, setReport] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("under_review");
   const [notes, setNotes] = useState("");
   const [feedback, setFeedback] = useState("");
+  const { data: report, isLoading, isError } = useStationReport(id);
+  const updateMutation = useUpdateStationReport();
+  const isSaving = updateMutation.isPending;
 
   useEffect(() => {
-    async function fetchReport() {
-      setIsLoading(true);
-      try {
-        const data = await apiClient.get(`/admin/station-reports/${id}`);
-        setReport(data || null);
-        setSelectedStatus(data?.status === "pending" ? "under_review" : data?.status || "under_review");
-        setNotes(data?.adminNotes || "");
-      } catch (error) {
-        console.error("Failed to fetch station report:", error);
-        setReport(null);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchReport();
-  }, [id]);
+    if (!report) return;
+    setSelectedStatus(report.status === "pending" ? "under_review" : report.status || "under_review");
+    setNotes(report.adminNotes || "");
+  }, [report]);
 
   async function handleSubmitUpdate() {
     if (!report) return;
-    setIsSaving(true);
     setFeedback("");
     try {
-      await apiClient.post(`/admin/station-reports/${report.id}/update`, {
-        status: selectedStatus,
-        admin_notes: notes.trim() || null,
+      await updateMutation.mutateAsync({
+        reportId: report.id,
+        payload: {
+          status: selectedStatus,
+          admin_notes: notes.trim() || null,
+        },
       });
-      const refreshed = await apiClient.get(`/admin/station-reports/${report.id}`);
-      setReport(refreshed || null);
-      setNotes(refreshed?.adminNotes || notes);
-      setSelectedStatus(refreshed?.status || selectedStatus);
       setFeedback(`Report updated to ${formatStatusLabel(selectedStatus)}.`);
     } catch (error) {
-      console.error("Failed to update station report:", error);
       setFeedback(error.message || "Failed to update report.");
-    } finally {
-      setIsSaving(false);
     }
   }
 
@@ -182,7 +164,7 @@ export function StationReportDetail() {
     return <LoadingState />;
   }
 
-  if (!report) {
+  if (isError || !report) {
     return (
       <div className="relative overflow-hidden px-4 py-5 lg:px-8 lg:py-8">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.1),transparent_30%),linear-gradient(180deg,rgba(244,247,245,0.85),rgba(237,243,239,0.8))] dark:bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.28),transparent_30%),linear-gradient(180deg,rgba(5,10,9,0.96),rgba(8,17,15,0.98))]" />

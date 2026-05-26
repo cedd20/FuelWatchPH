@@ -21,7 +21,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { api as apiClient } from "@/lib/apiClient";
+import {
+  useApproveVerificationRequest,
+  useRejectVerificationRequest,
+  useRequestVerificationCorrection,
+  useUpdateVerificationRequestNotes,
+  useVerificationRequest,
+} from "@/hooks/admin/useVerificationRequests";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -373,34 +379,28 @@ function ErrorState({ onBack }) {
 export function VerificationDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [request, setRequest] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [actionNote, setActionNote] = useState("");
   const [selectedImage, setSelectedImage] = useState("");
   const [adminNotesText, setAdminNotesText] = useState("");
-  const [loadError, setLoadError] = useState(false);
+  const {
+    data: request,
+    isLoading,
+    isError,
+  } = useVerificationRequest(id);
+  const approveMutation = useApproveVerificationRequest();
+  const rejectMutation = useRejectVerificationRequest();
+  const correctionMutation = useRequestVerificationCorrection();
+  const saveNotesMutation = useUpdateVerificationRequestNotes();
+  const isProcessing =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    correctionMutation.isPending ||
+    saveNotesMutation.isPending;
 
   useEffect(() => {
-    async function fetchDetail() {
-      setIsLoading(true);
-      setLoadError(false);
-      try {
-        const data = await apiClient.get(`/admin/verifications/${id}`);
-        setRequest(data);
-        setAdminNotesText(data?.admin_notes || "");
-      } catch (error) {
-        console.error("Failed to fetch detail:", error);
-        setLoadError(true);
-        toast.error("Failed to load verification request");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchDetail();
-  }, [id]);
+    setAdminNotesText(request?.admin_notes || "");
+  }, [request?.admin_notes]);
 
   const isResolved = useMemo(
     () =>
@@ -415,18 +415,16 @@ export function VerificationDetail() {
   const email = request?.user_profiles?.email || "No email available";
 
   const handleApprove = async () => {
-    setIsProcessing(true);
     try {
-      await apiClient.post(`/admin/verifications/${id}/approve`, {
-        admin_notes: actionNote,
+      await approveMutation.mutateAsync({
+        requestId: id,
+        adminNotes: actionNote,
       });
       toast.success("Verification request approved!");
       navigate("/admin/verification-queue");
     } catch (error) {
-      console.error("Approval failed:", error);
-      toast.error("Failed to approve verification");
+      toast.error(error.message || "Failed to approve verification");
     } finally {
-      setIsProcessing(false);
       setActiveModal(null);
       setActionNote("");
     }
@@ -437,18 +435,16 @@ export function VerificationDetail() {
       toast.error("Please provide a reason for rejection");
       return;
     }
-    setIsProcessing(true);
     try {
-      await apiClient.post(`/admin/verifications/${id}/reject`, {
-        admin_notes: actionNote,
+      await rejectMutation.mutateAsync({
+        requestId: id,
+        adminNotes: actionNote,
       });
       toast.success("Verification request rejected");
       navigate("/admin/verification-queue");
     } catch (error) {
-      console.error("Rejection failed:", error);
-      toast.error("Failed to reject verification");
+      toast.error(error.message || "Failed to reject verification");
     } finally {
-      setIsProcessing(false);
       setActiveModal(null);
       setActionNote("");
     }
@@ -459,35 +455,30 @@ export function VerificationDetail() {
       toast.error("Please provide correction details");
       return;
     }
-    setIsProcessing(true);
     try {
-      await apiClient.post(`/admin/verifications/${id}/correction`, {
-        admin_notes: actionNote,
+      await correctionMutation.mutateAsync({
+        requestId: id,
+        adminNotes: actionNote,
       });
       toast.success("Correction requested");
       navigate("/admin/verification-queue");
     } catch (error) {
-      console.error("Correction request failed:", error);
-      toast.error("Failed to request correction");
+      toast.error(error.message || "Failed to request correction");
     } finally {
-      setIsProcessing(false);
       setActiveModal(null);
       setActionNote("");
     }
   };
 
   const handleSaveNotes = async () => {
-    setIsProcessing(true);
     try {
-      await apiClient.patch(`/admin/verifications/${id}`, {
-        admin_notes: adminNotesText,
+      await saveNotesMutation.mutateAsync({
+        requestId: id,
+        adminNotes: adminNotesText,
       });
       toast.success("Notes saved");
     } catch (error) {
-      console.error("Failed to save notes:", error);
-      toast.error("Failed to save notes");
-    } finally {
-      setIsProcessing(false);
+      toast.error(error.message || "Failed to save notes");
     }
   };
 
@@ -500,7 +491,7 @@ export function VerificationDetail() {
     return <LoadingState />;
   }
 
-  if (loadError || !request) {
+  if (isError || !request) {
     return <ErrorState onBack={() => navigate("/admin/verification-queue")} />;
   }
 

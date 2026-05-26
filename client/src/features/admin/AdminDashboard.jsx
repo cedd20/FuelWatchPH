@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
   AlertCircle,
@@ -20,7 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useAdminDashboard } from "@/hooks/admin/useAdminDashboard";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -280,24 +280,20 @@ function EmptyState({ icon: Icon, title, description }) {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const [dashboard, setDashboard] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const {
+    data: dashboard,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useAdminDashboard();
 
-  useEffect(() => {
-    async function fetchDashboard() {
-      setIsLoading(true);
-      try {
-        const data = await apiClient.get("/admin/dashboard");
-        setDashboard(data || null);
-      } catch (error) {
-        console.error("Failed to fetch admin dashboard:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchDashboard();
-  }, []);
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    await refetch();
+    setIsRetrying(false);
+  };
 
   const stats = dashboard?.stats || emptyStats;
   const recentVerifications = dashboard?.recentVerifications || [];
@@ -369,6 +365,35 @@ export function AdminDashboard() {
     );
   }
 
+  if (isError && !dashboard) {
+    return (
+      <div className="relative overflow-hidden px-4 py-6 lg:px-8 lg:py-8">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.12),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(25,56,52,0.18),transparent_38%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.12),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(25,56,52,0.28),transparent_40%)]" />
+        <div className="relative mx-auto flex min-h-[58vh] max-w-[920px] items-center justify-center">
+          <Card className="w-full rounded-[32px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(233,239,235,0.94))] shadow-[0_28px_90px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(135deg,rgba(25,56,52,0.98),rgba(8,17,15,0.98))] dark:shadow-[0_35px_100px_rgba(0,0,0,0.42)]">
+            <CardContent className="flex flex-col items-center px-6 py-14 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500/[0.12] text-rose-700 dark:text-rose-300">
+                <AlertCircle className="h-7 w-7" strokeWidth={2.1} />
+              </div>
+              <div className="mt-5 text-2xl font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+                Unable to load the admin dashboard
+              </div>
+              <div className="mt-3 max-w-lg text-sm leading-7 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                The dashboard data could not be fetched right now. Please try again.
+              </div>
+              <Button
+                onClick={handleRetry}
+                className="mt-6 rounded-full bg-[linear-gradient(135deg,#1f6a55,#193834)] px-5 text-white hover:opacity-95"
+              >
+                {isRetrying ? <Loader2 className="h-4 w-4 animate-spin" /> : "Retry"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden px-4 py-5 lg:px-8 lg:py-8">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.1),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(52,211,153,0.08),transparent_22%),linear-gradient(180deg,rgba(244,247,245,0.85),rgba(237,243,239,0.8))] dark:bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.28),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(52,211,153,0.12),transparent_22%),linear-gradient(180deg,rgba(5,10,9,0.96),rgba(8,17,15,0.98))]" />
@@ -429,6 +454,13 @@ export function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {isFetching && !isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Refreshing dashboard data...
+          </div>
+        ) : null}
 
         <section className="grid grid-cols-2 gap-2.5 sm:gap-4 xl:grid-cols-4">
           {statCards.map((card) => (

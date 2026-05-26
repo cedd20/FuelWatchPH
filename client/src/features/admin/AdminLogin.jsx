@@ -172,7 +172,7 @@ export function AdminLogin() {
               </label>
 
               <div className="text-xs lg:text-sm text-right text-muted-foreground font-medium">
-                Mock admin credentials are prefilled for testing.
+                Uses real admin auth when Supabase/backend config is available, with mock credentials as a local fallback.
               </div>
             </div>
 
@@ -181,7 +181,7 @@ export function AdminLogin() {
             </Button>
 
             <p className="text-xs lg:text-sm text-muted-foreground text-center">
-              Frontend-only placeholder login. Replace with backend role authentication when ready.
+              Admin access is validated from the real profile/session flow when the app is connected. The mock path remains only for local fallback.
             </p>
           </form>
 

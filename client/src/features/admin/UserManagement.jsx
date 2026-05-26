@@ -16,8 +16,9 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useBanUser, useUnbanUser, useUserManagement } from "@/hooks/admin/useUserManagement";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar";
 import { Badge } from "@/shared/components/ui/badge";
@@ -137,11 +138,6 @@ const getInitials = (name) =>
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() || "")
     .join("");
-
-const getKeyVariants = (record) =>
-  [record?.id, record?.userId, record?.email]
-    .map((value) => normalizeText(value))
-    .filter(Boolean);
 
 const getRoleLabel = (user) => {
   if (user?.role) return String(user.role).replace(/_/g, " ");
@@ -539,9 +535,6 @@ function UserManagementCard({ user, onViewDetails, onRestrict, onReinstate }) {
 export function UserManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialCategory = searchParams.get("category");
-  const [users, setUsers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(
     categoryDefinitions.some((item) => item.value === initialCategory) ? initialCategory : "all",
@@ -553,10 +546,18 @@ export function UserManagement() {
   const [banReason, setBanReason] = useState("");
   const [banNotes, setBanNotes] = useState("");
   const [unbanNotes, setUnbanNotes] = useState("");
-  const [isSubmittingBan, setIsSubmittingBan] = useState(false);
-  const [isSubmittingUnban, setIsSubmittingUnban] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const {
+    data: users = [],
+    isLoading,
+    isError: fetchError,
+    refetch,
+  } = useUserManagement();
+  const banMutation = useBanUser();
+  const unbanMutation = useUnbanUser();
+  const isSubmittingBan = banMutation.isPending;
+  const isSubmittingUnban = unbanMutation.isPending;
 
   useEffect(() => {
     const nextCategory = searchParams.get("category");
@@ -570,133 +571,44 @@ export function UserManagement() {
     }
   }, [searchParams, categoryFilter]);
 
-  const fetchUsers = async () => {
-    setIsLoading(true);
-    setFetchError(false);
-
-    try {
-      const [usersResult, bannedUsersResult] = await Promise.allSettled([
-        apiClient.get("/admin/users"),
-        apiClient.get("/admin/banned-users"),
-      ]);
-
-      if (usersResult.status !== "fulfilled") {
-        throw usersResult.reason;
-      }
-
-      const baseUsers = Array.isArray(usersResult.value) ? usersResult.value : [];
-      const bannedUsers = bannedUsersResult.status === "fulfilled" && Array.isArray(bannedUsersResult.value)
-        ? bannedUsersResult.value
-        : [];
-
-      const bannedLookup = new Map();
-      bannedUsers.forEach((record) => {
-        getKeyVariants(record).forEach((key) => {
-          bannedLookup.set(key, record);
-        });
-      });
-
-      const mergedUsers = baseUsers.map((user) => {
-        const matchedBanRecord = getKeyVariants(user)
-          .map((key) => bannedLookup.get(key))
-          .find(Boolean);
-
-        return {
-          ...user,
-          id: user.id ?? user.userId ?? matchedBanRecord?.userId ?? matchedBanRecord?.id,
-          userId: user.userId ?? user.id ?? matchedBanRecord?.userId,
-          banRecordId: matchedBanRecord?.id || null,
-          accountStatus:
-            matchedBanRecord?.accountStatus || matchedBanRecord?.status || user.accountStatus || "active",
-          banReason: matchedBanRecord?.banReason || user.banReason || null,
-          banReasonLabel: matchedBanRecord?.banReasonLabel || user.banReasonLabel || null,
-          bannedBy: matchedBanRecord?.bannedBy || user.bannedBy || null,
-          banDate: matchedBanRecord?.banDate || user.banDate || null,
-          adminNotes: matchedBanRecord?.notes || user.adminNotes || null,
-          notes: matchedBanRecord?.notes || user.notes || null,
-        };
-      });
-
-      const existingKeys = new Set(
-        mergedUsers.flatMap((user) => getKeyVariants(user)),
-      );
-
-      bannedUsers.forEach((record) => {
-        const hasMatch = getKeyVariants(record).some((key) => existingKeys.has(key));
-        if (hasMatch) return;
-
-        mergedUsers.push({
-          ...record,
-          id: record.userId ?? `banned-${record.id}`,
-          userId: record.userId ?? null,
-          banRecordId: record.id,
-          accountStatus: record.accountStatus || record.status || "banned",
-          verificationStatus: record.verificationStatus || "unverified",
-          joinDate: record.joinDate || record.accountCreated || null,
-          totalUpdates: record.totalUpdates ?? 0,
-          accuracyRate: record.accuracyRate ?? 0,
-          karma: record.karma ?? 0,
-          savedStationsCount: record.savedStationsCount ?? 0,
-          recentActivity: record.recentActivity || null,
-          adminNotes: record.notes || record.adminNotes || null,
-        });
-      });
-
-      setUsers(mergedUsers);
-    } catch (error) {
-      console.error("Failed to fetch users:", error);
-      setFetchError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
   const handleBanUser = async () => {
     if (!banModalData || !banReason) return;
 
-    setIsSubmittingBan(true);
-
     try {
-      await apiClient.post(`/admin/users/${banModalData.userId}/ban`, {
-        reason: banReason,
-        reason_label: reasonLabels[banReason] || "Other violation",
-        notes: banNotes,
+      await banMutation.mutateAsync({
+        userId: banModalData.userId,
+        payload: {
+          reason: banReason,
+          reason_label: reasonLabels[banReason] || "Other violation",
+          notes: banNotes,
+        },
       });
 
       setBanModalData(null);
       setBanReason("");
       setBanNotes("");
-      fetchUsers();
+      toast.success("User banned successfully.");
     } catch (error) {
-      console.error("Failed to ban user:", error);
-      alert("Failed to ban user. Please try again.");
-    } finally {
-      setIsSubmittingBan(false);
+      toast.error(error.message || "Failed to ban user.");
     }
   };
 
   const handleUnbanUser = async () => {
     if (!unbanModalData?.banRecordId) return;
 
-    setIsSubmittingUnban(true);
-
     try {
-      await apiClient.post(`/admin/bans/${unbanModalData.banRecordId}/unban`, {
-        notes: unbanNotes,
+      await unbanMutation.mutateAsync({
+        banId: unbanModalData.banRecordId,
+        payload: {
+          notes: unbanNotes,
+        },
       });
 
       setUnbanModalData(null);
       setUnbanNotes("");
-      fetchUsers();
+      toast.success("User unbanned successfully.");
     } catch (error) {
-      console.error("Failed to unban user:", error);
-      alert("Failed to reactivate user. Please try again.");
-    } finally {
-      setIsSubmittingUnban(false);
+      toast.error(error.message || "Failed to reactivate user.");
     }
   };
 
@@ -911,7 +823,7 @@ export function UserManagement() {
           </Card>
 
           {isLoading ? <LoadingState /> : null}
-          {!isLoading && fetchError ? <ErrorState onRetry={fetchUsers} /> : null}
+          {!isLoading && fetchError ? <ErrorState onRetry={refetch} /> : null}
           {!isLoading && !fetchError && totalFiltered === 0 ? (
             <EmptyState categoryLabel={categoryMeta.label} hasFilters={hasFilters} onReset={handleResetFilters} />
           ) : null}

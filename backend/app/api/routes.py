@@ -166,17 +166,33 @@ def _get_auth_email_map(user_ids: List[Optional[str]]) -> dict[str, Optional[str
         page = 1
         per_page = 200
         while True:
-            users = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
+            users_response = supabase_admin.auth.admin.list_users(page=page, per_page=per_page)
+            users = (
+                getattr(users_response, "users", None)
+                or getattr(users_response, "data", None)
+                or users_response
+                or []
+            )
+
             if not users:
                 break
+
             for user in users:
                 auth_user_id = getattr(user, "id", None)
                 if auth_user_id:
                     auth_map[auth_user_id] = getattr(user, "email", None)
+
             if len(users) < per_page or all(user_id in auth_map for user_id in unique_ids):
                 break
             page += 1
-        return {user_id: auth_map.get(user_id) for user_id in unique_ids}
+
+        # Fill any unresolved IDs with direct lookups so admin pages still receive
+        # auth emails even when list_users does not return the expected full set.
+        resolved_map = {}
+        for user_id in unique_ids:
+            resolved_map[user_id] = auth_map.get(user_id) or _get_auth_user_email(user_id)
+
+        return resolved_map
     except Exception:
         return {
             user_id: _get_auth_user_email(user_id)

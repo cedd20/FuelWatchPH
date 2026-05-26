@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   AlertCircle,
@@ -15,7 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useStationReports } from "@/hooks/admin/useStationReports";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -282,36 +282,43 @@ function EmptyState({ hasFilters, onReset }) {
   );
 }
 
+function ErrorState({ onRetry }) {
+  return (
+    <Card className="rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
+      <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500/[0.1] text-rose-700 dark:text-rose-300">
+          <AlertCircle className="h-7 w-7" strokeWidth={2.1} />
+        </div>
+        <div className="mt-4 text-lg font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+          Unable to load station reports
+        </div>
+        <div className="mt-2 max-w-md text-sm leading-6 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+          The station report feed could not be loaded right now. Please try again.
+        </div>
+        <Button
+          onClick={onRetry}
+          className="mt-5 rounded-full bg-[linear-gradient(135deg,#1f6a55,#193834)] px-5 text-white hover:opacity-95"
+        >
+          Retry
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function StationReports() {
   const navigate = useNavigate();
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [reportTypeFilter, setReportTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  useEffect(() => {
-    async function fetchReports() {
-      setIsLoading(true);
-      try {
-        const path =
-          statusFilter === "all"
-            ? "/admin/station-reports"
-            : `/admin/station-reports?status=${encodeURIComponent(statusFilter)}`;
-        const data = await apiClient.get(path);
-        setReports(data || []);
-      } catch (error) {
-        console.error("Failed to fetch station reports:", error);
-        setReports([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchReports();
-  }, [statusFilter]);
+  const {
+    data: reports = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useStationReports(statusFilter);
 
   const reportTypeOptions = useMemo(() => {
     const values = Array.from(
@@ -527,6 +534,8 @@ export function StationReports() {
           <CardContent className="space-y-4 px-4 pt-3 sm:space-y-5 sm:px-6 sm:pt-6">
             {isLoading ? (
               <LoadingState />
+            ) : isError ? (
+              <ErrorState onRetry={refetch} />
             ) : totalFiltered === 0 ? (
               <EmptyState hasFilters={hasFilters} onReset={resetFilters} />
             ) : (

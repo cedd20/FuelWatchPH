@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -12,7 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useActivityLog } from "@/hooks/admin/useActivityLog";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -432,38 +432,17 @@ function SectionField({ label, value, className }) {
 }
 
 export function AdminActivityLog() {
-  const [activities, setActivities] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  const fetchActivities = async () => {
-    setIsLoading(true);
-    setFetchError(false);
-
-    try {
-      const path =
-        typeFilter === "all"
-          ? "/admin/activity-log"
-          : `/admin/activity-log?action_type=${encodeURIComponent(typeFilter)}`;
-      const data = await apiClient.get(path);
-      setActivities(data || []);
-    } catch (error) {
-      console.error("Failed to fetch admin activity log:", error);
-      setActivities([]);
-      setFetchError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchActivities();
-  }, [typeFilter]);
+  const {
+    data: activities = [],
+    isLoading,
+    isError: fetchError,
+    refetch,
+  } = useActivityLog(typeFilter);
 
   const filteredActivities = useMemo(() => {
     return activities.filter((activity) => {
@@ -614,7 +593,7 @@ export function AdminActivityLog() {
           </Card>
 
           {isLoading ? <LoadingState /> : null}
-          {!isLoading && fetchError ? <ErrorState onRetry={fetchActivities} /> : null}
+          {!isLoading && fetchError ? <ErrorState onRetry={refetch} /> : null}
           {!isLoading && !fetchError && totalFiltered === 0 ? (
             <EmptyState hasFilters={hasFilters} onReset={handleResetFilters} />
           ) : null}

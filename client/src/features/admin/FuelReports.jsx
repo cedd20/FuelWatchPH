@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -16,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 
-import { api as apiClient } from "@/lib/apiClient";
+import { useFuelReports } from "@/hooks/admin/useFuelReports";
 import { TablePagination } from "@/shared/components/admin/TablePagination";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
@@ -77,7 +78,10 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString();
 };
 
-const formatCurrency = (value) => `PHP ${Number(value || 0).toFixed(2)}`;
+const formatCurrency = (value) =>
+  value === null || value === undefined || value === ""
+    ? "Price not provided"
+    : `PHP ${Number(value).toFixed(2)}`;
 
 function AdminStatusBadge({ status }) {
   const Icon = statusIcons[status] || Clock3;
@@ -279,6 +283,30 @@ function EmptyState({ hasFilters, onReset }) {
   );
 }
 
+function ErrorState({ onRetry }) {
+  return (
+    <Card className="rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
+      <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-rose-500/[0.1] text-rose-700 dark:text-rose-300">
+          <X className="h-7 w-7" strokeWidth={2.1} />
+        </div>
+        <div className="mt-4 text-lg font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+          Unable to load fuel reports
+        </div>
+        <div className="mt-2 max-w-md text-sm leading-6 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+          The fuel report feed could not be loaded right now. Please try again.
+        </div>
+        <Button
+          onClick={onRetry}
+          className="mt-5 rounded-full bg-[linear-gradient(135deg,#1f6a55,#193834)] px-5 text-white hover:opacity-95"
+        >
+          Retry
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function FuelReportModal({ report, onClose }) {
   if (!report) return null;
 
@@ -401,31 +429,18 @@ function FuelReportModal({ report, onClose }) {
 }
 
 export function FuelReports() {
-  const [reports, setReports] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fuelFilter, setFuelFilter] = useState("all");
   const [selectedReport, setSelectedReport] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-
-  useEffect(() => {
-    async function fetchReports() {
-      setIsLoading(true);
-      try {
-        const data = await apiClient.get("/admin/fuel-reports");
-        setReports(data || []);
-      } catch (error) {
-        console.error("Failed to fetch fuel reports:", error);
-        setReports([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchReports();
-  }, []);
+  const {
+    data: reports = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useFuelReports();
 
   const fuelOptions = useMemo(() => {
     const values = Array.from(
@@ -641,6 +656,8 @@ export function FuelReports() {
           <CardContent className="space-y-4 px-4 pt-3 sm:space-y-5 sm:px-6 sm:pt-6">
             {isLoading ? (
               <LoadingState />
+            ) : isError ? (
+              <ErrorState onRetry={refetch} />
             ) : totalFiltered === 0 ? (
               <EmptyState hasFilters={hasFilters} onReset={resetFilters} />
             ) : (
