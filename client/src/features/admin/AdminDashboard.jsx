@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   AlertCircle,
@@ -19,8 +19,19 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 
 import { useAdminDashboard } from "@/hooks/admin/useAdminDashboard";
+import { useFuelReports } from "@/hooks/admin/useFuelReports";
+import { useStationReports } from "@/hooks/admin/useStationReports";
+import { useVerificationRequests } from "@/hooks/admin/useVerificationRequests";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/shared/components/ui/chart";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -86,6 +97,38 @@ const statToneStyles = {
   },
 };
 
+const ACTIVITY_CHART_CONFIG = {
+  verifications: {
+    label: "Verification Requests",
+    color: "#059669",
+  },
+  fuelReports: {
+    label: "Fuel Reports",
+    color: "#0284c7",
+  },
+  stationReports: {
+    label: "Station Reports",
+    color: "#f59e0b",
+  },
+};
+
+const ACTIVITY_CHART_DAYS = 7;
+
+const WORKLOAD_CHART_CONFIG = {
+  pendingVerifications: {
+    label: "Pending Verification Requests",
+    color: "#059669",
+  },
+  pendingFuelReports: {
+    label: "Pending Fuel Reports",
+    color: "#0284c7",
+  },
+  pendingStationReports: {
+    label: "Pending Station Reports",
+    color: "#f59e0b",
+  },
+};
+
 const formatDateTime = (value) => {
   if (!value) return "-";
   return new Date(value).toLocaleString();
@@ -96,10 +139,100 @@ const formatDate = (value) => {
   return new Date(value).toLocaleDateString();
 };
 
+const formatShortDay = (value) =>
+  new Date(value).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+  });
+
+const formatLongDay = (value) =>
+  new Date(value).toLocaleDateString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
 const formatStatusLabel = (status) => {
   if (!status) return "Pending";
   return status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 };
+
+function buildSubmissionTrendData({
+  verificationRequests = [],
+  fuelReports = [],
+  stationReports = [],
+  days = ACTIVITY_CHART_DAYS,
+}) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const dayEntries = Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - index - 1));
+
+    return {
+      key: date.toISOString().slice(0, 10),
+      label: formatShortDay(date),
+      fullLabel: formatLongDay(date),
+      verifications: 0,
+      fuelReports: 0,
+      stationReports: 0,
+      total: 0,
+    };
+  });
+
+  const dayMap = new Map(dayEntries.map((entry) => [entry.key, entry]));
+
+  const addRecordToDay = (value, key) => {
+    if (!value) return;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return;
+
+    const bucket = dayMap.get(date.toISOString().slice(0, 10));
+    if (!bucket) return;
+
+    bucket[key] += 1;
+    bucket.total += 1;
+  };
+
+  verificationRequests.forEach((request) => addRecordToDay(request.created_at, "verifications"));
+  fuelReports.forEach((report) => addRecordToDay(report.submissionDate, "fuelReports"));
+  stationReports.forEach((report) => addRecordToDay(report.submissionDate, "stationReports"));
+
+  return dayEntries;
+}
+
+function buildWorkloadBreakdownData({
+  stats,
+  stationReports = [],
+}) {
+  const pendingStationCount = stationReports.filter(
+    (report) => report.status === "pending" || report.status === "under_review",
+  ).length;
+
+  return [
+    {
+      key: "pendingVerifications",
+      value: Number(stats?.pendingRequests || 0),
+      description: "Identity checks waiting in the verification queue.",
+    },
+    {
+      key: "pendingFuelReports",
+      value: Number(stats?.openReports || 0),
+      description: "Fuel price reports still waiting for confirmation or review.",
+    },
+    {
+      key: "pendingStationReports",
+      value: pendingStationCount,
+      description: "Station issues still open for review or resolution.",
+    },
+  ].map((item) => ({
+    ...item,
+    label: WORKLOAD_CHART_CONFIG[item.key].label,
+    fill: WORKLOAD_CHART_CONFIG[item.key].color,
+  }));
+}
 
 function AdminStatusBadge({ status }) {
   return (
@@ -120,10 +253,11 @@ function AdminSectionCard({
   action,
   children,
   contentClassName,
+  headerClassName,
 }) {
   return (
     <Card className="overflow-hidden rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
-      <CardHeader className="gap-2 border-b border-[rgba(25,56,52,0.08)] px-4 pb-3 pt-3 dark:border-white/[0.06] sm:gap-3 sm:px-6 sm:pb-5 sm:pt-6">
+      <CardHeader className={cn("gap-2 border-b border-[rgba(25,56,52,0.08)] px-4 pb-3 pt-3 dark:border-white/[0.06] sm:gap-3 sm:px-6 sm:pb-5 sm:pt-6", headerClassName)}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] dark:bg-emerald-500/[0.12] dark:text-emerald-300 sm:h-11 sm:w-11">
@@ -278,6 +412,34 @@ function EmptyState({ icon: Icon, title, description }) {
   );
 }
 
+function DashboardAnalyticsState({ icon: Icon, title, description, tone = "neutral" }) {
+  const toneStyles = {
+    neutral:
+      "border-dashed border-[rgba(25,56,52,0.18)] bg-[rgba(230,240,236,0.52)] dark:border-white/10 dark:bg-white/[0.025]",
+    danger:
+      "border-rose-500/20 bg-rose-500/[0.05] dark:border-rose-500/20 dark:bg-rose-500/[0.08]",
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex min-h-[320px] flex-col items-center justify-center rounded-[24px] border px-5 py-10 text-center sm:px-6",
+        toneStyles[tone] || toneStyles.neutral,
+      )}
+    >
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+        <Icon className={cn("h-6 w-6", title.includes("Loading") ? "animate-spin" : "")} strokeWidth={2.1} />
+      </div>
+      <div className="mt-4 text-base font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+        {title}
+      </div>
+      <div className="mt-2 max-w-md text-sm leading-6 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+        {description}
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboard() {
   const navigate = useNavigate();
   const [isRetrying, setIsRetrying] = useState(false);
@@ -288,6 +450,9 @@ export function AdminDashboard() {
     isError,
     refetch,
   } = useAdminDashboard();
+  const verificationTrendQuery = useVerificationRequests("all");
+  const fuelTrendQuery = useFuelReports();
+  const stationTrendQuery = useStationReports("all");
 
   const handleRetry = async () => {
     setIsRetrying(true);
@@ -299,6 +464,53 @@ export function AdminDashboard() {
   const recentVerifications = dashboard?.recentVerifications || [];
   const recentReports = dashboard?.recentReports || [];
   const recentActivity = dashboard?.recentActivity || [];
+  const trendChartData = useMemo(
+    () =>
+      buildSubmissionTrendData({
+        verificationRequests: verificationTrendQuery.data || [],
+        fuelReports: fuelTrendQuery.data || [],
+        stationReports: stationTrendQuery.data || [],
+      }),
+    [verificationTrendQuery.data, fuelTrendQuery.data, stationTrendQuery.data],
+  );
+  const chartHasData = trendChartData.some((entry) => entry.total > 0);
+  const isAnalyticsLoading =
+    verificationTrendQuery.isLoading || fuelTrendQuery.isLoading || stationTrendQuery.isLoading;
+  const isAnalyticsError =
+    verificationTrendQuery.isError || fuelTrendQuery.isError || stationTrendQuery.isError;
+  const activitySummary = useMemo(() => {
+    if (!chartHasData) {
+      return {
+        totalSubmissions: 0,
+        busiestDay: null,
+      };
+    }
+
+    const totalSubmissions = trendChartData.reduce((sum, entry) => sum + entry.total, 0);
+    const busiestDay = trendChartData.reduce(
+      (highest, entry) => (!highest || entry.total > highest.total ? entry : highest),
+      null,
+    );
+
+    return {
+      totalSubmissions,
+      busiestDay,
+    };
+  }, [chartHasData, trendChartData]);
+  const workloadChartData = useMemo(
+    () =>
+      buildWorkloadBreakdownData({
+        stats,
+        stationReports: stationTrendQuery.data || [],
+      }),
+    [stats, stationTrendQuery.data],
+  );
+  const totalPendingTasks = workloadChartData.reduce((sum, item) => sum + item.value, 0);
+  const hasWorkloadData = totalPendingTasks > 0;
+  const workloadLeader = workloadChartData.reduce(
+    (highest, item) => (!highest || item.value > highest.value ? item : highest),
+    null,
+  );
 
   const statCards = [
     {
@@ -466,6 +678,300 @@ export function AdminDashboard() {
           {statCards.map((card) => (
             <AdminStatCard key={card.label} {...card} />
           ))}
+        </section>
+
+        <section>
+          <AdminSectionCard
+            icon={TrendingUp}
+            title="Moderation Activity"
+            headerClassName="pb-2.5 pt-2.5 sm:pb-3.5 sm:pt-4"
+            contentClassName="pt-3 sm:pt-3.5"
+            action={
+              <Badge className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.1] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-800 dark:text-emerald-200">
+                Last 7 Days
+              </Badge>
+            }
+          >
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-sm leading-[1.35rem] text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+                    Daily submission volume across verification requests, fuel reports, and station reports so admins can spot workload spikes before queues back up.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:min-w-[290px] lg:max-w-[340px]">
+                  <div className="rounded-[16px] border border-emerald-500/16 bg-emerald-500/[0.08] px-3 py-2 dark:border-emerald-500/20 dark:bg-emerald-500/[0.08]">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.17em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+                      Total Submissions
+                    </div>
+                    <div className="mt-0.5 text-base font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-lg">
+                      {activitySummary.totalSubmissions}
+                    </div>
+                  </div>
+                  <div className="rounded-[16px] border border-sky-500/16 bg-sky-500/[0.08] px-3 py-2 dark:border-sky-500/20 dark:bg-sky-500/[0.08]">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.17em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+                      Busiest Day
+                    </div>
+                    <div className="mt-0.5 text-[13px] font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-sm">
+                      {activitySummary.busiestDay
+                        ? `${activitySummary.busiestDay.label} (${activitySummary.busiestDay.total})`
+                        : "No activity"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {isAnalyticsLoading ? (
+                <DashboardAnalyticsState
+                  icon={Loader2}
+                  title="Loading analytics…"
+                  description="Gathering dashboard activity from the current admin queues."
+                />
+              ) : isAnalyticsError ? (
+                <DashboardAnalyticsState
+                  icon={AlertCircle}
+                  title="Unable to load dashboard analytics."
+                  description="The chart data could not be fetched right now. Try refreshing again in a moment."
+                  tone="danger"
+                />
+              ) : !chartHasData ? (
+                <DashboardAnalyticsState
+                  icon={FileClock}
+                  title="No analytics data available yet."
+                  description="Once submissions start coming in, daily moderation volume will appear here."
+                />
+              ) : (
+                <ChartContainer
+                  config={ACTIVITY_CHART_CONFIG}
+                  className="h-[280px] w-full aspect-auto rounded-[24px] border border-[rgba(25,56,52,0.1)] bg-[linear-gradient(180deg,rgba(246,249,247,0.9),rgba(255,255,255,0.98))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.32)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(16,33,30,0.94),rgba(12,26,23,0.98))] sm:h-[300px] sm:p-3"
+                >
+                  <BarChart data={trendChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={10}
+                      minTickGap={18}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={30}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: "rgba(25,56,52,0.06)" }}
+                      content={
+                        <ChartTooltipContent
+                          labelKey="fullLabel"
+                          formatter={(value, name, item) => (
+                            <>
+                              <div
+                                className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                style={{ backgroundColor: item.color }}
+                              />
+                              <div className="flex flex-1 items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                  {ACTIVITY_CHART_CONFIG[name]?.label || name}
+                                </span>
+                                <span className="text-foreground font-mono font-medium tabular-nums">
+                                  {value}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        />
+                      }
+                    />
+                    <ChartLegend content={<ChartLegendContent className="flex-wrap justify-start gap-2 pt-2.5" />} />
+                    <Bar
+                      dataKey="verifications"
+                      stackId="activity"
+                      fill="var(--color-verifications)"
+                      radius={[0, 0, 6, 6]}
+                    />
+                    <Bar
+                      dataKey="fuelReports"
+                      stackId="activity"
+                      fill="var(--color-fuelReports)"
+                    />
+                    <Bar
+                      dataKey="stationReports"
+                      stackId="activity"
+                      fill="var(--color-stationReports)"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </div>
+          </AdminSectionCard>
+        </section>
+
+        <section>
+          <AdminSectionCard
+            icon={Clock3}
+            title="Admin Workload Breakdown"
+            headerClassName="pb-2.5 pt-2.5 sm:pb-3.5 sm:pt-4"
+            contentClassName="pt-3 sm:pt-3.5"
+            action={
+              <Badge className="rounded-full border border-emerald-500/20 bg-emerald-500/[0.1] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-800 dark:text-emerald-200">
+                Total Pending Tasks: {totalPendingTasks}
+              </Badge>
+            }
+          >
+            <div className="space-y-3">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-sm leading-[1.35rem] text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+                    See which moderation areas currently need the most admin attention.
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-emerald-500/16 bg-emerald-500/[0.08] px-3 py-2 dark:border-emerald-500/20 dark:bg-emerald-500/[0.08] lg:min-w-[290px] lg:max-w-[340px]">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.17em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+                    Largest Queue
+                  </div>
+                  <div className="mt-0.5 text-[13px] font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-sm">
+                    {workloadLeader && workloadLeader.value > 0
+                      ? `${workloadLeader.label} (${workloadLeader.value})`
+                      : "No pending tasks"}
+                  </div>
+                </div>
+              </div>
+
+              {isAnalyticsLoading ? (
+                <DashboardAnalyticsState
+                  icon={Loader2}
+                  title="Loading workload data…"
+                  description="Checking the latest pending tasks across the admin queues."
+                />
+              ) : isAnalyticsError ? (
+                <DashboardAnalyticsState
+                  icon={AlertCircle}
+                  title="Unable to load workload breakdown."
+                  description="The current moderation queue counts could not be loaded right now."
+                  tone="danger"
+                />
+              ) : !hasWorkloadData ? (
+                <DashboardAnalyticsState
+                  icon={CheckCircle2}
+                  title="No pending admin workload at the moment."
+                  description="All current moderation queues are clear."
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,0.88fr)_minmax(0,1.12fr)] xl:items-center">
+                  <div className="rounded-[24px] border border-[rgba(25,56,52,0.1)] bg-[linear-gradient(180deg,rgba(246,249,247,0.9),rgba(255,255,255,0.98))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.32)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(16,33,30,0.94),rgba(12,26,23,0.98))] sm:p-3">
+                    <div className="relative mx-auto h-[230px] w-full max-w-[280px] sm:h-[250px] sm:max-w-[300px]">
+                      <ChartContainer
+                        config={WORKLOAD_CHART_CONFIG}
+                        className="h-full w-full aspect-auto"
+                      >
+                        <PieChart>
+                          <ChartTooltip
+                            content={
+                              <ChartTooltipContent
+                                hideLabel
+                                formatter={(value, name, item) => {
+                                  const percentage = totalPendingTasks
+                                    ? Math.round((Number(value) / totalPendingTasks) * 100)
+                                    : 0;
+
+                                  return (
+                                    <>
+                                      <div
+                                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                                        style={{ backgroundColor: item.payload.fill }}
+                                      />
+                                      <div className="flex flex-1 items-center justify-between gap-3">
+                                        <span className="text-muted-foreground">
+                                          {WORKLOAD_CHART_CONFIG[name]?.label || name}
+                                        </span>
+                                        <span className="text-foreground font-mono font-medium tabular-nums">
+                                          {value} ({percentage}%)
+                                        </span>
+                                      </div>
+                                    </>
+                                  );
+                                }}
+                              />
+                            }
+                          />
+                          <Pie
+                            data={workloadChartData}
+                            dataKey="value"
+                            nameKey="key"
+                            innerRadius={58}
+                            outerRadius={92}
+                            paddingAngle={3}
+                            strokeWidth={0}
+                          >
+                            {workloadChartData.map((entry) => (
+                              <Cell key={entry.key} fill={entry.fill} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ChartContainer>
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="flex max-w-[7rem] flex-col items-center justify-center text-center sm:max-w-[7.5rem]">
+                          <div className="text-[9px] font-semibold uppercase leading-tight tracking-[0.16em] text-[var(--app-text-muted)] dark:text-emerald-100/65 sm:text-[10px]">
+                            <span className="block">Pending</span>
+                            <span className="mt-0.5 block">Tasks</span>
+                          </div>
+                          <div className="mt-2 text-3xl font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-4xl">
+                            {totalPendingTasks}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 xl:grid-cols-1">
+                      {workloadChartData.map((item) => {
+                        const percentage = totalPendingTasks
+                          ? Math.round((item.value / totalPendingTasks) * 100)
+                          : 0;
+
+                        return (
+                          <div
+                            key={item.key}
+                            className="rounded-[22px] border border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(244,247,245,0.92),rgba(255,255,255,0.98))] p-3.5 shadow-[0_14px_35px_rgba(16,33,30,0.05)] dark:border-white/[0.07] dark:bg-[linear-gradient(180deg,rgba(16,33,30,0.94),rgba(12,26,23,0.98))]"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                    style={{ backgroundColor: item.fill }}
+                                  />
+                                  <div className="text-sm font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+                                    {item.label}
+                                  </div>
+                                </div>
+                                <div className="mt-1.5 text-xs leading-5 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                                  {item.description}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xl font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-2xl">
+                                  {item.value}
+                                </div>
+                                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+                                  {percentage}%
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </AdminSectionCard>
         </section>
 
         <section className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.9fr)] xl:gap-8">
