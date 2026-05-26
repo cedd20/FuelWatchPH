@@ -29,12 +29,10 @@ import { VerificationRequest } from "@/features/VerificationRequest";
 import { AdminDashboard } from "@/features/admin/AdminDashboard";
 import { VerificationQueue } from "@/features/admin/VerificationQueue";
 import { VerificationDetail } from "@/features/admin/VerificationDetail";
-import { VerifiedUsers } from "@/features/admin/VerifiedUsers";
 import { FuelReports } from "@/features/admin/FuelReports";
 import { StationReports } from "@/features/admin/StationReports";
 import { StationReportDetail } from "@/features/admin/StationReportDetail";
 import { UserManagement } from "@/features/admin/UserManagement";
-import { BannedUsers } from "@/features/admin/BannedUsers";
 import { AdminActivityLog } from "@/features/admin/AdminActivityLog";
 import { AdminSettings } from "@/features/admin/AdminSettings";
 
@@ -167,7 +165,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "verified-users",
-            element: <VerifiedUsers />,
+            element: <Navigate to="/admin/user-management?category=verified" replace />,
           },
           {
             path: "fuel-reports",
@@ -187,7 +185,7 @@ export const router = createBrowserRouter([
           },
           {
             path: "banned-users",
-            element: <BannedUsers />,
+            element: <Navigate to="/admin/user-management?category=banned" replace />,
           },
           {
             path: "activity-log",

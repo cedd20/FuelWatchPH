@@ -2,52 +2,284 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   AlertCircle,
-  CheckCircle,
-  Clock,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
   Eye,
+  FileText,
   Filter,
   Loader2,
+  MapPin,
   Search,
+  Sparkles,
   XCircle,
 } from "lucide-react";
-import { TablePagination } from "@/shared/components/admin/TablePagination";
+
 import { api as apiClient } from "@/lib/apiClient";
+import { TablePagination } from "@/shared/components/admin/TablePagination";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
+import { cn } from "@/shared/components/ui/utils";
 
-const STATUS_OPTIONS = ["all", "pending", "under_review", "resolved", "dismissed"];
+const STATUS_OPTIONS = [
+  { value: "all", label: "All Reports" },
+  { value: "pending", label: "Pending" },
+  { value: "under_review", label: "Under Review" },
+  { value: "resolved", label: "Resolved" },
+  { value: "dismissed", label: "Dismissed" },
+];
 
-function formatStatusLabel(status) {
+const statusStyles = {
+  pending: "border-amber-500/30 bg-amber-500/[0.12] text-amber-700 dark:text-amber-300",
+  under_review: "border-sky-500/30 bg-sky-500/[0.12] text-sky-700 dark:text-sky-300",
+  resolved: "border-emerald-500/30 bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-300",
+  dismissed: "border-rose-500/30 bg-rose-500/[0.12] text-rose-700 dark:text-rose-300",
+};
+
+const statusIcons = {
+  pending: Clock3,
+  under_review: AlertCircle,
+  resolved: CheckCircle2,
+  dismissed: XCircle,
+};
+
+const statToneStyles = {
+  pending: {
+    card:
+      "border-amber-500/25 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,247,214,0.96))] dark:border-amber-500/20 dark:bg-[linear-gradient(180deg,rgba(69,41,8,0.5),rgba(26,18,8,0.98))]",
+    icon: "bg-amber-500/[0.14] text-amber-700 dark:bg-amber-500/[0.18] dark:text-amber-300",
+  },
+  review: {
+    card:
+      "border-sky-500/[0.24] bg-[linear-gradient(180deg,rgba(239,246,255,0.98),rgba(224,242,254,0.96))] dark:border-sky-500/[0.18] dark:bg-[linear-gradient(180deg,rgba(16,58,74,0.52),rgba(8,18,24,0.98))]",
+    icon: "bg-sky-500/[0.14] text-sky-700 dark:bg-sky-500/[0.18] dark:text-sky-300",
+  },
+  resolved: {
+    card:
+      "border-emerald-500/[0.24] bg-[linear-gradient(180deg,rgba(236,253,245,0.98),rgba(221,247,237,0.96))] dark:border-emerald-500/20 dark:bg-[linear-gradient(180deg,rgba(15,68,52,0.62),rgba(9,25,20,0.98))]",
+    icon: "bg-emerald-500/[0.14] text-emerald-700 dark:bg-emerald-500/[0.18] dark:text-emerald-300",
+  },
+  dismissed: {
+    card:
+      "border-rose-500/[0.24] bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,228,230,0.96))] dark:border-rose-500/[0.18] dark:bg-[linear-gradient(180deg,rgba(84,20,35,0.52),rgba(24,10,14,0.98))]",
+    icon: "bg-rose-500/[0.14] text-rose-700 dark:bg-rose-500/[0.18] dark:text-rose-300",
+  },
+};
+
+const formatStatusLabel = (status) => {
+  if (!status) return "Pending";
   return status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
+};
 
-function getStatusIcon(status) {
-  switch (status) {
-    case "resolved":
-      return <CheckCircle className="w-4 h-4" strokeWidth={2.5} />;
-    case "dismissed":
-      return <XCircle className="w-4 h-4" strokeWidth={2.5} />;
-    case "under_review":
-      return <AlertCircle className="w-4 h-4" strokeWidth={2.5} />;
-    default:
-      return <Clock className="w-4 h-4" strokeWidth={2.5} />;
-  }
-}
-
-function getStatusColor(status) {
-  switch (status) {
-    case "resolved":
-      return "text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/50 border-emerald-400/40";
-    case "dismissed":
-      return "text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-950/50 border-gray-400/40";
-    case "under_review":
-      return "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-950/50 border-blue-400/40";
-    default:
-      return "text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-950/50 border-yellow-400/40";
-  }
-}
-
-function formatDateTime(value) {
+const formatDateTime = (value) => {
   if (!value) return "No timestamp";
   return new Date(value).toLocaleString();
+};
+
+function AdminStatusBadge({ status }) {
+  const Icon = statusIcons[status] || Clock3;
+
+  return (
+    <Badge
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+        statusStyles[status] || statusStyles.pending,
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" strokeWidth={2.2} />
+      {formatStatusLabel(status)}
+    </Badge>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value, tone }) {
+  const palette = statToneStyles[tone];
+
+  return (
+    <Card
+      className={cn(
+        "overflow-hidden rounded-[24px] border shadow-[0_18px_45px_rgba(16,33,30,0.08)] dark:shadow-[0_22px_55px_rgba(0,0,0,0.28)]",
+        palette.card,
+      )}
+    >
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--app-text-muted)] dark:text-emerald-100/70">
+              {label}
+            </div>
+            <div className="text-2xl font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-3xl">
+              {value}
+            </div>
+          </div>
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 sm:h-11 sm:w-11",
+              palette.icon,
+            )}
+          >
+            <Icon className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2.15} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FilterChip({ active, children, onClick, tone = "default" }) {
+  const activeClasses = {
+    default: "bg-[linear-gradient(135deg,#1f6a55,#193834)] text-white shadow-[0_14px_35px_rgba(25,56,52,0.22)]",
+    warning: "bg-[linear-gradient(135deg,#f59e0b,#d97706)] text-white shadow-[0_14px_35px_rgba(180,83,9,0.22)]",
+    review: "bg-[linear-gradient(135deg,#2563eb,#1d4ed8)] text-white shadow-[0_14px_35px_rgba(37,99,235,0.22)]",
+    success: "bg-[linear-gradient(135deg,#059669,#0f766e)] text-white shadow-[0_14px_35px_rgba(5,150,105,0.22)]",
+    danger: "bg-[linear-gradient(135deg,#e11d48,#be123c)] text-white shadow-[0_14px_35px_rgba(190,24,93,0.22)]",
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3.5 py-2 text-xs font-semibold transition-all whitespace-nowrap",
+        active
+          ? activeClasses[tone] || activeClasses.default
+          : "border-[rgba(25,56,52,0.12)] bg-white/[0.82] text-[var(--foreground)] hover:border-emerald-500/[0.22] dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-white",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StationReportCard({ report, onOpen }) {
+  return (
+    <div className="group w-full rounded-[26px] border border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,246,243,0.96))] p-4 text-left shadow-[0_18px_45px_rgba(16,33,30,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-500/[0.24] hover:shadow-[0_22px_55px_rgba(16,33,30,0.12)] dark:border-white/[0.07] dark:bg-[linear-gradient(180deg,rgba(16,33,30,0.95),rgba(12,26,23,0.98))] dark:hover:border-emerald-400/20 sm:p-5">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/[0.12] bg-emerald-500/[0.1] text-emerald-700 dark:text-emerald-300">
+              <MapPin className="h-5 w-5" strokeWidth={2.15} />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+                {report.stationName}
+              </div>
+              <div className="mt-1 flex items-center gap-2 text-sm text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{report.stationAddress || "No address available"}</span>
+              </div>
+            </div>
+          </div>
+          <AdminStatusBadge status={report.status} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="rounded-[18px] border border-[rgba(25,56,52,0.12)] bg-white/[0.7] p-3 dark:border-white/[0.07] dark:bg-white/[0.03]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+              Report Type
+            </div>
+            <div className="mt-1.5 text-sm font-semibold text-[var(--foreground)] dark:text-white">
+              {report.reportType || "Unknown report type"}
+            </div>
+          </div>
+          <div className="rounded-[18px] border border-[rgba(25,56,52,0.12)] bg-white/[0.7] p-3 dark:border-white/[0.07] dark:bg-white/[0.03]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+              Reporter
+            </div>
+            <div className="mt-1.5 text-sm font-semibold text-[var(--foreground)] dark:text-white">
+              {report.reportedBy || "Unknown user"}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[18px] border border-[rgba(25,56,52,0.12)] bg-white/[0.7] p-3 dark:border-white/[0.07] dark:bg-white/[0.03]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/65">
+            Issue Description
+          </div>
+          <div className="mt-1.5 line-clamp-3 text-sm leading-6 text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+            {report.description || "No description provided."}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+            Submitted {formatDateTime(report.submissionDate)}
+          </div>
+          <button
+            type="button"
+            onClick={onOpen}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-emerald-500/[0.18] bg-emerald-500/[0.1] px-4 py-2.5 text-sm font-semibold text-emerald-800 transition-all hover:bg-emerald-500/[0.14] dark:text-emerald-200 dark:hover:bg-emerald-500/[0.16] sm:w-auto sm:py-2"
+          >
+            <Eye className="h-4 w-4" strokeWidth={2.1} />
+            View Details
+            <ChevronRight className="h-4 w-4" strokeWidth={2.15} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:gap-4 xl:grid-cols-2">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <Card
+          key={index}
+          className="rounded-[26px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,246,243,0.96))] dark:border-white/[0.07] dark:bg-[linear-gradient(180deg,rgba(16,33,30,0.95),rgba(12,26,23,0.98))]"
+        >
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="h-11 w-11 animate-pulse rounded-2xl bg-[rgba(25,56,52,0.08)] dark:bg-white/[0.06]" />
+                <div className="space-y-2">
+                  <div className="h-4 w-36 animate-pulse rounded-full bg-[rgba(25,56,52,0.08)] dark:bg-white/[0.06]" />
+                  <div className="h-3 w-44 animate-pulse rounded-full bg-[rgba(25,56,52,0.06)] dark:bg-white/[0.04]" />
+                </div>
+              </div>
+              <div className="h-7 w-28 animate-pulse rounded-full bg-[rgba(25,56,52,0.08)] dark:bg-white/[0.06]" />
+            </div>
+            <div className="h-[4.5rem] animate-pulse rounded-[18px] bg-[rgba(25,56,52,0.06)] dark:bg-white/[0.04]" />
+            <div className="h-[5.5rem] animate-pulse rounded-[18px] bg-[rgba(25,56,52,0.06)] dark:bg-white/[0.04]" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ hasFilters, onReset }) {
+  return (
+    <Card className="rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
+      <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
+        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-500/[0.1] text-emerald-700 dark:text-emerald-300">
+          <AlertCircle className="h-7 w-7" strokeWidth={2.1} />
+        </div>
+        <div className="mt-4 text-lg font-semibold tracking-tight text-[var(--foreground)] dark:text-white">
+          No station reports found
+        </div>
+        <div className="mt-2 max-w-md text-sm leading-6 text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+          {hasFilters
+            ? "Try adjusting your search or active filters to bring matching station reports back into view."
+            : "New station issues will appear here as soon as community members submit them."}
+        </div>
+        {hasFilters ? (
+          <Button
+            onClick={onReset}
+            className="mt-5 rounded-full bg-[linear-gradient(135deg,#1f6a55,#193834)] px-5 text-white hover:opacity-95"
+          >
+            Reset Filters
+          </Button>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 export function StationReports() {
@@ -82,190 +314,300 @@ export function StationReports() {
   }, [statusFilter]);
 
   const reportTypeOptions = useMemo(() => {
-    const values = Array.from(new Set(reports.map((report) => report.reportType).filter(Boolean)));
+    const values = Array.from(
+      new Set(reports.map((report) => report.reportType).filter(Boolean)),
+    );
     return ["all", ...values];
   }, [reports]);
 
-  const filteredReports = reports.filter((report) => {
-    const stationName = report.stationName || "";
-    const reportType = report.reportType || "";
-    const matchesSearch =
-      searchQuery === "" ||
-      stationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      reportType.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (report.reportedBy || "").toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType = reportTypeFilter === "all" || report.reportType === reportTypeFilter;
-    return matchesSearch && matchesType;
-  });
+  const filteredReports = useMemo(
+    () =>
+      reports.filter((report) => {
+        const haystack = [
+          report.stationName,
+          report.stationAddress,
+          report.reportType,
+          report.reportedBy,
+          report.reporterEmail,
+          report.description,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const matchesSearch =
+          searchQuery === "" || haystack.includes(searchQuery.toLowerCase());
+        const matchesType =
+          reportTypeFilter === "all" || report.reportType === reportTypeFilter;
+        return matchesSearch && matchesType;
+      }),
+    [reports, searchQuery, reportTypeFilter],
+  );
 
-  const counts = {
-    pending: reports.filter((report) => report.status === "pending").length,
-    under_review: reports.filter((report) => report.status === "under_review").length,
-    resolved: reports.filter((report) => report.status === "resolved").length,
-    dismissed: reports.filter((report) => report.status === "dismissed").length,
-  };
+  const counts = useMemo(
+    () => ({
+      pending: reports.filter((report) => report.status === "pending").length,
+      under_review: reports.filter((report) => report.status === "under_review").length,
+      resolved: reports.filter((report) => report.status === "resolved").length,
+      dismissed: reports.filter((report) => report.status === "dismissed").length,
+    }),
+    [reports],
+  );
 
   const totalFiltered = filteredReports.length;
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginatedReports = filteredReports.slice(startIndex, startIndex + rowsPerPage);
+  const paginatedReports = filteredReports.slice(
+    startIndex,
+    startIndex + rowsPerPage,
+  );
+
+  const hasFilters =
+    searchQuery !== "" || statusFilter !== "all" || reportTypeFilter !== "all";
 
   const handleFilterChange = (setter, value) => {
     setter(value);
     setCurrentPage(1);
   };
 
+  const resetFilters = () => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setReportTypeFilter("all");
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="p-4 lg:p-8">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">Station Reports</h1>
-          <p className="text-sm lg:text-base text-muted-foreground">
-            Review and manage station-related issue reports
-          </p>
-        </div>
+    <div className="relative overflow-hidden px-4 py-5 lg:px-8 lg:py-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.1),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(52,211,153,0.08),transparent_22%),linear-gradient(180deg,rgba(244,247,245,0.85),rgba(237,243,239,0.8))] dark:bg-[radial-gradient(circle_at_top_left,rgba(42,107,88,0.28),transparent_30%),radial-gradient(circle_at_85%_0%,rgba(52,211,153,0.12),transparent_22%),linear-gradient(180deg,rgba(5,10,9,0.96),rgba(8,17,15,0.98))]" />
+      <div className="absolute inset-x-0 top-0 h-56 bg-[linear-gradient(180deg,rgba(25,56,52,0.04),transparent)] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.22),transparent)]" />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
-          <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-yellow-400/40 shadow-lg">
-            <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{counts.pending}</div>
-            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Pending</div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-blue-400/40 shadow-lg">
-            <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{counts.under_review}</div>
-            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Under Review</div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-emerald-400/40 shadow-lg">
-            <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{counts.resolved}</div>
-            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Resolved</div>
-          </div>
-          <div className="bg-white dark:bg-neutral-900 rounded-xl p-3 lg:p-4 border-2 border-gray-400/40 shadow-lg">
-            <div className="text-xl lg:text-2xl font-bold text-foreground mb-1">{counts.dismissed}</div>
-            <div className="text-xs lg:text-sm text-muted-foreground font-semibold">Dismissed</div>
-          </div>
-        </div>
+      <div className="relative mx-auto max-w-[1600px] space-y-4 sm:space-y-6 lg:space-y-8">
+        <Card className="overflow-hidden rounded-[32px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(233,239,235,0.94))] shadow-[0_28px_90px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(135deg,rgba(25,56,52,0.98),rgba(8,17,15,0.98))] dark:shadow-[0_35px_100px_rgba(0,0,0,0.42)]">
+          <CardContent className="relative p-5 sm:p-7 lg:p-8">
+            <div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.12),transparent_62%)] dark:block" />
+            <div className="relative flex flex-col gap-4 sm:gap-6 xl:flex-row xl:items-end xl:justify-between">
+              <div className="max-w-3xl space-y-3 sm:space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/[0.15] bg-emerald-500/[0.08] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-800 dark:text-emerald-200">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Station Reports
+                </div>
+                <div className="space-y-2">
+                  <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)] dark:text-white lg:text-4xl">
+                    Review station-related issues
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-7 text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)] sm:text-base">
+                    Inspect station corrections, location issues, and moderation notes through the refreshed FuelWatch PH admin review surface.
+                  </p>
+                </div>
+              </div>
 
-        <div className="bg-white dark:bg-neutral-900 rounded-xl p-4 lg:p-5 border-2 border-gray-200 dark:border-neutral-700 shadow-lg mb-6">
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search by station, report type, or reporter..."
-                value={searchQuery}
-                onChange={(event) => handleFilterChange(setSearchQuery, event.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-50 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg text-foreground placeholder:text-muted-foreground focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 transition-all outline-none font-medium"
-              />
-            </div>
-          </div>
-
-          <div className="hidden lg:flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-bold text-muted-foreground">Status:</span>
-            </div>
-            {STATUS_OPTIONS.map((status) => (
-              <button
-                key={status}
-                onClick={() => handleFilterChange(setStatusFilter, status)}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                  statusFilter === status
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg"
-                    : "bg-gray-100 dark:bg-neutral-800 text-foreground hover:bg-gray-200 dark:hover:bg-neutral-700"
-                }`}
-              >
-                {status === "all"
-                  ? `All (${reports.length})`
-                  : `${formatStatusLabel(status)} (${counts[status] || 0})`}
-              </button>
-            ))}
-
-            <div className="border-l-2 border-gray-300 dark:border-neutral-700 h-8 mx-2" />
-
-            <span className="text-sm font-bold text-muted-foreground">Type:</span>
-            <select
-              value={reportTypeFilter}
-              onChange={(event) => handleFilterChange(setReportTypeFilter, event.target.value)}
-              className="px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg font-bold text-sm text-foreground focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all"
-            >
-              {reportTypeOptions.map((type) => (
-                <option key={type} value={type}>
-                  {type === "all" ? "All Types" : type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="lg:hidden space-y-3">
-            <div>
-              <div className="text-xs font-bold text-muted-foreground mb-2">Status:</div>
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-                {STATUS_OPTIONS.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => handleFilterChange(setStatusFilter, status)}
-                    className={`px-3 py-2 rounded-lg font-bold text-xs whitespace-nowrap transition-all flex-shrink-0 ${
-                      statusFilter === status
-                        ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg"
-                        : "bg-gray-100 dark:bg-neutral-800 text-foreground active:bg-gray-200 dark:active:bg-neutral-700"
-                    }`}
-                  >
-                    {status === "all" ? "All" : formatStatusLabel(status)}
-                  </button>
-                ))}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:min-w-[360px]">
+                <div className="rounded-[24px] border border-emerald-500/[0.16] bg-white/[0.72] p-3.5 shadow-[0_14px_35px_rgba(16,33,30,0.06)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.04] sm:p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-300">
+                      <MapPin className="h-5 w-5" strokeWidth={2.15} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-text-muted)] dark:text-emerald-100/70">
+                        Total Reports
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+                        {reports.length} station issues in the moderation queue
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-[24px] border border-emerald-500/[0.16] bg-white/[0.72] p-3.5 shadow-[0_14px_35px_rgba(16,33,30,0.06)] backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.04] sm:p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500/[0.12] text-emerald-700 dark:text-emerald-300">
+                      <FileText className="h-5 w-5" strokeWidth={2.15} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--app-text-muted)] dark:text-emerald-100/70">
+                        Filtered Results
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+                        {totalFiltered} matching report{totalFiltered === 1 ? "" : "s"} in view
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div>
-              <div className="text-xs font-bold text-muted-foreground mb-2">Type:</div>
+        <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4">
+          <SummaryCard icon={Clock3} label="Pending" value={counts.pending} tone="pending" />
+          <SummaryCard icon={AlertCircle} label="Under Review" value={counts.under_review} tone="review" />
+          <SummaryCard icon={CheckCircle2} label="Resolved" value={counts.resolved} tone="resolved" />
+          <SummaryCard icon={XCircle} label="Dismissed" value={counts.dismissed} tone="dismissed" />
+        </section>
+
+        <Card className="overflow-hidden rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
+          <CardContent className="space-y-3.5 px-4 py-4 sm:space-y-5 sm:px-6 sm:py-6">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--app-text-muted)] sm:h-5 sm:w-5" />
+                <input
+                  type="text"
+                  placeholder="Search by station, report type, reporter, or description..."
+                  value={searchQuery}
+                  onChange={(event) =>
+                    handleFilterChange(setSearchQuery, event.target.value)
+                  }
+                  className="w-full rounded-[18px] border border-[rgba(25,56,52,0.12)] bg-white/[0.82] py-3 pl-11 pr-4 text-sm text-[var(--foreground)] outline-none transition-all placeholder:text-[var(--app-text-muted)] focus:border-emerald-500/[0.3] focus:ring-4 focus:ring-emerald-500/[0.12] dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white sm:py-3.5 sm:pl-12"
+                />
+              </div>
+
               <select
                 value={reportTypeFilter}
-                onChange={(event) => handleFilterChange(setReportTypeFilter, event.target.value)}
-                className="w-full px-4 py-2 bg-gray-100 dark:bg-neutral-800 border-2 border-gray-200 dark:border-neutral-700 rounded-lg font-bold text-sm text-foreground focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 outline-none transition-all"
+                onChange={(event) =>
+                  handleFilterChange(setReportTypeFilter, event.target.value)
+                }
+                className="w-full rounded-[18px] border border-[rgba(25,56,52,0.12)] bg-white/[0.82] px-4 py-3 text-sm font-medium text-[var(--foreground)] outline-none transition-all focus:border-emerald-500/[0.3] focus:ring-4 focus:ring-emerald-500/[0.12] dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white sm:py-3.5"
               >
                 {reportTypeOptions.map((type) => (
                   <option key={type} value={type}>
-                    {type === "all" ? "All Types" : type}
+                    {type === "all" ? "All Report Types" : type}
                   </option>
                 ))}
               </select>
             </div>
-          </div>
-        </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center p-12">
-            <Loader2 className="w-10 h-10 text-emerald-600 dark:text-emerald-400 animate-spin" />
-          </div>
-        ) : (
-          <>
-            <div className="lg:hidden space-y-3 mb-5">
-              {paginatedReports.map((report) => (
-                <button
-                  key={report.id}
-                  onClick={() => navigate(`/admin/station-reports/${report.id}`)}
-                  className="w-full text-left bg-white dark:bg-neutral-900 rounded-lg border-2 border-gray-200 dark:border-neutral-700 shadow-lg p-4 active:scale-[0.98] transition-transform"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="min-w-0">
-                      <div className="font-bold text-foreground">{report.stationName}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{report.stationAddress || "No address"}</div>
-                    </div>
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${getStatusColor(report.status)}`}>
-                      {getStatusIcon(report.status)}
-                      {formatStatusLabel(report.status)}
-                    </span>
-                  </div>
-                  <div className="text-sm font-semibold text-foreground mb-1">{report.reportType}</div>
-                  <div className="text-xs text-muted-foreground mb-3">
-                    Reported by {report.reportedBy || "Unknown user"} on {formatDateTime(report.submissionDate)}
-                  </div>
-                  <div className="text-sm text-muted-foreground line-clamp-2">{report.description || "No description provided."}</div>
-                </button>
-              ))}
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+              {STATUS_OPTIONS.map((option) => {
+                const tone =
+                  option.value === "pending"
+                    ? "warning"
+                    : option.value === "under_review"
+                      ? "review"
+                      : option.value === "resolved"
+                        ? "success"
+                        : option.value === "dismissed"
+                          ? "danger"
+                          : "default";
+                const count =
+                  option.value === "all"
+                    ? reports.length
+                    : counts[option.value] ?? 0;
+
+                return (
+                  <FilterChip
+                    key={option.value}
+                    active={statusFilter === option.value}
+                    tone={tone}
+                    onClick={() =>
+                      handleFilterChange(setStatusFilter, option.value)
+                    }
+                  >
+                    {option.label} ({count})
+                  </FilterChip>
+                );
+              })}
             </div>
+          </CardContent>
+        </Card>
 
-            {totalFiltered > 0 && (
-              <div className="lg:hidden mb-5">
-                <div className="bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 shadow-lg overflow-hidden">
+        <Card className="overflow-hidden rounded-[28px] border-[rgba(25,56,52,0.12)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,244,240,0.96))] shadow-[0_24px_70px_rgba(16,33,30,0.08)] dark:border-white/[0.08] dark:bg-[linear-gradient(180deg,rgba(25,56,52,0.94),rgba(8,18,16,0.98))] dark:shadow-[0_30px_80px_rgba(0,0,0,0.36)]">
+          <CardHeader className="gap-2 border-b border-[rgba(25,56,52,0.08)] px-4 pb-3 pt-3 dark:border-white/[0.06] sm:gap-3 sm:px-6 sm:pb-5 sm:pt-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] dark:bg-emerald-500/[0.12] dark:text-emerald-300 sm:h-11 sm:w-11">
+                <Filter className="h-4.5 w-4.5 sm:h-5 sm:w-5" strokeWidth={2.25} />
+              </div>
+              <div>
+                <CardTitle className="truncate text-base font-semibold tracking-tight text-[var(--foreground)] dark:text-white sm:text-xl">
+                  Report Feed
+                </CardTitle>
+                <div className="mt-1 text-xs font-medium text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                  {totalFiltered} report{totalFiltered === 1 ? "" : "s"} ready to inspect
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 px-4 pt-3 sm:space-y-5 sm:px-6 sm:pt-6">
+            {isLoading ? (
+              <LoadingState />
+            ) : totalFiltered === 0 ? (
+              <EmptyState hasFilters={hasFilters} onReset={resetFilters} />
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 lg:hidden sm:gap-4">
+                  {paginatedReports.map((report) => (
+                    <StationReportCard
+                      key={report.id}
+                      report={report}
+                      onOpen={() => navigate(`/admin/station-reports/${report.id}`)}
+                    />
+                  ))}
+                </div>
+
+                <div className="hidden overflow-hidden rounded-[24px] border border-[rgba(25,56,52,0.12)] bg-white/[0.78] shadow-[0_18px_45px_rgba(16,33,30,0.06)] dark:border-white/[0.07] dark:bg-white/[0.03] lg:block">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1040px]">
+                      <thead>
+                        <tr className="border-b border-[rgba(25,56,52,0.12)] bg-[rgba(230,240,236,0.72)] dark:border-white/[0.07] dark:bg-white/[0.04]">
+                          <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Station</th>
+                          <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Report Type</th>
+                          <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Reporter</th>
+                          <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Submitted</th>
+                          <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Status</th>
+                          <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-text-muted)] dark:text-emerald-100/70">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedReports.map((report) => (
+                          <tr
+                            key={report.id}
+                            className="border-b border-[rgba(25,56,52,0.08)] transition-colors hover:bg-[rgba(230,240,236,0.52)] dark:border-white/[0.06] dark:hover:bg-white/[0.03]"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="text-sm font-semibold text-[var(--foreground)] dark:text-white">
+                                {report.stationName}
+                              </div>
+                              <div className="mt-1 text-xs text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                                {report.stationAddress || "No address available"}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="text-sm font-semibold text-[var(--foreground)] dark:text-white">
+                                {report.reportType}
+                              </div>
+                              <div className="mt-1 line-clamp-2 max-w-md text-xs text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                                {report.description || "No description provided."}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="text-sm font-semibold text-[var(--foreground)] dark:text-white">
+                                {report.reportedBy || "Unknown user"}
+                              </div>
+                              <div className="mt-1 text-xs text-[var(--app-text-muted)] dark:text-[var(--app-text-muted)]">
+                                {report.reporterEmail || "No email"}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-sm text-[var(--app-text-soft)] dark:text-[var(--app-text-soft)]">
+                              {formatDateTime(report.submissionDate)}
+                            </td>
+                            <td className="px-5 py-4">
+                              <AdminStatusBadge status={report.status} />
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/admin/station-reports/${report.id}`)}
+                                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/[0.18] bg-emerald-500/[0.1] px-4 py-2 text-sm font-semibold text-emerald-800 transition-all hover:bg-emerald-500/[0.14] dark:text-emerald-200 dark:hover:bg-emerald-500/[0.16]"
+                              >
+                                <Eye className="h-4 w-4" strokeWidth={2.1} />
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="overflow-hidden rounded-[22px] border border-[rgba(25,56,52,0.12)] bg-white/[0.72] dark:border-white/[0.07] dark:bg-white/[0.03]">
                   <TablePagination
                     currentPage={currentPage}
                     totalItems={totalFiltered}
@@ -277,96 +619,10 @@ export function StationReports() {
                     }}
                   />
                 </div>
-              </div>
+              </>
             )}
-
-            <div className="hidden lg:block bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 shadow-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800">
-                      <th className="text-left p-4 text-sm font-bold text-foreground">Station</th>
-                      <th className="text-left p-4 text-sm font-bold text-foreground">Report</th>
-                      <th className="text-left p-4 text-sm font-bold text-foreground">Reporter</th>
-                      <th className="text-left p-4 text-sm font-bold text-foreground">Submitted</th>
-                      <th className="text-left p-4 text-sm font-bold text-foreground">Status</th>
-                      <th className="text-right p-4 text-sm font-bold text-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedReports.map((report) => (
-                      <tr
-                        key={report.id}
-                        className="border-b border-gray-200 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors"
-                      >
-                        <td className="p-4">
-                          <div className="font-bold text-foreground">{report.stationName}</div>
-                          <div className="text-xs text-muted-foreground mt-1">{report.stationAddress || "No address"}</div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-sm font-semibold text-foreground">{report.reportType}</div>
-                          <div className="text-xs text-muted-foreground mt-1 max-w-md line-clamp-2">
-                            {report.description || "No description provided."}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-sm font-semibold text-foreground">{report.reportedBy || "Unknown user"}</div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-sm text-foreground font-semibold">{formatDateTime(report.submissionDate)}</div>
-                        </td>
-                        <td className="p-4">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusColor(report.status)}`}>
-                            {getStatusIcon(report.status)}
-                            {formatStatusLabel(report.status)}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-end">
-                            <button
-                              onClick={() => navigate(`/admin/station-reports/${report.id}`)}
-                              className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-bold text-xs shadow-lg hover:shadow-xl transition-all flex items-center gap-1"
-                            >
-                              <Eye className="w-3 h-3" />
-                              View
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {totalFiltered > 0 && (
-                <TablePagination
-                  currentPage={currentPage}
-                  totalItems={totalFiltered}
-                  rowsPerPage={rowsPerPage}
-                  onPageChange={setCurrentPage}
-                  onRowsPerPageChange={(rows) => {
-                    setRowsPerPage(rows);
-                    setCurrentPage(1);
-                  }}
-                />
-              )}
-            </div>
-
-            {totalFiltered === 0 && (
-              <div className="bg-white dark:bg-neutral-900 rounded-xl border-2 border-gray-200 dark:border-neutral-700 shadow-lg p-8 text-center">
-                <div className="w-16 h-16 bg-gray-100 dark:bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-base lg:text-lg font-bold text-foreground mb-2">No station reports found</h3>
-                <p className="text-muted-foreground text-sm">
-                  {searchQuery || reportTypeFilter !== "all"
-                    ? "Try adjusting your filters."
-                    : `No ${statusFilter === "all" ? "" : statusFilter} station reports are available yet.`}
-                </p>
-              </div>
-            )}
-          </>
-        )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
