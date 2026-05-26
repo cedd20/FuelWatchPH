@@ -793,14 +793,6 @@ export function AdminActivityLog() {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => setSelectedActivity(null)}
-                    className="h-11 rounded-full bg-[linear-gradient(135deg,#1f6a55,#193834)] px-5 text-white shadow-[0_18px_45px_rgba(25,56,52,0.22)] hover:opacity-95"
-                  >
-                    <Eye className="h-4 w-4" />
-                    Close
-                  </Button>
                 </div>
               </DialogHeader>
 
