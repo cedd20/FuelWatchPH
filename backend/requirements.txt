@@ -10,3 +10,4 @@ requests>=2.31
 supabase>=2.0.0
 python-dotenv>=1.0.0
 slowapi>=0.1.8
+python-multipart>=0.0.9
