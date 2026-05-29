@@ -3,11 +3,9 @@ import { Outlet, useNavigate, useLocation } from "react-router";
 import {
   LayoutDashboard,
   Shield,
-  CheckCircle,
   Fuel,
   MapPin,
   Users,
-  Ban,
   Activity,
   Settings,
   ArrowLeft,
@@ -23,11 +21,9 @@ import { AdminLogo } from "@/shared/components/admin/AdminLogo";
 const navItems = [
   { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Verification Requests", path: "/admin/verification-queue", icon: Shield },
-  { name: "Verified Users", path: "/admin/verified-users", icon: CheckCircle },
   { name: "Fuel Reports", path: "/admin/fuel-reports", icon: Fuel },
   { name: "Station Reports", path: "/admin/station-reports", icon: MapPin },
   { name: "User Management", path: "/admin/user-management", icon: Users },
-  { name: "Banned Users", path: "/admin/banned-users", icon: Ban },
   { name: "Admin Activity Log", path: "/admin/activity-log", icon: Activity },
   { name: "Settings", path: "/admin/settings", icon: Settings },
 ];

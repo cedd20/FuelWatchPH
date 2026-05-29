@@ -1,7 +1,6 @@
 "use client";
 
-import * t from "react";
-import * e from "@radix-ui/react-select";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -33,8 +32,6 @@ function SelectTrigger({
   size = "default",
   children,
   ...props
-} & {
-  size?: "sm" | "default";
 }) {
   return (
     <SelectPrimitive.Trigger
