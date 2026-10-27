@@ -206,9 +206,7 @@ export function Map() {
   const selectedFuelType = fuelSelection.selectedFuelType;
   const activeFilters = buildActiveFilterLabels(normalizedFilters);
   const isDesktopSidebarExpanded = desktopToolPanel === "list" || desktopToolPanel === "saved";
-  const tileLayerUrl = theme === "dark"
-    ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  const tileLayerUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   // Fetch real stations from backend (No GPS limits, fetch all to allow seamless map panning)
   const { data: rawStations = [], isLoading: isLoadingStations } = useStations({
@@ -696,12 +694,12 @@ export function Map() {
             center={[14.636, 121.047]}
             zoom={15}
             zoomControl={false}
-            className="w-full h-full"
+            className={`w-full h-full ${theme === "dark" ? "map-tiles-dark" : ""}`}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url={tileLayerUrl}
-              key={tileLayerUrl}
+              key={`${tileLayerUrl}-${theme}`}
             />
             <MapEvents
               onMoveStart={() => setIsUpdatingMap(true)}

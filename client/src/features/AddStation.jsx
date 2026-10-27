@@ -54,9 +54,7 @@ export function AddStation() {
   const mapRef = useRef(null);
   const existingStation = location.state?.station ?? null;
   const isEditMode = Boolean(existingStation);
-  const tileLayerUrl = theme === "dark"
-    ? "https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  const tileLayerUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const queryClient = useQueryClient();
   const createStationMutation = useCreateStation();

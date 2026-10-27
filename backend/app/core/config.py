@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     support_smtp_password: str | None = None
     support_smtp_starttls: bool = True
     support_smtp_ssl: bool = False
+    cors_origins: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=(str(BACKEND_ENV_FILE), str(ROOT_ENV_FILE)),
